@@ -198,7 +198,7 @@ def main():
 
     #get the sensor position map
     cmssw=os.environ['CMSSW_BASE']
-    sensorPos=parseWaferPositionsMap(url='%s/src/SimCalorimetry/HGCalSimAlgos/test/scripts/wafer_pos.dat'%cmssw)
+    sensorPos=parseWaferPositionsMap(url='%s/src/UserCode/HGCElectronicsValidation/test/scripts/wafer_pos.dat'%cmssw)
 
     #define inputs
     procList=[ x.split(':') for x in args ]    

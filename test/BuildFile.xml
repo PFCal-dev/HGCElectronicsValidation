@@ -1,5 +1,5 @@
 <environment>
-  <use name="SimCalorimetry/HGCalSimAlgos"/>
+  <use name="UserCode/SimCalorimetry/HGCalSimAlgos"/>
   <use name="CommonTools/UtilAlgos"/>
   <flags EDM_PLUGIN="1"/>
   <library file="HGCSiNoiseMapAnalyzer.cc" name="HGCSiNoiseMapAnalyzer">

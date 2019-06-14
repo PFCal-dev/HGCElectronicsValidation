@@ -1,7 +1,7 @@
 #ifndef _HGCOccupancyAnalyzer_h_
 #define _HGCOccupancyAnalyzer_h_
 
-#include "interface/WaferOccupancyHisto.h"
+#include "UserCode/HGCElectronicsValidation/interface/WaferOccupancyHisto.h"
 
 #include "FWCore/Framework/interface/Frameworkfwd.h"
 #include "FWCore/Framework/interface/EDAnalyzer.h"
