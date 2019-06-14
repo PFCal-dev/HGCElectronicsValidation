@@ -2,10 +2,11 @@
 A set of analyzers/analysis scripts to help with the validation of the electronics simulation in CMSSW
 
 ```
-cmsrel CMSSW_10_6_0
-cd CMSSW_10_6_0/src
+msrel CMSSW_11_0_X_2019-06-13-1100
+cd CMSSW_11_0_X_2019-06-13-1100/src
 cmsenv
-git cms-merge-topic PFCal-dev:hgc_eolt_11_0_X
+git cms-init
+git cms-checkout-topic PFCal-dev:hgc_eolt_11_0_X
 git clone https://github.com/PFCal-dev/HGCElectronicsValidation.git UserCode/HGCElectronicsValidation
 scram b -j 8
 ```
