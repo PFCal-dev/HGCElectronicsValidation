@@ -2,7 +2,12 @@
 A set of analyzers/analysis scripts to help with the validation of the electronics simulation in CMSSW
 
 ```
+cmsrel CMSSW_10_6_0
+cd CMSSW_10_6_0/src
+cmsenv
+git cms-merge-topic PFCal-dev:hgc_eolt_11_0_X
 git clone https://github.com/PFCal-dev/HGCElectronicsValidation.git UserCode/HGCElectronicsValidation
+scram b -j 8
 ```
 
 ## Radiation map analysis
