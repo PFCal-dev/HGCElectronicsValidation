@@ -1,0 +1,11 @@
+<environment>
+  <use name="SimCalorimetry/HGCalSimAlgos"/>
+  <use name="CommonTools/UtilAlgos"/>
+  <flags EDM_PLUGIN="1"/>
+  <library file="HGCSiNoiseMapAnalyzer.cc" name="HGCSiNoiseMapAnalyzer">
+  </library>
+  <library file="HGCHEbackSignalScalerAnalyzer.cc" name="HGCHEbackSignalScalerAnalyzer">
+  </library>
+  <library file="HGCOccupancyAnalyzer.cc" name="HGCOccupancyAnalyzer">
+  </library>
+</environment>
