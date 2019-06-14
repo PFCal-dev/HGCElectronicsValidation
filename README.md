@@ -26,7 +26,7 @@ git push https://github.com/PFCal-dev/cmssw HEAD:${work_branch}
 ## Radiation map analysis
 
 A set of control plots for the noise, charge collection efficiency, fluence is produced based on a radiation map file
-and on a geometry.
+and on a geometry. These analyzers can be found in SimCalorimetry/HGCalSimAlgos/test.
 
 ## Occupancy analysis
 
