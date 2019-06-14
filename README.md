@@ -18,6 +18,10 @@ and produce a summary in terms of quantiles of the distributions.
 A third histogram is used to build final profiles (function of radius, layer, etc.)
 or to dump an ascii file with the summarized information per wafer equivalent and layer.
 
+```
+cmsRun test/hgcoccupancyanalysis_cfg.py input=input_dir
+```
+
 ## Generator-level jet profiles
 
 May be useful to profile the generator level jets which are being thrown on the HGCal surface area
