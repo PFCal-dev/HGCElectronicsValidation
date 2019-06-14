@@ -2,7 +2,7 @@
 A set of analyzers/analysis scripts to help with the validation of the electronics simulation in CMSSW
 
 ```
-msrel CMSSW_11_0_X_2019-06-13-1100
+cmsrel CMSSW_11_0_X_2019-06-13-1100
 cd CMSSW_11_0_X_2019-06-13-1100/src
 cmsenv
 git cms-init
