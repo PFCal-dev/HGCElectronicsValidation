@@ -1,14 +1,26 @@
 # HGCElectronicsValidation
-A set of analyzers/analysis scripts to help with the validation of the electronics simulation in CMSSW
+
+A set of analyzers/analysis scripts to help with the validation of the electronics simulation in CMSSW.
+These tools are used to debug the development on the main cmssw repository.
+The current installation instructions are below
 
 ```
-cmsrel CMSSW_11_0_X_2019-06-13-1100
-cd CMSSW_11_0_X_2019-06-13-1100/src
+work_branch=hgc_eolt_11_0_X
+cmssw_rel=CMSSW_11_0_X_2019-06-13-1100
+cmsrel ${cmssw_rel}
+cd ${cmssw_rel}/src
 cmsenv
 git cms-init
-git cms-checkout-topic PFCal-dev:hgc_eolt_11_0_X
+git cms-checkout-topic PFCal-dev:${work_branch}
 git clone https://github.com/PFCal-dev/HGCElectronicsValidation.git UserCode/HGCElectronicsValidation
 scram b -j 8
+```
+
+When working on the packages and committing changes remember to pull and merge locally, before pushing the code.
+
+```
+git pull https://github.com/PFCal-dev/cmssw ${work_branch}
+git push https://github.com/PFCal-dev/cmssw HEAD:${work_branch}
 ```
 
 ## Radiation map analysis
