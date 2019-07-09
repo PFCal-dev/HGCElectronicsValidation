@@ -6,9 +6,6 @@ process = cms.Process("ANALYSIS")
 from FWCore.ParameterSet.VarParsing import VarParsing
 options = VarParsing ('standard')
 options.register('input', '/eos/cms/store/cmst3/user/psilva/CMSSW_10_6_0/TTJets/PU0', VarParsing.multiplicity.singleton, VarParsing.varType.string, "input directory")
-options.register('mipEqThr', 0.5, VarParsing.multiplicity.singleton, VarParsing.varType.float, "mip eq. threshold")
-options.register('fudgeFactor', 1.0, VarParsing.multiplicity.singleton, VarParsing.varType.float, "fudge factor")
-options.register('applyAngleCorr', True, VarParsing.multiplicity.singleton, VarParsing.varType.bool, "apply angle correction")
 options.parseArguments()
 
 #set geometry/global tag
@@ -33,15 +30,7 @@ process.source = cms.Source("PoolSource",
                         )
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(options.maxEvents) )
 
-
-#analyzer
-process.ana = cms.EDAnalyzer("HGCOccupancyAnalyzer",
-                             mipEqThr=cms.double(options.mipEqThr),
-                             fudgeFactor=cms.double(options.fudgeFactor),
-                             applyAngleCorr=cms.bool(options.applyAngleCorr))
-
-process.TFileService = cms.Service("TFileService",
-                                   fileName = cms.string(options.output)
-                               )
+process.ana = cms.EDAnalyzer("GenXSecAnalyzer")
 
 process.p = cms.Path(process.ana)
+process.schedule = cms.Schedule(process.p)

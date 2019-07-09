@@ -64,7 +64,8 @@ for plot in histos[0].keys():
         leg.AddEntry(h,h.GetTitle(),'ep' if isTProfile else 'l')
 
 
-    frame.GetYaxis().SetRangeUser(0,1.2*maxY)
+    frame.GetYaxis().SetTitleOffset(0.8)
+    frame.GetYaxis().SetRangeUser(1e-5,1.2*maxY)
     leg.Draw()
 
     tex=ROOT.TLatex()
@@ -72,7 +73,8 @@ for plot in histos[0].keys():
     tex.SetTextSize(0.04)
     tex.SetNDC()
     tex.DrawLatex(0.12,0.96,'#bf{CMS} #it{simulation preliminary}')        
-
+    c.SetLogy(True if 'pt' in plot else False)
     c.Modified()
     c.Update()
-    c.SaveAs('%s.png'%plot)
+    for ext in ['png','pdf']:
+        c.SaveAs('%s.%s'%(plot,ext))

@@ -1,8 +1,0 @@
-<environment>
-  <use name="CommonTools/UtilAlgos"/>
-  <use name="SimCalorimetry/HGCalSimProducers"/>
-  <use name="SimCalorimetry/HGCalSimAlgos"/>
-  <flags EDM_PLUGIN="1"/>
-  <library file="HGCOccupancyAnalyzer.cc" name="HGCOccupancyAnalyzer">
-  </library>
-</environment>

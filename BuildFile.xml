@@ -1,0 +1,13 @@
+<use name="IOMC/ParticleGuns"/>
+<use name="SimGeneral/HepPDTRecord"/>
+<use name="clhep"/>
+<use name="hepmc"/>
+<use name="heppdt"/>
+<use name="boost"/>
+<use name="FWCore/Framework"/>
+<use name="SimDataFormats/GeneratorProducts"/>
+<use name="CommonTools/UtilAlgos"/>
+<use name="SimCalorimetry/HGCalSimProducers"/>
+<use name="SimCalorimetry/HGCalSimAlgos"/>
+<use name="DataFormats/JetReco"/>
+<flags EDM_PLUGIN="1"/>

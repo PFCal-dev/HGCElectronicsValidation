@@ -38,50 +38,51 @@ def getRatio(num,den):
     return gr
 
 
-def showWaferMomentSummary(momentSummary,sensorPos,proc,outdir):
+def showWaferMomentSummary(momentSummary,sensorPos,proc,outdir,tag):
 
     """show the wafer data in a layer-by-layer representation"""
+
+    qbias=0.5 #the binning introduces a bias in the quantile
     
     #loop over each sub-detector layer
     subdets=set([x[0] for x in sensorPos])
     for sd in subdets:
         layers=set( [x[1] for x in sensorPos if x[0]==sd] )
         for lay in layers:
+            layerKey=(sd,lay)
                 
-            for d in momentSummary:
-                
-                layerKey=(sd,lay)
-                
-                uvzlist=[]
-                labels=[]
-                for waferKey in momentSummary[d]:
-                    isd,ilay,iu,iv=waferKey
-                    if isd!=sd or ilay!=lay :continue
+            uvzlist=[]
+            labels=[]
+            for waferKey in momentSummary:
+                isd,ilay,iu,iv=waferKey
+                if isd!=sd or ilay!=lay :continue
 
-                    ncells,r,z,eta,phi=sensorPos[waferKey]               
-                    occ=[float(x)/float(ncells) for x in momentSummary[d][waferKey]]
+                ncells,r,z,eta,phi=sensorPos[waferKey]               
+                occ=[float(x-qbias)/float(ncells) for x in momentSummary[waferKey]]
 
-                    uvzlist.append( [iu,iv,occ[0]] )
-                    labels.append( r'$%d^{+%d}_{-%d}$'%(100*occ[1],100*(occ[2]-occ[1]),100*(occ[1]-occ[0]) ) )
+                uvzlist.append( [iu,iv,occ[0]] )
+                labels.append( r'$%d^{+%d}_{-%d}$'%(100*occ[1],100*(occ[2]-occ[1]),100*(occ[1]-occ[0]) ) )
 
-                if len(uvzlist)==0: continue
-                extraText=[ proc,
-                            PLOTTITLES[d],
-                            '%s layer %d'%('CEE' if sd==0 else 'CEH', lay)
-                            ]
-                drawSensorEquivalentMap(uvzlist=uvzlist,
-                                        labels=labels,
-                                        outname=os.path.join(outdir,'%s_sd%d_lay%d'%(d,sd,lay)),
-                                        extraText=extraText,
-                                        cmapName='Wistia',
-                                        zran=[0,1],
-                                        labelSize=14)
+            if len(uvzlist)==0: continue
+            extraText=[ proc,
+                        PLOTTITLES[tag],
+                        '%s layer %d'%('CEE' if sd==0 else 'CEH', lay)
+            ]
+            drawSensorEquivalentMap(uvzlist=uvzlist,
+                                    labels=labels,
+                                    outname=os.path.join(outdir,'%s_sd%d_lay%d'%(tag,sd,lay)),
+                                    extraText=extraText,
+                                    cmapName='Wistia',
+                                    zran=[0,1],
+                                    labelSize=14)
                 
 
 
 def dumpCSVOccupancy(momentSummary,sensorPos,outdir):
 
     """dumps a CSV file with the summary of occupancies"""
+
+    qbias=0.5
 
     import csv
     fOut=open(os.path.join(outdir,'occupancy_summary.dat'),'w')
@@ -90,8 +91,8 @@ def dumpCSVOccupancy(momentSummary,sensorPos,outdir):
     for waferKey,counts in sorted(momentSummary.items(), key=lambda x: x[0]):
 
         isd,ilay,iu,iv=waferKey
-        ncells,r,z,eta,phi=sensorPos[waferKey]               
-        occ=[float(x)/float(ncells) for x in counts]
+        ncells,r,z,eta,phi=sensorPos[waferKey] 
+        occ=[float(x-qbias)/float(ncells) for x in counts]
         csv_writer.writerow( [isd,ilay,1 if ncells>400 else 0,iu,iv]+occ )
 
     fOut.close()
@@ -101,6 +102,8 @@ def getRadialSummary(momentSummary,sensorPos,proc):
     """builds the radial summary for low/high density wafers"""
     
     radialProf={}
+
+    qbias=0.5
 
     #loop over each sub-detector layer
     subdets=set([x[0] for x in sensorPos])
@@ -121,7 +124,7 @@ def getRadialSummary(momentSummary,sensorPos,proc):
                 if isd!=sd or ilay!=lay :continue
 
                 ncells,r,z,eta,phi=sensorPos[waferKey]
-                occ=[float(x)/float(ncells) for x in momentSummary[waferKey]]
+                occ=[float(x-qbias)/float(ncells) for x in momentSummary[waferKey]]
                 densIdx=1 if ncells>400 else 0
                 ipt=radialProf[layKey][densIdx].GetN()
                 radialProf[layKey][densIdx].SetPoint(ipt,r,occ[1])
@@ -158,7 +161,7 @@ def main():
 
     sensorPos=None
     iarg=0
-    radialProfiles=[]
+    radialProfiles={}
     for proc,cache,idx in procList:        
         idx=int(idx)
 
@@ -174,24 +177,28 @@ def main():
             sensorPos=pickle.load(cache)
 
         #select only the dists/process of interest
-        selMomentSummary={}
         for dist in plotList:
-            selMomentSummary[dist]={}
+            selMomentSummary={}
             for wafer in momentSummary:
-                selMomentSummary[dist][wafer]=momentSummary[wafer][idx][dist]
+                selMomentSummary[wafer]=momentSummary[wafer][idx][dist]
+            if not 'counts' in dist: 
+                continue
+            if not dist in radialProfiles:
+                radialProfiles[dist]=[]
+            radialProfiles[dist].append( getRadialSummary(selMomentSummary,sensorPos,proc) )
 
-        if 'counts' in selMomentSummary:
-            countsSummary=selMomentSummary['counts']
-            dumpCSVOccupancy(countsSummary,sensorPos,plotout)
-            radialProfiles.append( getRadialSummary(countsSummary,sensorPos,proc) )
+            if dist=='counts':         
+                dumpCSVOccupancy(selMomentSummary,sensorPos,plotout)
+                if not opt.noWaferPlots:
+                    showWaferMomentSummary(selMomentSummary,sensorPos,proc,plotout,tag=dist)
 
-        #show summary
-        if opt.noWaferPlots: continue
-        showWaferMomentSummary(selMomentSummary,sensorPos,proc,plotout)
+    for dist in radialProfiles:
+        if len(radialProfiles[dist])==0 : continue
+        print dist
+        print radialProfiles[dist]
+        showRadialProfiles(radialProfiles[dist],opt.output,tag=dist)
 
-    showRadialProfiles(radialProfiles,opt.output)
-
-def showRadialProfiles(radialProfiles,outdir):
+def showRadialProfiles(radialProfiles,outdir,tag):
 
     nprocs=len(radialProfiles)
     colors=[ROOT.kBlack,     ROOT.kGray, ROOT.kMagenta,   ROOT.kMagenta+2,  ROOT.kMagenta-9, ROOT.kRed+1, ROOT.kAzure+7,   ROOT.kBlue-7]    
@@ -307,7 +314,7 @@ def showRadialProfiles(radialProfiles,outdir):
         c.cd()
         c.Modified()
         c.Update()
-        c.SaveAs(os.path.join(outdir,'radialprofile_%d_%d.png'%layKey))
+        c.SaveAs(os.path.join(outdir,'radialprofile_%s_%d_%d.png'%(tag,layKey[0],layKey[1])))
 
     p1.Delete()
     if p2: p2.Delete()

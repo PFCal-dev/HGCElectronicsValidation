@@ -31,6 +31,8 @@
 #include "SimDataFormats/Vertex/interface/SimVertex.h"
 #include "SimDataFormats/Vertex/interface/SimVertexContainer.h"
 
+#include "DataFormats/JetReco/interface/GenJetCollection.h"
+
 #include "TrackingTools/TransientTrack/interface/TransientTrackBuilder.h"
 #include "TrackingTools/Records/interface/TransientTrackRecord.h"
 #include "TrackingTools/IPTools/interface/IPTools.h"
@@ -81,6 +83,12 @@ class HGCOccupancyAnalyzer : public edm::EDAnalyzer
   typedef std::tuple<int,int,int,int> WaferEquivalentId_t;
   std::map<WaferEquivalentId_t,WaferOccupancyHisto *> waferHistos_;
 
+  //an handy map with the eta phi of the wafers
+  std::map<WaferEquivalentId_t,std::pair<float,float> > waferEtaPhi_;
+
+  //generator level information
+  edm::EDGetTokenT<std::vector<reco::GenJet> > genJets_;
+
   //geometry and digis to analyze
   std::string geoCEE_,geoCEH_;
   std::map<std::string,const HGCalGeometry *> hgcGeometries_;
@@ -93,6 +101,13 @@ class HGCOccupancyAnalyzer : public edm::EDAnalyzer
 
   //thresholds to use for occupancy
   double mipEqThr_,fudgeFactor_;
+
+  //mip equivalent conversion
+  std::vector<double> mipEqCorr_;
+
+  //apply angular correction to the threshold
+  bool applyAngleCorr_;
+
 };
  
 

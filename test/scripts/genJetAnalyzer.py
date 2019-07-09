@@ -22,19 +22,22 @@ handles = { 'ak4' : ('ak4GenJetsNoNu', Handle("std::vector<reco::GenJet>")),
 
 jetProfiles={}
 for k in handles:
+    ptmin,ptmax=20,250
+    if k=='ak8':
+        ptmin,ptmax=100,500
     jetProfiles[k]={ 
-        'pt' : ROOT.TH1F('pt_'+k,';Transverse momentum [GeV]; Jets',50,20,250),
-        'ee' : ROOT.TProfile('ee_'+k,';Transverse momentum [GeV]; #sigma_{#eta#eta};',50,0,250),
-        'pp' : ROOT.TProfile('pp_'+k,';Transverse momentum [GeV]; #sigma_{#phi#phi};',50,0,250),
-        'emf': ROOT.TProfile('emf_'+k,';Transverse momentum [GeV];Fraction',50,20,250),
-        'hmf': ROOT.TProfile('hmf_'+k,';Transverse momentum [GeV];Fraction',50,20,250),
-        'n'  : ROOT.TProfile('n_'+k,';Transverse momentum [GeV];<Constituents>',50,20,250),
-        'eta': ROOT.TH1F('eta_'+k,';Pseudo-rapidity; Jets',50,1.5,3.0),
-        'eeeta' : ROOT.TProfile('eeeta_'+k,';Pseudo-rapidity; #sigma_{#eta#eta};',50,1.5,3),
-        'ppeta' : ROOT.TProfile('ppeta_'+k,';Pseudo-rapidity; #sigma_{#phi#phi};',50,1.5,3),
-        'emfeta': ROOT.TProfile('emfeta_'+k,';Pseudo-rapidity;Fraction',50,1.5,3),
-        'hmfeta': ROOT.TProfile('hmfeta_'+k,';Pseudo-rapidity;Fraction',50,1.5,3),
-        'neta'  : ROOT.TProfile('neta_'+k,';Pseudo-rapidity;<Constituents>',50,1.5,3)
+        'pt' : ROOT.TH1F('pt_'+k,';Transverse momentum [GeV]; Jets',25,ptmin,ptmax),
+        'ee' : ROOT.TProfile('ee_'+k,';Transverse momentum [GeV]; #sigma_{#eta#eta};',25,ptmin,ptmax),
+        'pp' : ROOT.TProfile('pp_'+k,';Transverse momentum [GeV]; #sigma_{#phi#phi};',25,ptmin,ptmax),
+        'emf': ROOT.TProfile('emf_'+k,';Transverse momentum [GeV];Fraction',25,ptmin,ptmax),
+        'hmf': ROOT.TProfile('hmf_'+k,';Transverse momentum [GeV];Fraction',25,ptmin,ptmax),
+        'n'  : ROOT.TProfile('n_'+k,';Transverse momentum [GeV];<Constituents>',25,ptmin,ptmax),
+        'eta': ROOT.TH1F('eta_'+k,';Pseudo-rapidity; Jets',25,1.5,3.0),
+        'eeeta' : ROOT.TProfile('eeeta_'+k,';Pseudo-rapidity; #sigma_{#eta#eta};',25,1.5,3),
+        'ppeta' : ROOT.TProfile('ppeta_'+k,';Pseudo-rapidity; #sigma_{#phi#phi};',25,1.5,3),
+        'emfeta': ROOT.TProfile('emfeta_'+k,';Pseudo-rapidity;Fraction',25,1.5,3),
+        'hmfeta': ROOT.TProfile('hmfeta_'+k,';Pseudo-rapidity;Fraction',25,1.5,3),
+        'neta'  : ROOT.TProfile('neta_'+k,';Pseudo-rapidity;<Constituents>',25,1.5,3)
     }
     for hname in jetProfiles[k]:
         jetProfiles[k][hname].SetDirectory(0)
@@ -63,14 +66,14 @@ for event in events:
             if abseta<1.5 or abseta>3.0 :
                 continue
             pt=j.pt()
-            if pt<20 : 
+            if pt<ptThr : 
                 continue
 
             en=j.energy()
             emf=j.emEnergy()/en
             hmf=j.hadEnergy()/en
-            ee=j.etaetaMoment()
-            pp=j.phiphiMoment()
+            ee=ROOT.TMath.Sqrt(abs(j.etaetaMoment()))
+            pp=ROOT.TMath.Sqrt(abs(j.phiphiMoment()))
             nconst=j.nConstituents()
             jetInfo.append((pt,abseta,emf,hmf,ee,pp,nconst))
  

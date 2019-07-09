@@ -1,4 +1,4 @@
-#include "HGCOccupancyAnalyzer.h"
+#include "UserCode/HGCElectronicsValidation/interface/HGCOccupancyAnalyzer.h"
 
 #include "DetectorDescription/OfflineDBLoader/interface/GeometryInfoDump.h"
 #include "Geometry/Records/interface/IdealGeometryRecord.h"
@@ -20,7 +20,6 @@
 #include "CLHEP/Geometry/Plane3D.h"
 #include "CLHEP/Geometry/Vector3D.h"
 
-
 #include "FWCore/ParameterSet/interface/FileInPath.h"
 
 #include <fstream>
@@ -36,6 +35,7 @@ using namespace std;
 
 //
 HGCOccupancyAnalyzer::HGCOccupancyAnalyzer( const edm::ParameterSet &iConfig ) :   
+  genJets_( consumes<std::vector<reco::GenJet> >(edm::InputTag("ak8GenJetsNoNu")) ),
   geoCEE_("HGCalEESensitive"),
   geoCEH_("HGCalHESiliconSensitive"),
   digisCEE_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","EE")) ),
@@ -43,7 +43,11 @@ HGCOccupancyAnalyzer::HGCOccupancyAnalyzer( const edm::ParameterSet &iConfig ) :
 {  
   mipEqThr_=iConfig.getParameter<double>("mipEqThr");
   fudgeFactor_=iConfig.getParameter<double>("fudgeFactor");
-  
+  applyAngleCorr_=(iConfig.exists("applyAngleCorr") ? iConfig.getParameter<bool>("applyAngleCorr") : true);
+
+  float qele(1.6E-4);
+  mipEqCorr_={1./(120.*67.*qele),1./(200.*70.*qele),1./(300.*73.*qele)};
+
   //parse u-v equivalence map file
   edm::FileInPath uvmapF("SimCalorimetry/HGCalSimAlgos/data/uvequiv.dat");
   std::ifstream inF(uvmapF.fullPath());  
@@ -105,8 +109,9 @@ void HGCOccupancyAnalyzer::prepareAnalysis()
             
         for(auto &uv : uvEqSet_){
           int waferU(uv.first),waferV(uv.second);
-
+          
           int ncells= ddd.numberCellsHexagon(ilay,waferU,waferV,true);
+          int waferTypeL( ddd.waferType(ilay,waferU,waferV) );
           if(ncells==0) continue;
 
           //check geometry
@@ -116,12 +121,15 @@ void HGCOccupancyAnalyzer::prepareAnalysis()
           double z(ddd.waferZ(ilay,true));
           double eta(TMath::ASinH(z/radius));
           double phi(TMath::ATan2(xy.second,xy.first));
-                   
+
           wafer_pos << subdet << " " << ilay << " "  << waferU << " " << waferV << " " 
                     << ncells << " " << radius << " " << z << " " << eta << " " << phi << endl;
 
           WaferEquivalentId_t key(std::make_tuple(subdet,ilay,waferU,waferV));
-          waferHistos_[key]=new WaferOccupancyHisto(subdet,ilay,waferU,waferV,ncells,&fs);
+          waferEtaPhi_[key]=std::pair<float,float>(eta,phi);
+
+          float mipSpectraLSB(adcLSB_*mipEqCorr_[waferTypeL]);
+          waferHistos_[key]=new WaferOccupancyHisto(subdet,ilay,waferU,waferV,ncells,mipSpectraLSB,&fs);
 
           //add all the wafer equivalents which this wafer should represent         
           for(auto uveq : uvEqMap_) {
@@ -151,6 +159,38 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
   //check if histos need to be instantiated
   if(waferHistos_.size()==0) prepareAnalysis();
 
+  //best matching wafer to gen (if dR>0.2 no match was found)
+  std::map<std::pair<int,int>, std::set<WaferOccupancyHisto::UVKey_t> > wafersOfInterest;
+  edm::Handle<std::vector<reco::GenJet> > genJetsHandle;
+  iEvent.getByToken(genJets_,genJetsHandle);
+  for(auto &j : *genJetsHandle){
+    if(j.pt()<100) continue;
+    if(fabs(j.eta())<1.5 || fabs(j.eta())>3) continue;   
+       
+    float minDR(9999.);
+    WaferEquivalentId_t bestMatchedWafer;
+    for(auto &w : waferEtaPhi_) {
+      float dR(deltaR(j.eta(),j.phi(),w.second.first,w.second.second));      
+      if(dR>minDR) continue;
+      minDR=dR;
+      bestMatchedWafer=w.first;
+    }
+
+    //add new best matched wafer
+    if(minDR>0.2) continue;
+    int sd=std::get<0>(bestMatchedWafer);
+    int lay=std::get<1>(bestMatchedWafer);
+    std::pair<int,int> key(sd,lay);
+    if(wafersOfInterest.find(key)==wafersOfInterest.end())
+      wafersOfInterest[key]=std::set<WaferOccupancyHisto::UVKey_t>();
+
+    int u=std::get<2>(bestMatchedWafer);
+    int v=std::get<3>(bestMatchedWafer);
+    WaferOccupancyHisto::UVKey_t uv(u,v);
+    wafersOfInterest[key].insert(uv);
+  }
+  
+
   //analyze digi collections
   edm::Handle<HGCalDigiCollection> ceeDigisHandle;
   iEvent.getByToken(digisCEE_,ceeDigisHandle);
@@ -163,14 +203,26 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
   //fill wafer histos and save the max. found in each layer
   std::map<std::pair<int,int>,std::pair<WaferOccupancyHisto::UVKey_t, float> > hotWaferOccPerLayer;
   for(auto &it : waferHistos_) {
-    it.second->analyze();
 
-    WaferOccupancyHisto::UVKey_t hotWaferUV=it.second->getHotWaferUV();
-    float hotWaferOcc=float(it.second->getHotWaferCounts())/float(it.second->getCells());    
     int sd=std::get<0>(it.first);
     int lay=std::get<1>(it.first);
     std::pair<int,int> key(sd,lay);
-   
+
+    //filter wafers matched to gen objects by UV coordinates
+    std::set<WaferOccupancyHisto::UVKey_t> genMatchedUVs;
+    if(wafersOfInterest.find(key)!=wafersOfInterest.end()) {
+      for(auto &w:wafersOfInterest[key]) {
+        if(!it.second->isUVEquivalent(w)) continue;
+        genMatchedUVs.insert(w);
+      }
+    }
+
+    //analyze counts
+    it.second->analyze(genMatchedUVs);
+
+    //get hottest wafer
+    WaferOccupancyHisto::UVKey_t hotWaferUV=it.second->getHotWaferUV();
+    float hotWaferOcc=float(it.second->getHotWaferCounts())/float(it.second->getCells());    
     if(hotWaferOccPerLayer.find(key)==hotWaferOccPerLayer.end() || hotWaferOccPerLayer[key].second<hotWaferOcc)       
       hotWaferOccPerLayer[key]=std::pair<WaferOccupancyHisto::UVKey_t,float>(hotWaferUV,hotWaferOcc);
   }
@@ -224,9 +276,6 @@ void HGCOccupancyAnalyzer::analyzeDigis(int isd,edm::Handle<HGCalDigiCollection>
 
   const HGCalGeometry *geom=hgcGeometries_[isd==0 ? "CEE" : "CEH"];
   
-  double qPerMipPerMicron(73*1.602177E-4);
-  double mipCorr[3]={1./(qPerMipPerMicron*120.),1./(qPerMipPerMicron*200.),1./(qPerMipPerMicron*300.)};
-
   //get ddd constants to get cell properties
   const HGCalDDDConstants &ddd=geom->topology().dddConstants();
 
@@ -246,7 +295,8 @@ void HGCOccupancyAnalyzer::analyzeDigis(int isd,edm::Handle<HGCalDigiCollection>
       std::pair<int,int> uvEq=uvEqMap_[waferUV];
 
       //correct ADC by the readoutmode (ADC or TDC)
-      double q_mipeq( hit.sample(idx).data() );
+      uint32_t rawData(hit.sample(idx).data() );
+      double q_mipeq(rawData);
       if(hit.sample(idx).mode()){
         q_mipeq = (std::floor(tdcOnset_/adcLSB_)+1.0)*adcLSB_ + (q_mipeq+0.5)*tdcLSB_;
       }else {
@@ -254,10 +304,18 @@ void HGCOccupancyAnalyzer::analyzeDigis(int isd,edm::Handle<HGCalDigiCollection>
       }  
 
       //normalize to expected MIP response
-      q_mipeq = q_mipeq*mipCorr[waferTypeL-1];
+      q_mipeq = q_mipeq*mipEqCorr_[waferTypeL-1];
+      float thr(mipEqThr_);
+      if(applyAngleCorr_) {
+        thr *= 1./fabs(cos(geom->getPosition(detId).theta()));
+      }
+      
+      bool isTOA( hit.sample(idx).getToAValid() );
+      bool isTDC( hit.sample(idx).mode() );
+      bool isBusy( isTDC && rawData==0 );
 
       WaferEquivalentId_t key(std::make_tuple(isd,layer,uvEq.first,uvEq.second));
-      waferHistos_[key]->count(waferUV.first,waferUV.second,q_mipeq,mipEqThr_,fudgeFactor_);
+      waferHistos_[key]->count(waferUV.first,waferUV.second,q_mipeq,isTOA,isTDC,isBusy,thr,fudgeFactor_);
     }
 }
 
