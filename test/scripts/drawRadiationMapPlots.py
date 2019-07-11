@@ -1,9 +1,12 @@
 import ROOT
 import sys
+import os
 
 colors=[ROOT.kBlack, ROOT.kMagenta, ROOT.kMagenta+2, ROOT.kMagenta-9,ROOT.kRed+1,ROOT.kAzure+7, ROOT.kBlue-7]
 markers=[20,24,21,25,22,26]
-plots=['sn','cce','noise','ileak','fluence','gain','mippeak']
+plots    = ['sn','cce','noise','ileak','fluence','gain','mippeak']
+rangeMin = [ 0,   0,    0,      0,      0,        0.5,   3]
+rangeMax = [ 12,  1.1,  0.7,    15e-15, 10e15,    3.5,   20]
 
 def drawHeader(title=None):
 
@@ -31,7 +34,7 @@ def makePlotsFrom(key):
     tag=key.GetName()
     tag=tag.replace('plotter_','')
 
-    for p in plots:
+    for n, p in enumerate(plots):
         for d in [8,9]:
 
             #2d map
@@ -45,7 +48,7 @@ def makePlotsFrom(key):
             c.Modified()
             c.Update()
             for ext in ['png','pdf']:
-                c.SaveAs('%s_%s_%s.%s'%(p,d,tag,ext))
+                c.SaveAs(outName+'/%s_%s_%s.%s'%(p,d,tag,ext))
 
             #per layer overview
             c.SetRightMargin(0.03)
@@ -57,7 +60,7 @@ def makePlotsFrom(key):
 
                 pname='d%d_layer%d_%s'%(d,l,p)
                 h=key.Get(pname)
-                cellh=key.Get('d%d_layer%d_ncells'%(d,l))            
+                cellh=key.Get('d%d_layer%d_ncells'%(d,l))
 
                 #use only points where there were some sensors
                 grs.append( ROOT.TGraphErrors( ) )
@@ -75,12 +78,13 @@ def makePlotsFrom(key):
                     valUnc=h.GetBinError(xbin+1)
                     grs[-1].SetPoint(np,h.GetXaxis().GetBinCenter(xbin+1),val)
                     grs[-1].SetPointError(np,0,valUnc)
-                mg.Add(grs[-1],'p')            
+                mg.Add(grs[-1],'p')
 
             mg.Draw('ap')
             mg.GetXaxis().SetTitle(h.GetXaxis().GetTitle())
             mg.GetYaxis().SetTitle(h.GetYaxis().GetTitle())
             mg.GetYaxis().SetTitleOffset(1.2)
+            mg.GetYaxis().SetRangeUser(rangeMin[n],rangeMax[n])
             leg=c.BuildLegend(0.12,0.72,0.95,0.92)
             leg.SetFillStyle(0)
             leg.SetTextFont(42)
@@ -91,7 +95,7 @@ def makePlotsFrom(key):
             c.Modified()
             c.Update()
             for ext in ['png','pdf']:
-                c.SaveAs('%s_%s_perlayer_%s.%s'%(p,d,tag,ext))
+                c.SaveAs(outName+'/%s_%s_perlayer_%s.%s'%(p,d,tag,ext))
 
 
 ROOT.gStyle.SetOptStat(0)
@@ -99,9 +103,11 @@ ROOT.gStyle.SetOptTitle(0)
 ROOT.gROOT.SetBatch(True)
 
 url='dosemap_output.root'
-if len(sys.argv)>1 : url=sys.argv[1]
+if len(sys.argv)>1 :
+    url=sys.argv[1]
+    outName=str(sys.argv[1])[:-5]
+    if not os.path.isdir(outName):
+        os.mkdir(outName)
+
 fIn=ROOT.TFile.Open(url)
 for key in fIn.GetListOfKeys(): makePlotsFrom(key.ReadObj())
-
-
-        

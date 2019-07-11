@@ -49,7 +49,7 @@ HGCOccupancyAnalyzer::HGCOccupancyAnalyzer( const edm::ParameterSet &iConfig ) :
   mipEqCorr_={1./(120.*67.*qele),1./(200.*70.*qele),1./(300.*73.*qele)};
 
   //parse u-v equivalence map file
-  edm::FileInPath uvmapF("SimCalorimetry/HGCalSimAlgos/data/uvequiv.dat");
+  edm::FileInPath uvmapF("UserCode/HGCElectronicsValidation/data/uvequiv.dat");
   std::ifstream inF(uvmapF.fullPath());  
   int u,v,sec,ueq,veq;
   while(inF >> u >> v >> sec >> ueq >> veq ) {
