@@ -6,7 +6,7 @@ The current installation instructions are below
 
 ```
 work_branch=hgc_eolt_11_0_X
-cmssw_rel=CMSSW_11_0_0_pre5
+cmssw_rel=CMSSW_11_0_0_pre6
 cmsrel ${cmssw_rel}
 cd ${cmssw_rel}/src
 cmsenv
