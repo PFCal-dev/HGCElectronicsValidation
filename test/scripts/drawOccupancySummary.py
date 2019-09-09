@@ -300,15 +300,15 @@ def showRadialProfiles(radialProfiles,outdir,tag):
             mg_ratio.GetXaxis().SetTitle('R [cm]')
             mg_ratio.GetYaxis().SetTitleOffset(0.75)
             mg_ratio.GetXaxis().SetTitleOffset(0.9)
-            mg_ratio.GetYaxis().SetRangeUser(0.6,2.8)        
+            mg_ratio.GetYaxis().SetRangeUser(0.6,1.4)        
             mg_ratio.GetYaxis().SetTitleSize(0.08)
             mg_ratio.GetYaxis().SetNdivisions(5)
             mg_ratio.GetYaxis().SetLabelSize(0.08)
             mg_ratio.GetXaxis().SetTitleSize(0.08)
             mg_ratio.GetXaxis().SetLabelSize(0.08)
 
-        #synchronize x-axis ratio
-        mg.GetXaxis().SetRangeUser( mg_ratio.GetXaxis().GetXmin(), mg_ratio.GetXaxis().GetXmax() )
+            #synchronize x-axis ratio
+            mg.GetXaxis().SetRangeUser( mg_ratio.GetXaxis().GetXmin(), mg_ratio.GetXaxis().GetXmax() )
 
         
         c.cd()

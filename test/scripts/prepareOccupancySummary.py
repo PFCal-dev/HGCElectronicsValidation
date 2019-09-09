@@ -17,8 +17,8 @@ PLOTTITLES={
     'hottestwafer4'  : '4^{th} hottest wafer neighbor',
     'hottestwafer5'  : '5^{th} hottest wafer neighbor',
     'hottestwafer6'  : '6^{th} hottest wafer neighbor',
-    'adc'            : 'Energy (MIP eq.)',
-    'adcfull'        : 'Energy (MIP eq.)',
+    'adc'            : 'Energy (ADC)',
+    'adcfull'        : 'Energy (ADC)',
     'counts'         : 'Occupancy',
     'genmatchcounts' : 'Occupancy (best gen match)'
 }
@@ -229,7 +229,7 @@ def main():
 
     #decode wafer plot list string 
     if opt.waferPlots:
-        opt.waferPlots=[[int(y) for y in x.split(',')] for x in opt.waferPlots.split(';')]
+        opt.waferPlots=[[int(y) for y in x.split(',')] for x in opt.waferPlots.split(':')]
         print opt.waferPlots
 
     #prepare output/root style
