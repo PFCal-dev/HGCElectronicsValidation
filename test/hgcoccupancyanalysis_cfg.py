@@ -6,9 +6,7 @@ process = cms.Process("ANALYSIS")
 from FWCore.ParameterSet.VarParsing import VarParsing
 options = VarParsing ('standard')
 options.register('input', '/eos/cms/store/cmst3/user/psilva/CMSSW_10_6_0/TTJets/PU0', VarParsing.multiplicity.singleton, VarParsing.varType.string, "input directory")
-options.register('mipEqThr', 0.5, VarParsing.multiplicity.singleton, VarParsing.varType.float, "mip eq. threshold")
-options.register('fudgeFactor', 1.0, VarParsing.multiplicity.singleton, VarParsing.varType.float, "fudge factor")
-options.register('applyAngleCorr', True, VarParsing.multiplicity.singleton, VarParsing.varType.bool, "apply angle correction")
+options.register('geometry', 'Extended2026D46', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'geometry to use')
 options.parseArguments()
 
 #set geometry/global tag
@@ -17,7 +15,8 @@ process.load('Configuration.StandardSequences.MagneticField_cff')
 process.load('Configuration.EventContent.EventContent_cff')
 process.load("FWCore.MessageService.MessageLogger_cfi")
 process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
-process.load('Configuration.Geometry.GeometryExtended2023D41Reco_cff')
+process.load('Configuration.Geometry.Geometry%sReco_cff'%options.geometry)
+process.load('Configuration.Geometry.Geometry%s_cff'%options.geometry)
 from Configuration.AlCa.GlobalTag import GlobalTag
 process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:phase2_realistic', '')
 process.MessageLogger.cerr.threshold = ''
@@ -35,10 +34,7 @@ process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(options.maxE
 
 
 #analyzer
-process.ana = cms.EDAnalyzer("HGCOccupancyAnalyzer",
-                             mipEqThr=cms.double(options.mipEqThr),
-                             fudgeFactor=cms.double(options.fudgeFactor),
-                             applyAngleCorr=cms.bool(options.applyAngleCorr))
+process.ana = cms.EDAnalyzer("HGCOccupancyAnalyzer")
 
 process.TFileService = cms.Service("TFileService",
                                    fileName = cms.string(options.output)

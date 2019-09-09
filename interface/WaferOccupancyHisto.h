@@ -25,16 +25,16 @@ public:
   /**
      @short CTOR
   */
- WaferOccupancyHisto(int subdet, int layer,int u,int v,int ncells,float lsb,edm::Service<TFileService> *fs) : ncells_(ncells), nEvents_(0)
+ WaferOccupancyHisto(int subdet, int layer,int u,int v,int ncells,edm::Service<TFileService> *fs) : ncells_(ncells), nEvents_(0)
     { 
       myUV_=UVKey_t(u,v);
       addWaferEquivalent(u,v);
 
       TString id(Form("sd%d_lay%d_%d_%d",subdet,layer,u,v));
       TFileDirectory subDir = (*fs)->mkdir(id.Data());
-      adcH_ = subDir.make<TH1F>(id+"_adc",";q [MIP eq.];",100,0,100*lsb);
+      adcH_ = subDir.make<TH1F>(id+"_adc",";q [ADC];",100,0,100);
       adcH_->Sumw2();      
-      adcfullH_ = subDir.make<TH1F>(id+"_adcfull",";q [MIP eq.];",100,0,500);
+      adcfullH_ = subDir.make<TH1F>(id+"_adcfull",";q [ADC];",100,0,500);
       adcfullH_->Sumw2();      
       countH_ = subDir.make<TH1F>(id+"_counts",";Counts above threshold;",ncells+1,0,ncells+1);
       countH_->Sumw2();
@@ -62,13 +62,13 @@ public:
   /**
      @short accumulate counts for a new hit
   */
-  inline void count(int u, int v,float adc,bool isTOA,bool isTDC, bool isBusy,float thr=0.5,float fudgeFactor=0.8)
+  inline void count(int u, int v,float adc,bool isTOA,bool isTDC, bool isBusy,float thr=0.)
   {
     adcH_->Fill(adc);
     adcfullH_->Fill(adc);
 
     UVKey_t key(u,v);
-    if(adc>=thr*fudgeFactor) {
+    if(adc>=thr) {
       countMap_[key]=countMap_[key]+1;
     }
     

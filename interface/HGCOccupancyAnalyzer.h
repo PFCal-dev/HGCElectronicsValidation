@@ -98,16 +98,6 @@ class HGCOccupancyAnalyzer : public edm::EDAnalyzer
   double adcLSB_,tdcLSB_,tdcOnset_;
 
   std::map<std::pair<int,int>, std::vector<TH1F *> > hottestWaferH_;
-
-  //thresholds to use for occupancy
-  double mipEqThr_,fudgeFactor_;
-
-  //mip equivalent conversion
-  std::vector<double> mipEqCorr_;
-
-  //apply angular correction to the threshold
-  bool applyAngleCorr_;
-
 };
  
 

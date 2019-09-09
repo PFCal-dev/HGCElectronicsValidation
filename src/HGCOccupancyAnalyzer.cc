@@ -41,13 +41,6 @@ HGCOccupancyAnalyzer::HGCOccupancyAnalyzer( const edm::ParameterSet &iConfig ) :
   digisCEE_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","EE")) ),
   digisCEH_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","HEfront")) )
 {  
-  mipEqThr_=iConfig.getParameter<double>("mipEqThr");
-  fudgeFactor_=iConfig.getParameter<double>("fudgeFactor");
-  applyAngleCorr_=(iConfig.exists("applyAngleCorr") ? iConfig.getParameter<bool>("applyAngleCorr") : true);
-
-  float qele(1.6E-4);
-  mipEqCorr_={1./(120.*67.*qele),1./(200.*70.*qele),1./(300.*73.*qele)};
-
   //parse u-v equivalence map file
   edm::FileInPath uvmapF("UserCode/HGCElectronicsValidation/data/uvequiv.dat");
   std::ifstream inF(uvmapF.fullPath());  
@@ -111,7 +104,6 @@ void HGCOccupancyAnalyzer::prepareAnalysis()
           int waferU(uv.first),waferV(uv.second);
           
           int ncells= ddd.numberCellsHexagon(ilay,waferU,waferV,true);
-          int waferTypeL( ddd.waferType(ilay,waferU,waferV) );
           if(ncells==0) continue;
 
           //check geometry
@@ -128,8 +120,7 @@ void HGCOccupancyAnalyzer::prepareAnalysis()
           WaferEquivalentId_t key(std::make_tuple(subdet,ilay,waferU,waferV));
           waferEtaPhi_[key]=std::pair<float,float>(eta,phi);
 
-          float mipSpectraLSB(adcLSB_*mipEqCorr_[waferTypeL]);
-          waferHistos_[key]=new WaferOccupancyHisto(subdet,ilay,waferU,waferV,ncells,mipSpectraLSB,&fs);
+          waferHistos_[key]=new WaferOccupancyHisto(subdet,ilay,waferU,waferV,ncells,&fs);
 
           //add all the wafer equivalents which this wafer should represent         
           for(auto uveq : uvEqMap_) {
@@ -294,28 +285,29 @@ void HGCOccupancyAnalyzer::analyzeDigis(int isd,edm::Handle<HGCalDigiCollection>
       std::pair<int,int> waferUV=detId.waferUV();
       std::pair<int,int> uvEq=uvEqMap_[waferUV];
 
-      //correct ADC by the readoutmode (ADC or TDC)
       uint32_t rawData(hit.sample(idx).data() );
-      double q_mipeq(rawData);
-      if(hit.sample(idx).mode()){
-        q_mipeq = (std::floor(tdcOnset_/adcLSB_)+1.0)*adcLSB_ + (q_mipeq+0.5)*tdcLSB_;
-      }else {
-        q_mipeq *= adcLSB_;        
-      }  
 
+      //correct ADC by the readoutmode (ADC or TDC)
+      //FIXME : THIS NEEDS TO USE THE PROPER GAIN 
+      //double q_mipeq(rawData);
+      //if(hit.sample(idx).mode()){
+      //  q_mipeq = (std::floor(tdcOnset_/adcLSB_)+1.0)*adcLSB_ + (q_mipeq+0.5)*tdcLSB_;
+      // }else {
+      //  q_mipeq *= adcLSB_;        
+      // }  
       //normalize to expected MIP response
-      q_mipeq = q_mipeq*mipEqCorr_[waferTypeL-1];
-      float thr(mipEqThr_);
-      if(applyAngleCorr_) {
-        thr *= 1./fabs(cos(geom->getPosition(detId).theta()));
-      }
+      //q_mipeq = q_mipeq*mipEqCorr_[waferTypeL-1];
+      //float thr(mipEqThr_);
+      //if(applyAngleCorr_) {
+      //  thr *= 1./fabs(cos(geom->getPosition(detId).theta()));
+      // }
       
       bool isTOA( hit.sample(idx).getToAValid() );
       bool isTDC( hit.sample(idx).mode() );
       bool isBusy( isTDC && rawData==0 );
 
       WaferEquivalentId_t key(std::make_tuple(isd,layer,uvEq.first,uvEq.second));
-      waferHistos_[key]->count(waferUV.first,waferUV.second,q_mipeq,isTOA,isTDC,isBusy,thr,fudgeFactor_);
+      waferHistos_[key]->count(waferUV.first,waferUV.second,rawData,isTOA,isTDC,isBusy,0.);
     }
 }
 
