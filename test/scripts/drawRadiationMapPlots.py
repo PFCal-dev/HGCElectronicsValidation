@@ -104,10 +104,10 @@ ROOT.gROOT.SetBatch(True)
 
 url='dosemap_output.root'
 if len(sys.argv)>1 :
-    url=sys.argv[1]
-    outName=str(sys.argv[1])[:-5]
-    if not os.path.isdir(outName):
-        os.mkdir(outName)
+    url=str(sys.argv[1])
+outName=url[:-5]
+if not os.path.isdir(outName):
+    os.mkdir(outName)
 
 fIn=ROOT.TFile.Open(url)
 for key in fIn.GetListOfKeys(): makePlotsFrom(key.ReadObj())

@@ -136,74 +136,51 @@ def getRadialSummary(momentSummary,sensorPos,proc):
     return radialProf
 
 
+def getWaferUVSummary(momentSummary,sensorPos,proc):
 
-def main():
+    """builds the longitudinal profile summary for a particular wafer"""
+    
+    waferUVSummary={}
 
-    #parse inputs
-    #configuration
-    usage = 'usage: %prog [options]'
-    parser = optparse.OptionParser(usage)
-    parser.add_option('-o', '--out',   dest='output',  help='output directory [%default]',  default='occ_plots', type='string')    
-    parser.add_option('-p', '--plots', dest='plots',  help='plots (csv) [%default]',       default='counts', type='string')    
-    parser.add_option(      '--noWaferPlots',   dest='noWaferPlots',  help='disable wafer plots [%default]',             default=False, action='store_true')
-    (opt, args) = parser.parse_args()
+    qbias=0.5
 
-    #generic root cfg
-    ROOT.gStyle.SetOptStat(0)
-    ROOT.gStyle.SetOptTitle(0)
-    ROOT.gROOT.SetBatch(True)
+    #loop over each sub-detector layer
+    subdets=set([x[0] for x in sensorPos])
+    for sd in subdets:
+        for waferKey in momentSummary:
+            isd,ilay,iu,iv=waferKey
+            if isd != sd: continue
+            
+            sumKey=(isd,iu,iv)
+            if not sumKey in waferUVSummary:
+                waferUVSummary[sumKey]=ROOT.TGraphAsymmErrors()
+                name='sd_%d_%d_%d'%sumKey
+                name=name.replace('-','m')
+                waferUVSummary[sumKey].SetName(name)
+                waferUVSummary[sumKey].SetTitle(proc)
 
-    #define inputs
-    procList=[ x.split(':') for x in args ]    
+            ncells,r,z,eta,phi=sensorPos[waferKey]
+            occ=[float(x-qbias)/float(ncells) for x in momentSummary[waferKey]]
+            ipt=waferUVSummary[sumKey].GetN()
+            waferUVSummary[sumKey].SetPoint(ipt,z,occ[1])
+            waferUVSummary[sumKey].SetPointError(ipt,0,0,0,occ[2]-occ[1])
+            
+           
+    for sumKey in waferUVSummary:
+        waferUVSummary[sumKey].Sort()
+        
 
-    #show only these
-    plotList=opt.plots.split(',')
+    return waferUVSummary
 
-    sensorPos=None
-    iarg=0
-    radialProfiles={}
-    for proc,cache,idx in procList:        
-        idx=int(idx)
+def showSummaryProfiles(profColl,outdir,tag,profType='radial',xtitle='R [cm]', ytitle='Occupancy', yran=(0.5e-2,1)):
 
-        #prepare output
-        iarg+=1
-        plotout='%s/proc%d'%(opt.output,iarg)
-        os.system('mkdir -p '+plotout)
+    """ final grand summary plot """
 
-        #read summary from pickle file
-        with open(cache,'r') as cache:
-            momentSummary=pickle.load(cache)
-            pickle.load(cache)
-            sensorPos=pickle.load(cache)
-
-        #select only the dists/process of interest
-        for dist in plotList:
-            selMomentSummary={}
-            for wafer in momentSummary:
-                selMomentSummary[wafer]=momentSummary[wafer][idx][dist]
-            if not 'counts' in dist: 
-                continue
-            if not dist in radialProfiles:
-                radialProfiles[dist]=[]
-            radialProfiles[dist].append( getRadialSummary(selMomentSummary,sensorPos,proc) )
-
-            if dist=='counts':         
-                dumpCSVOccupancy(selMomentSummary,sensorPos,plotout)
-                if not opt.noWaferPlots:
-                    showWaferMomentSummary(selMomentSummary,sensorPos,proc,plotout,tag=dist)
-
-    for dist in radialProfiles:
-        if len(radialProfiles[dist])==0 : continue
-        print dist
-        print radialProfiles[dist]
-        showRadialProfiles(radialProfiles[dist],opt.output,tag=dist)
-
-def showRadialProfiles(radialProfiles,outdir,tag):
-
-    nprocs=len(radialProfiles)
+    nprocs=len(profColl)
     colors=[ROOT.kBlack,     ROOT.kGray, ROOT.kMagenta,   ROOT.kMagenta+2,  ROOT.kMagenta-9, ROOT.kRed+1, ROOT.kAzure+7,   ROOT.kBlue-7]    
     markers=[24,20,25,21,26,22,32,23]
     fills=[3001,3325,3352,3305]
+
     c=ROOT.TCanvas('c','c',500,500)
     c.SetTopMargin(0)
     c.SetLeftMargin(0)
@@ -231,8 +208,8 @@ def showRadialProfiles(radialProfiles,outdir,tag):
     c.cd()
 
 
-    nprocs=len(radialProfiles)
-    for layKey in radialProfiles[0]:
+    nprocs=len(profColl)
+    for collKey in profColl[0]:
 
         p1.cd()
         p1.Clear()
@@ -249,11 +226,28 @@ def showRadialProfiles(radialProfiles,outdir,tag):
         ratios=[]
         for iproc in range(nprocs):       
 
-            for igr in range(2):
-                ci=colors[2*iproc+igr]
-                ms=markers[2*iproc+igr]
+            if type(profColl[iproc][collKey])==list:
+                for igr in range(len(profColl[iproc][collKey])):
+                    ci=colors[2*iproc+igr]
+                    ms=markers[2*iproc+igr]
+                    fs=fills[iproc]
+                    gr=profColl[iproc][collKey][igr]
+                    gr.SetLineColor(ci)
+                    gr.SetFillColor(ci)
+                    gr.SetFillStyle(fs)
+                    gr.SetMarkerColor(ci)
+                    gr.SetMarkerStyle(ms)
+                    mg.Add(gr)
+                    leg.AddEntry(gr,gr.GetTitle(),'pf')
+
+                    if iproc>0:
+                        ratios.append( getRatio(gr,profColl[0][collKey][igr]) )
+
+            else:
+                ci=colors[2*iproc]
+                ms=markers[2*iproc]
                 fs=fills[iproc]
-                gr=radialProfiles[iproc][layKey][igr]
+                gr=profColl[iproc][collKey]
                 gr.SetLineColor(ci)
                 gr.SetFillColor(ci)
                 gr.SetFillStyle(fs)
@@ -263,13 +257,14 @@ def showRadialProfiles(radialProfiles,outdir,tag):
                 leg.AddEntry(gr,gr.GetTitle(),'pf')
 
                 if iproc>0:
-                    ratios.append( getRatio(radialProfiles[iproc][layKey][igr],radialProfiles[0][layKey][igr]) )
-                    
+                    ratios.append( getRatio(gr,profColl[0][collKey]) )
+
+        #draw
         mg.Draw('a3p')
-        mg.GetYaxis().SetTitle('Occupancy')
-        mg.GetXaxis().SetTitle('R [cm]')
+        mg.GetYaxis().SetTitle()
+        mg.GetXaxis().SetTitle(xtitle)
         mg.GetYaxis().SetMoreLogLabels()
-        mg.GetYaxis().SetRangeUser(0.5e-2,1)
+        mg.GetYaxis().SetRangeUser(yran[0],yran[1])
         if nprocs>1:
             mg.GetYaxis().SetTitleSize(0.05)
             mg.GetYaxis().SetLabelSize(0.05)
@@ -285,7 +280,11 @@ def showRadialProfiles(radialProfiles,outdir,tag):
         tex.DrawLatex(0.12,0.96,'#bf{CMS} #it{simulation preliminary}')        
         tex.SetTextAlign(ROOT.kHAlignRight+ROOT.kVAlignCenter)
         tex.SetTextSize(0.04 if nprocs==1 else 0.05)
-        tex.DrawLatex(0.97,0.97,'%s layer %d'%('CEE' if layKey[0]==0 else 'CEH',layKey[1]))
+        if len(collKey)==2:
+            tex.DrawLatex(0.97,0.97,'%s layer %d'%('CEE' if collKey[0]==0 else 'CEH',collKey[1]))
+        else:
+            tex.DrawLatex(0.97,0.97,'%s (u,v)=(%d,%d)'%('CEE' if collKey[0]==0 else 'CEH',collKey[1],collKey[2]))
+
 
         #add ratios if available
         if p2:
@@ -297,7 +296,7 @@ def showRadialProfiles(radialProfiles,outdir,tag):
                 mg_ratio.Add(g)
             mg_ratio.Draw('a3p')
             mg_ratio.GetYaxis().SetTitle('Ratio')
-            mg_ratio.GetXaxis().SetTitle('R [cm]')
+            mg_ratio.GetXaxis().SetTitle(xtitle)
             mg_ratio.GetYaxis().SetTitleOffset(0.75)
             mg_ratio.GetXaxis().SetTitleOffset(0.9)
             mg_ratio.GetYaxis().SetRangeUser(0.6,1.4)        
@@ -313,11 +312,80 @@ def showRadialProfiles(radialProfiles,outdir,tag):
         
         c.cd()
         c.Modified()
-        c.Update()
-        c.SaveAs(os.path.join(outdir,'radialprofile_%s_%d_%d.png'%(tag,layKey[0],layKey[1])))
+        c.Update()        
+        outNameFromKey='_'.join([str(x) for x in collKey])
+        outNameFromKey=outNameFromKey.replace('-','m')
+        c.SaveAs(os.path.join(outdir,'%sprofile_%s_%s.png'%(profType,tag,outNameFromKey)))
 
     p1.Delete()
     if p2: p2.Delete()
+
+
+def main():
+
+    #parse inputs
+    #configuration
+    usage = 'usage: %prog [options]'
+    parser = optparse.OptionParser(usage)
+    parser.add_option('-o', '--out',   dest='output',  help='output directory [%default]',  default='occ_plots', type='string')    
+    parser.add_option('-p', '--plots', dest='plots',  help='plots (csv) [%default]',       default='counts', type='string')    
+    parser.add_option(      '--noWaferPlots',   dest='noWaferPlots',  help='disable wafer plots [%default]',             default=False, action='store_true')
+    (opt, args) = parser.parse_args()
+
+    #generic root cfg
+    ROOT.gStyle.SetOptStat(0)
+    ROOT.gStyle.SetOptTitle(0)
+    ROOT.gROOT.SetBatch(True)
+
+    #define inputs
+    procList=[ x.split(':') for x in args ]    
+
+    #show only these
+    plotList=opt.plots.split(',')
+
+    sensorPos=None
+    iarg=0
+    radialProfiles={}
+    longProfiles={}
+    for proc,cache,idx in procList:        
+        idx=int(idx)
+
+        #prepare output
+        iarg+=1
+        plotout='%s/proc%d'%(opt.output,iarg)
+        os.system('mkdir -p '+plotout)
+
+        #read summary from pickle file
+        with open(cache,'r') as cache:
+            momentSummary=pickle.load(cache)
+            pickle.load(cache)
+            sensorPos=pickle.load(cache)
+
+        #select only the dists/process of interest
+        for dist in plotList:
+            selMomentSummary={}
+            for wafer in momentSummary:
+                selMomentSummary[wafer]=momentSummary[wafer][idx][dist]
+            if not 'counts' in dist: 
+                continue
+            if not dist in radialProfiles:
+                radialProfiles[dist]=[]
+                longProfiles[dist]=[]
+            radialProfiles[dist].append( getRadialSummary(selMomentSummary,sensorPos,proc) )
+            longProfiles[dist].append( getWaferUVSummary(selMomentSummary,sensorPos,proc) )
+
+            if dist=='counts':         
+                dumpCSVOccupancy(selMomentSummary,sensorPos,plotout)
+                if not opt.noWaferPlots:
+                    showWaferMomentSummary(selMomentSummary,sensorPos,proc,plotout,tag=dist)
+
+    for profColl,profType,xtitle,ytitle in [(radialProfiles, 'radial', 'R [cm]', 'Occupancy'), 
+                                            (longProfiles,   'long',   'z[cm]',  'Occupancy')]:
+        for dist in profColl:
+            if len(profColl[dist])==0 : continue
+            showSummaryProfiles(profColl[dist],opt.output,tag=dist,profType=profType,xtitle=xtitle,ytitle=ytitle)
+
+
 
 if __name__ == "__main__":
     main()
