@@ -7,10 +7,6 @@ markers=[20,24,21,25,22,26]
 plots    = ['sn','cce','noise','ileak','fluence','gain','mippeak']
 rangeMin = [ 0,   0,    0,      0,      0,        0.5,   3,      ]
 rangeMax = [ 12,  1.1,  0.7,    15,     10e15,    3.5,   20,     ]
-for i in range(3):
-    plots    += ['snf%d'%i]
-    rangeMin += [0,       ]
-    rangeMax += [7,      ]
 
 def drawHeader(title=None):
 
@@ -45,7 +41,7 @@ def makePlotsFrom(key,outName):
             c.Clear()
             c.SetTopMargin(0.05)
             c.SetRightMargin(0.12)
-            h=key.Get('d%d_%s'%(d,p))            
+            h=key.Get('d%d_%s'%(d,p))                        
             h.Draw('colz')
             h.GetZaxis().SetTitleOffset(-0.3)
             drawHeader(h.GetTitle())
