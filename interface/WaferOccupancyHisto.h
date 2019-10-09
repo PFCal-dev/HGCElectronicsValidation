@@ -176,14 +176,16 @@ public:
     if(nWaferEq==0) return;
 
     //scale by the number of wafer equivalent
-    float norm(2*nEvents_*nWaferEq);
+    //float norm(2*nEvents_*nWaferEq);
+    float norm(nEvents_*nWaferEq);
     countH_->Scale(1./norm);
     toaCountsH_->Scale(1./norm);
     tdcCountsH_->Scale(1./norm);
     busyCountsH_->Scale(1./norm);
 
     //scale only by the number of events and 2 endcaps
-    norm=float(2*nEvents_);
+    //norm=float(2*nEvents_);
+    norm=float(nEvents_);
     maxCountH_->Scale(1./norm);
     adcH_->Scale(1./norm);
     adcfullH_->Scale(1./norm);

@@ -280,6 +280,8 @@ void HGCOccupancyAnalyzer::analyzeDigis(int isd,edm::Handle<HGCalDigiCollection>
       HGCSiliconDetId detId(hit.id());
       int layer=detId.layer();
 
+      if(detId.zside()<0) continue;
+
       int waferTypeL = ddd.waferType(detId);
 
       std::pair<int,int> waferUV=detId.waferUV();

@@ -5,8 +5,12 @@ import os
 colors=[ROOT.kBlack, ROOT.kMagenta, ROOT.kMagenta+2, ROOT.kMagenta-9,ROOT.kRed+1,ROOT.kAzure+7, ROOT.kBlue-7]
 markers=[20,24,21,25,22,26]
 plots    = ['sn','cce','noise','ileak','fluence','gain','mippeak']
-rangeMin = [ 0,   0,    0,      0,      0,        0.5,   3]
-rangeMax = [ 12,  1.1,  0.7,    15e-15, 10e15,    3.5,   20]
+rangeMin = [ 0,   0,    0,      0,      0,        0.5,   3,      ]
+rangeMax = [ 12,  1.1,  0.7,    15,     10e15,    3.5,   20,     ]
+for i in range(3):
+    plots    += ['snf%d'%i]
+    rangeMin += [0,       ]
+    rangeMax += [7,      ]
 
 def drawHeader(title=None):
 
@@ -23,7 +27,7 @@ def drawHeader(title=None):
     if title:
         txt.DrawLatex(0.5,0.97,title)
 
-def makePlotsFrom(key):
+def makePlotsFrom(key,outName):
 
     """receives a TDirectoryFile with the plots from an analyzer and saves them in png/pdf"""
 
@@ -41,7 +45,7 @@ def makePlotsFrom(key):
             c.Clear()
             c.SetTopMargin(0.05)
             c.SetRightMargin(0.12)
-            h=key.Get('d%d_%s'%(d,p))
+            h=key.Get('d%d_%s'%(d,p))            
             h.Draw('colz')
             h.GetZaxis().SetTitleOffset(-0.3)
             drawHeader(h.GetTitle())
@@ -49,6 +53,8 @@ def makePlotsFrom(key):
             c.Update()
             for ext in ['png','pdf']:
                 c.SaveAs(outName+'/%s_%s_%s.%s'%(p,d,tag,ext))
+
+            if 'fluencevssn' in p or 'fluencecount' in p : continue
 
             #per layer overview
             c.SetRightMargin(0.03)
@@ -97,17 +103,20 @@ def makePlotsFrom(key):
             for ext in ['png','pdf']:
                 c.SaveAs(outName+'/%s_%s_perlayer_%s.%s'%(p,d,tag,ext))
 
+def main():
+    ROOT.gStyle.SetOptStat(0)
+    ROOT.gStyle.SetOptTitle(0)
+    ROOT.gROOT.SetBatch(True)
 
-ROOT.gStyle.SetOptStat(0)
-ROOT.gStyle.SetOptTitle(0)
-ROOT.gROOT.SetBatch(True)
+    url='dosemap_output.root'
+    if len(sys.argv)>1 :
+        url=str(sys.argv[1])
+    outName=url[:-5]
+    if not os.path.isdir(outName):
+        os.mkdir(outName)
 
-url='dosemap_output.root'
-if len(sys.argv)>1 :
-    url=str(sys.argv[1])
-outName=url[:-5]
-if not os.path.isdir(outName):
-    os.mkdir(outName)
+    fIn=ROOT.TFile.Open(url)
+    for key in fIn.GetListOfKeys(): makePlotsFrom(key.ReadObj(),outName)
 
-fIn=ROOT.TFile.Open(url)
-for key in fIn.GetListOfKeys(): makePlotsFrom(key.ReadObj())
+if __name__ == "__main__":
+    main()

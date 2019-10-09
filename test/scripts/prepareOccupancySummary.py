@@ -65,13 +65,14 @@ def getPlotsIn(url,dirName,title,pfix):
 
         sd=k.ReadObj()
         sdname=k.GetName()
-
+        
         #parse sub-det, layer + u, v from name
         vals = [int(d) for d in re.findall(r'-?\d+', sdname)]
 
         if sd.InheritsFrom('TH1') :
             layerKey=tuple(vals[0:2])
             pname=sdname.split('_')[-1]           
+            if pname !='counts' and pname !='adc' : continue
             if not layerKey in layerPlots: layerPlots[layerKey]={}
             layerPlots[layerKey][pname]=sd.Clone(hname+pfix)
             fixExtremities(layerPlots[layerKey][pname])
@@ -109,21 +110,18 @@ def getQuantiles(plotColl,q=[0.5,0.9]):
 
     return momentSummary
 
-def showPlotCollSummary(plotColl,extraText,pname,fitPeak=False,nPerRow=2,plotCDF=False):
+def showPlotCollSummary(plotColl,extraText,pname,fitPeak=False,plotCDF=False):
 
     nPlots=len(plotColl[0])
     pnames=plotColl[0].keys()
-    nx=nPerRow
-    ny=nPlots/nPerRow
-    if nx*ny<nPlots : ny+=1
-    dx=1./float(nPerRow)
-    dy=1./float(ny)
 
-    c=ROOT.TCanvas('c','c',800,ny*400)
-    c.SetTopMargin(0)
-    c.SetLeftMargin(0)
-    c.SetRightMargin(0)
-    c.SetBottomMargin(0)
+    c=ROOT.TCanvas('c','c',600,600)
+    c.SetTopMargin(0.06)
+    c.SetLeftMargin(0.12)
+    c.SetRightMargin(0.03)
+    c.SetBottomMargin(0.1)
+    c.SetLogy()
+    c.SetGridy()
     garbageList.append(c)
 
     langau=None
@@ -136,80 +134,80 @@ def showPlotCollSummary(plotColl,extraText,pname,fitPeak=False,nPerRow=2,plotCDF
         langau.SetParLimits(4,0.2,1.5)
         langau.SetParLimits(5,0.5,2.)
 
-    pads=[]
     colors=[ROOT.kBlack, ROOT.kMagenta, ROOT.kMagenta+2, ROOT.kMagenta-9,ROOT.kRed+1,ROOT.kAzure+7, ROOT.kBlue-7]    
     histos=[]
-    for ix in range(0,nx):
-        for iy in range(0,ny):
-            c.cd()
-            idx=len(pads)
-            if idx>=len(pnames) : continue
-            plot=pnames[idx]
-            plotTitle=PLOTTITLES[plot]
-            pads.append( ROOT.TPad(plot,plot,ix*dx,1-iy*dy,(ix+1)*dx,1-(iy+1)*dy) )            
-            pads[-1].SetTopMargin(0.06)
-            pads[-1].SetLeftMargin(0.12)
-            pads[-1].SetRightMargin(0.02)
-            pads[-1].SetBottomMargin(0.12)
-            pads[-1].Draw()
-            pads[-1].cd()
-            pads[-1].SetLogy()
-            
-            drawOpt='hist' 
-            fitParams=[]
-            for i in range(len(plotColl)):
-                histos.append( plotColl[i][plot].GetCumulative(False) if plotCDF else plotColl[i][plot] )
-                histos[-1].Draw(drawOpt)
-                if fitPeak and plot=='adc':
-                    histos[-1].Fit(langau,'MLRQ+','same',0.5,2)    
-                    fitParams.append([langau.GetParameter(ipar) for ipar in [4,5,2]])    
+    for idx in range(nPlots):
 
-                histos[-1].SetLineColor(colors[i])
-                histos[-1].GetXaxis().SetLabelSize(0.05)
-                histos[-1].GetXaxis().SetTitleSize(0.05)
-                histos[-1].GetYaxis().SetLabelSize(0.05)
-                histos[-1].GetYaxis().SetTitleSize(0.05)
-                drawOpt='histsame'
+        plot=pnames[idx]
+        plotTitle=PLOTTITLES[plot]
+                    
+        drawOpt='hist' 
+        fitParams=[]
+        leg=ROOT.TLegend(0.6,0.86,0.9,0.68)
+        leg.SetBorderSize(0)
+        leg.SetTextFont(42)
+        leg.SetTextSize(0.04)
+        leg.SetFillStyle(0)
+        for i in range(len(plotColl)):
+            histos.append( plotColl[i][plot] )
+            histos[-1].Draw(drawOpt)
+            histos[-1].SetLineColor(colors[i])
+            histos[-1].GetXaxis().SetLabelSize(0.045)
+            histos[-1].GetXaxis().SetTitleSize(0.045)
+            histos[-1].GetYaxis().SetLabelSize(0.045)
+            histos[-1].GetYaxis().SetTitleSize(0.045)
+            histos[-1].GetYaxis().SetTitleOffset(1.1)
+            histos[-1].GetYaxis().SetTitle('PDF or CDF' if plotCDF else 'CDF')
+            histos[-1].GetYaxis().SetRangeUser(1e-4,1)
+            leg.AddEntry(histos[-1],histos[-1].GetTitle(),'l')
 
-            #print fit parameters
             if fitPeak and plot=='adc':
-                fittex=ROOT.TLatex()
-                fittex.SetTextFont(42)
-                fittex.SetTextSize(0.04)
-                fittex.SetNDC()
-                fittex.SetTextAlign(ROOT.kHAlignRight+ROOT.kVAlignCenter)
-                for ipar,ilabel in [(0,'MPV'),(1,'#sigma'),(2,'#sigma_{noise}')]:
-                    print fitParams
-                    label='%s=%s'%(ilabel,'/'.join(['%3.2f'%fres[ipar] for fres in fitParams]))
-                    fittex.DrawLatex(0.95,0.8-ipar*0.05, label)
+                histos[-1].Fit(langau,'MLRQ+','same',0.5,2)    
+                fitParams.append([langau.GetParameter(ipar) for ipar in [4,5,2]])    
 
-            if ix==0 and iy==0:
-                leg=pads[-1].BuildLegend(0.6,0.86,0.9,0.68)
-                leg.SetBorderSize(0)
-                leg.SetTextFont(42)
-                leg.SetTextSize(0.05)
-                leg.SetFillStyle(0)
+            if plotCDF:
+                histos[-1].SetLineWidth(3)
+                histos.append( plotColl[i][plot].GetCumulative(False) )
+                histos[-1].SetLineColor(colors[i])
+                histos[-1].SetLineStyle(2)
+                histos[-1].Draw('histsame')
 
-                tex=ROOT.TLatex()
-                tex.SetTextFont(42)
-                tex.SetTextSize(0.05)
-                tex.SetNDC()
-                tex.DrawLatex(0.12,0.96,'#bf{CMS} #it{simulation preliminary}')
-                tex.SetTextSize(0.04)
-                for i in range(len(extraText)): 
-                    tex.DrawLatex(0.15,0.9-i*0.05,extraText[i])
+            drawOpt='histsame'
 
-            titletex=ROOT.TLatex()
-            titletex.SetTextFont(62)
-            titletex.SetTextSize(0.05)
-            titletex.SetNDC()
-            titletex.SetTextAlign(ROOT.kHAlignRight+ROOT.kVAlignCenter)
-            titletex.DrawLatex(0.95,0.9,plotTitle)
+        leg.Draw()
 
-    c.Modified()
-    c.Update()
-    pfix='_cdf' if plotCDF else ''
-    c.SaveAs(pname+pfix+'.png')
+        #print fit parameters
+        if fitPeak and plot=='adc':
+            fittex=ROOT.TLatex()
+            fittex.SetTextFont(42)
+            fittex.SetTextSize(0.04)
+            fittex.SetNDC()
+            fittex.SetTextAlign(ROOT.kHAlignRight+ROOT.kVAlignCenter)
+            for ipar,ilabel in [(0,'MPV'),(1,'#sigma'),(2,'#sigma_{noise}')]:                
+                label='%s=%s'%(ilabel,'/'.join(['%3.2f'%fres[ipar] for fres in fitParams]))
+                fittex.DrawLatex(0.95,0.8-ipar*0.05, label)
+
+        tex=ROOT.TLatex()
+        tex.SetTextFont(42)
+        tex.SetTextSize(0.05)
+        tex.SetNDC()
+        tex.DrawLatex(0.12,0.96,'#bf{CMS} #it{simulation preliminary}')
+        tex.SetTextSize(0.035)
+        tex.SetTextAlign(ROOT.kHAlignRight+ROOT.kVAlignCenter)
+        for i in range(len(extraText)): 
+            tex.DrawLatex(0.95,0.65-i*0.045,extraText[i])
+
+        titletex=ROOT.TLatex()
+        titletex.SetTextFont(62)
+        titletex.SetTextSize(0.045)
+        titletex.SetNDC()
+        titletex.SetTextAlign(ROOT.kHAlignRight+ROOT.kVAlignCenter)
+        titletex.DrawLatex(0.95,0.9,plotTitle)
+
+        c.Modified()
+        c.Update()
+        for ext in ['png','pdf']:
+            c.SaveAs('%s_%s.%s'%(pname,plot,ext))
 
 
 def main():
@@ -268,8 +266,7 @@ def main():
         ]
         showPlotCollSummary(plotColl=plotColl,
                             extraText=extraText,
-                            pname=os.path.join(opt.output,pname),
-                            nPerRow=3)
+                            pname=os.path.join(opt.output,pname))
         
     #compute the quantiles for the wafer plots
     quantilesSummary={}
@@ -287,7 +284,7 @@ def main():
         waferUV=[waferKey[2],waferKey[3]]
         if not waferUV in opt.waferPlots: continue
             
-        pname='summary_sd%d_lay%d_%d_%d'%waferKey
+        pname='sd%d_lay%d_%d_%d'%waferKey
         pname=pname.replace('-','m')
         extraText=[
             '%s layer %d'%('CEE' if waferKey[0]==0 else 'CEH', waferKey[1]),
@@ -295,12 +292,11 @@ def main():
             'R=%3.2f z=%3.2f'%(r,z),
             '#eta=%3.2f #phi=%3.2f'%(eta,phi)
         ]
-        for plotCDF in [True,False]:
-            showPlotCollSummary(plotColl=plotColl,
-                                extraText=extraText,
-                                pname=os.path.join(opt.output,pname),
-                                fitPeak=opt.fitPeak,
-                                plotCDF=plotCDF)
+        showPlotCollSummary(plotColl=plotColl,
+                            extraText=extraText,
+                            pname=os.path.join(opt.output,pname),
+                            fitPeak=opt.fitPeak,
+                            plotCDF=True)
 
     #save summary
     if not opt.noSummary:
