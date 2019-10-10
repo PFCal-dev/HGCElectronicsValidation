@@ -1,32 +1,30 @@
 #!/bin/bash
 
-outdir=/eos/user/p/psilva/www/HGCal/Electronics/Occupancies_8Oct
+inputDir=/eos/cms/store/cmst3/group/hgcal/CMG_studies/Production/
+outDir=/eos/user/p/psilva/www/HGCal/Electronics/Occupancies_`date +%d%d%Y`
+
+samples=(
+    ttbar_ak8GenJetsNoNu_100_1_ttbar_v11_aged_biased_20191009 
+    ttbar_ttbar_v11_aged_biased_20191009 
+    FlatRandomPtGunProducer_NeutrinoGun_v10_aged_noOOT_20191010
+)
+for sample in ${samples[@]}; do
+    cmsRun test/hgcoccupancyanalysis_cfg.py input=${inputDir}/${sample}/GSD output=${sample}.root
+done
 
 python test/scripts/prepareOccupancySummary.py \
     --waferPlots -3,0:-5,0:-10,0 \
-    pfs:FlatRandomPtGunProducer_NeutrinoGun_v11_aged_20190902_numEvent2500.root:ana \
-    franzoni:Franzoni_digiinfo_PU200.root:ana \
+    t#bar{t}:ttbar_ttbar_v11_aged_biased_20191009:ana \
+    t#bar{t},biased:ttbar_ak8GenJetsNoNu_100_1_ttbar_v11_aged_biased_20191009:ana \
     -o ${outdir}
 
 python test/scripts/drawOccupancySummary.py \
     -o ${outdir} \
-    pfs:${outdir}/summary.pck:0 franzoni:${outdir}/summary.pck:1 
-
-#python test/scripts/prepareOccupancySummary.py \
-#    --waferPlots -3,0:-5,0:-10,0 \
-#    aged:FlatRandomPtGunProducer_NeutrinoGun_v11_aged_20190902_numEvent2500.root:ana \
-#    noOOT:FlatRandomPtGunProducer_NeutrinoGun_v11_aged_nooot_20190925_numEvent2500.root:ana \
-#    noOOT,noNoise:FlatRandomPtGunProducer_NeutrinoGun_v11_aged_nooot_nonoise_20190927_numEvent2500.root:ana \
-#    -o /eos/user/p/psilva/www/HGCal/Electronics/Occupancies_3Oct_new/
-
-#python test/scripts/drawOccupancySummary.py \
-#    -o /eos/user/p/psilva/www/HGCal/Electronics/Occupancies_3Oct/start \
-#    aged:/eos/user/p/psilva/www/HGCal/Electronics/Occupancies_3Oct/aged/summary.pck:0 \
-#    noOOT:/eos/user/p/psilva/www/HGCal/Electronics/Occupancies_3Oct/aged/summary.pck:1 \
-#    noOOT,noNoise:/eos/user/p/psilva/www/HGCal/Electronics/Occupancies_3Oct_new/aged/summary.pck:2
+    t#bar{t}:${outdir}/summary.pck:0
+    t#bar{t},biased:${outdir}/summary.pck:1
 
 cp /eos/user/p/psilva/www/index.php ${outdir}
 cp /eos/user/p/psilva/www/index.php ${outdir}/proc1
 cp /eos/user/p/psilva/www/index.php ${outdir}/proc2
 
-#cp /eos/user/p/psilva/www/index.php /eos/user/p/psilva/www/HGCal/Electronics/Occupancies_3Oct/
+
