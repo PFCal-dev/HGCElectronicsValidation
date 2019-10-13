@@ -53,6 +53,13 @@
    @short an EDAnalyzer to readout the digis in the event and steer the filling of the occupancy histograms
 */
 
+struct WaferEquivalentInfo_t {
+  int layer,ncells,u,v;
+  double radius,z,eta,x,y,phi;
+  std::set<std::pair<int,int> > uvList;
+};
+
+
 class HGCGeometryScan : public edm::EDAnalyzer 
 {
   

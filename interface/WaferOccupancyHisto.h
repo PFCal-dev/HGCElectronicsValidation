@@ -25,12 +25,12 @@ public:
   /**
      @short CTOR
   */
- WaferOccupancyHisto(int subdet, int layer,int u,int v,int ncells,edm::Service<TFileService> *fs) : ncells_(ncells), nEvents_(0)
+ WaferOccupancyHisto(std::string subdet, int layer,int u,int v,int ncells,edm::Service<TFileService> *fs) : ncells_(ncells), nEvents_(0)
     { 
       myUV_=UVKey_t(u,v);
       addWaferEquivalent(u,v);
 
-      TString id(Form("sd%d_lay%d_%d_%d",subdet,layer,u,v));
+      TString id(Form("%s_lay%d_%d_%d",subdet.c_str(),layer,u,v));
       TFileDirectory subDir = (*fs)->mkdir(id.Data());
       adcH_ = subDir.make<TH1F>(id+"_adc",";q [ADC];",100,0,100);
       adcH_->Sumw2();      
@@ -40,8 +40,8 @@ public:
       countH_->Sumw2();
       maxCountH_ = subDir.make<TH1F>(id+"_maxcounts",";Counts above threshold;",ncells+1,0,ncells+1);
       maxCountH_->Sumw2();
-      genmatchCountH_ = subDir.make<TH1F>(id+"_genmatchcounts",";Counts above threshold;",ncells+1,0,ncells+1);
-      genmatchCountH_->Sumw2();
+      //genmatchCountH_ = subDir.make<TH1F>(id+"_genmatchcounts",";Counts above threshold;",ncells+1,0,ncells+1);
+      //genmatchCountH_->Sumw2();
       toaCountsH_ = subDir.make<TH1F>(id+"_toacounts",";Cells in TOA;",ncells+1,0,ncells+1);
       toaCountsH_->Sumw2();
       tdcCountsH_ = subDir.make<TH1F>(id+"_tdccounts",";Cells in TDC;",ncells+1,0,ncells+1);
@@ -62,19 +62,18 @@ public:
   /**
      @short accumulate counts for a new hit
   */
-  inline void count(int u, int v,float adc,bool isTOA,bool isTDC, bool isBusy,float thr=0.)
+  inline void count(int u, int v,float adc,bool isTOA,bool isTDC, bool isBusy)
   {
-    adcH_->Fill(adc);
-    adcfullH_->Fill(adc);
+    if(!isTDC){
+      adcH_->Fill(adc);
+      adcfullH_->Fill(adc);
+    }
 
     UVKey_t key(u,v);
-    if(adc>=thr) {
-      countMap_[key]=countMap_[key]+1;
-    }
-    
-    toaCounts_[key]  += int(isTOA);
-    tdcCounts_[key]  += int(isTDC);
-    busyCounts_[key] += int(isBusy);
+    countMap_[key] += 1;
+    if(isTOA)  toaCounts_[key]  += 1;
+    if(isTDC)  tdcCounts_[key]  += 1;
+    if(isBusy) busyCounts_[key] += 1;
   }
 
   /**
@@ -100,6 +99,7 @@ public:
       if(genMatchedUVs.find(it->first)!=genMatchedUVs.end()) {
         genmatchCountH_->Fill(cts);
       }
+
       if(cts<maxCounts) continue;
       hotWaferKey_=it->first;
       maxCounts=cts;
@@ -176,7 +176,6 @@ public:
     if(nWaferEq==0) return;
 
     //scale by the number of wafer equivalent
-    //float norm(2*nEvents_*nWaferEq);
     float norm(nEvents_*nWaferEq);
     countH_->Scale(1./norm);
     toaCountsH_->Scale(1./norm);
@@ -184,7 +183,6 @@ public:
     busyCountsH_->Scale(1./norm);
 
     //scale only by the number of events and 2 endcaps
-    //norm=float(2*nEvents_);
     norm=float(nEvents_);
     maxCountH_->Scale(1./norm);
     adcH_->Scale(1./norm);

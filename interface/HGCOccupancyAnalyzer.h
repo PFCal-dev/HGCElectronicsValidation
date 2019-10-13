@@ -64,27 +64,16 @@ class HGCOccupancyAnalyzer : public edm::EDAnalyzer
   void endJob();
 
  private:
-  /**
-     @short starts histograms
-   */
-  void prepareAnalysis();
   
   /**
      @short analyze a digi collection
    */
-  void analyzeDigis(int ,edm::Handle<HGCalDigiCollection> &);
-  
-  //containers to hold the equivalence maps of different wafers to the ones in the first sector
-  std::set<std::pair<int,int> > uvEqSet_;
-  std::map<std::pair<int,int>,std::pair<int,int> > uvEqMap_;
-  std::map<std::pair<int,int>,int> uvSectorMap_;
+  void analyzeDigis(std::string ,edm::Handle<HGCalDigiCollection> &);
 
   //histograms for the wafers
-  typedef std::tuple<int,int,int,int> WaferEquivalentId_t;
+  typedef std::tuple<std::string,int,int,int> WaferEquivalentId_t;
   std::map<WaferEquivalentId_t,WaferOccupancyHisto *> waferHistos_;
-
-  //an handy map with the eta phi of the wafers
-  std::map<WaferEquivalentId_t,std::pair<float,float> > waferEtaPhi_;
+  std::map<WaferEquivalentId_t,std::pair<int,int> > uvEqMap_;
 
   //generator level information
   edm::EDGetTokenT<std::vector<reco::GenJet> > genJets_;
@@ -94,10 +83,7 @@ class HGCOccupancyAnalyzer : public edm::EDAnalyzer
   std::map<std::string,const HGCalGeometry *> hgcGeometries_;
   edm::EDGetTokenT<HGCalDigiCollection> digisCEE_,digisCEH_;  
 
-  //LSBs and TDC onset
-  double adcLSB_,tdcLSB_,tdcOnset_;
-
-  std::map<std::pair<int,int>, std::vector<TH1F *> > hottestWaferH_;
+  std::map<std::pair<std::string,int>, std::vector<TH1F *> > hottestWaferH_;
 };
  
 

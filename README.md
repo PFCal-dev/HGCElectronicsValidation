@@ -28,6 +28,20 @@ git push https://github.com/PFCal-dev/cmssw HEAD:${work_branch}
 A set of control plots for the noise, charge collection efficiency, fluence is produced based on a radiation map file
 and on a geometry. These analyzers can be found in SimCalorimetry/HGCalSimAlgos/test.
 
+## Wafer map
+
+The class src/HGCGeometryScan.cc dumps a txt file with the positions of wafers at the same radius in each layer.
+This file is useful for the design studies and it's used as input for the occupancy analysis.
+To run it you can do:
+
+```
+cmsRun test/hgcgeometryscan_cfg.py geometry=Extended2026D46
+```
+
+The output is a ROOT file with TGraph2D showing the position of the wafers in each layer.
+You can plot them with `python test/scripts/drawGeometry.py` and an ascii file called `wafer_pos.dat`.
+To use the later in the occupancy analyzer copy it to the data folder.
+
 ## Occupancy analysis
 
 A set of control plots is produced globally per layer and per wafer-equivalent position in each layer.

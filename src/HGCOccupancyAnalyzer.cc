@@ -41,26 +41,55 @@ HGCOccupancyAnalyzer::HGCOccupancyAnalyzer( const edm::ParameterSet &iConfig ) :
   digisCEE_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","EE")) ),
   digisCEH_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","HEfront")) )
 {  
-  //parse u-v equivalence map file
-  edm::FileInPath uvmapF("UserCode/HGCElectronicsValidation/data/uvequiv.dat");
+
+  edm::Service<TFileService> fs;
+
+  //parse u-v equivalence map file and start histograms
+  edm::FileInPath uvmapF("UserCode/HGCElectronicsValidation/data/wafer_pos.dat");
   std::ifstream inF(uvmapF.fullPath());  
-  int u,v,sec,ueq,veq;
-  while(inF >> u >> v >> sec >> ueq >> veq ) {
-    std::pair<int,int> key(u,v),keyeq(ueq,veq);
-    uvEqSet_.insert(keyeq);
-    uvEqMap_[key] = keyeq;
-    uvSectorMap_[key]=sec;
+  while(inF) {
+
+    std::string buf;
+    getline(inF,buf);
+
+    std::stringstream ss(buf);
+    std::vector<std::string> tokens;
+    while (ss >> buf)
+      if(buf.size()>0)
+        tokens.push_back(buf);
+    if(tokens.size()<14) continue;
+
+    std::string subdet(tokens[0]);
+    int ilay(atoi(tokens[1].c_str()));
+    int waferU(atoi(tokens[9].c_str()));
+    int waferV(atoi(tokens[10].c_str()));
+    int ncells(atoi(tokens[11].c_str()));
+    // float phi(atof(tokens[6].c_str()));
+    // float eta(atof(tokens[8].c_str()));
+
+    WaferEquivalentId_t key(subdet,ilay,waferU,waferV);
+    waferHistos_[key]=new WaferOccupancyHisto(subdet,ilay,waferU,waferV,ncells,&fs);
+    for(size_t i=13; i<tokens.size(); i+=2) {
+      int u=atoi(tokens[i].c_str());
+      int v=atoi(tokens[i+1].c_str());
+      waferHistos_[key]->addWaferEquivalent(u,v);
+
+      WaferEquivalentId_t ikey(subdet,ilay,u,v);
+      uvEqMap_[ikey]=std::pair<int,int>(waferU,waferV);
+    }
+
+
+    std::vector<TH1F *> hotoccHistos;
+    for(int iwaf=0; iwaf<7; iwaf++) {
+      TString name(Form("%s_lay%d_hottestwafer%d",subdet.c_str(),ilay,iwaf));
+      hotoccHistos.push_back( fs->make<TH1F>(name,";Occupancy;",500,0,1) );
+      hotoccHistos[iwaf]->Sumw2();
+    }
+    std::pair<std::string,int> hotkey(subdet,ilay);
+    hottestWaferH_[hotkey]=hotoccHistos;
   }
 
-  //ideally these should be read from hgcalDigitzer_cfi.py but ok
-  uint32_t adc_nBits(10);
-  double adc_saturation(100.);
-  adcLSB_=(adc_saturation/pow(2.,adc_nBits));   
-
-  uint32_t tdc_nBits(12);
-  double tdc_saturation(10000.);
-  tdcLSB_=(tdc_saturation/pow(2.,tdc_nBits)); 
-  tdcOnset_=60.;
+  inF.close();
 }
 
 //
@@ -71,68 +100,9 @@ HGCOccupancyAnalyzer::~HGCOccupancyAnalyzer()
 //
 void HGCOccupancyAnalyzer::endJob()
 {
-  for(auto &it : waferHistos_) it.second->endJob();
-}
-
-//
-void HGCOccupancyAnalyzer::prepareAnalysis()
-{
-
-  //init histograms
-  edm::Service<TFileService> fs;
-  ofstream wafer_pos("wafer_pos.dat");
-  for(auto &it : hgcGeometries_ )
-    {
-      const HGCalDDDConstants &ddd=it.second->topology().dddConstants();
-
-      //loop over layers and add wafers in the first sector for each one
-      int subdet(it.first=="CEE" ? 0 : 1);
-      int nlay( ddd.layers(true) );
-
-      for(int ilay=1; ilay<=nlay; ilay++){
-
-        std::pair<int,int> key(subdet,ilay);
-        std::vector<TH1F *> occHistos;
-        for(int iwaf=0; iwaf<7; iwaf++) {
-          TString name(Form("sd%d_lay%d_hottestwafer%d",subdet,ilay,iwaf));
-          occHistos.push_back( fs->make<TH1F>(name,";Occupancy;",500,0,1) );
-          occHistos[iwaf]->Sumw2();
-        }
-        hottestWaferH_[key]=occHistos;
-            
-        for(auto &uv : uvEqSet_){
-          int waferU(uv.first),waferV(uv.second);
-          
-          int ncells= ddd.numberCellsHexagon(ilay,waferU,waferV,true);
-          if(ncells==0) continue;
-
-          //check geometry
-          std::pair<double, double> xy=ddd.waferPosition(waferU,waferV,true);
-          double radius( hypot(xy.first,xy.second) );
-          if(radius<1) continue;
-          double z(ddd.waferZ(ilay,true));
-          double eta(TMath::ASinH(z/radius));
-          double phi(TMath::ATan2(xy.second,xy.first));
-
-          wafer_pos << subdet << " " << ilay << " "  << waferU << " " << waferV << " " 
-                    << ncells << " " << radius << " " << z << " " << eta << " " << phi << endl;
-
-          WaferEquivalentId_t key(std::make_tuple(subdet,ilay,waferU,waferV));
-          waferEtaPhi_[key]=std::pair<float,float>(eta,phi);
-
-          waferHistos_[key]=new WaferOccupancyHisto(subdet,ilay,waferU,waferV,ncells,&fs);
-
-          //add all the wafer equivalents which this wafer should represent         
-          for(auto uveq : uvEqMap_) {
-            if(uv!=uveq.second) continue;
-            int waferUeq(uveq.first.first), waferVeq(uveq.first.second);
-            waferHistos_[key]->addWaferEquivalent(waferUeq,waferVeq);
-          }
-        }
-      }        
-    }
-
-  wafer_pos.close();
+  /*
+    for(auto &it : waferHistos_) it.second->endJob();
+  */
 }
 
   
@@ -147,11 +117,9 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
   iSetup.get<IdealGeometryRecord>().get(geoCEH_,cehGeoHandle);
   hgcGeometries_["CEH"]=cehGeoHandle.product();
 
-  //check if histos need to be instantiated
-  if(waferHistos_.size()==0) prepareAnalysis();
-
+  /*
   //best matching wafer to gen (if dR>0.2 no match was found)
-  std::map<std::pair<int,int>, std::set<WaferOccupancyHisto::UVKey_t> > wafersOfInterest;
+  std::map<std::pair<std::string,int>, std::set<WaferOccupancyHisto::UVKey_t> > wafersOfInterest;
   edm::Handle<std::vector<reco::GenJet> > genJetsHandle;
   iEvent.getByToken(genJets_,genJetsHandle);
   for(auto &j : *genJetsHandle){
@@ -169,9 +137,9 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
 
     //add new best matched wafer
     if(minDR>0.2) continue;
-    int sd=std::get<0>(bestMatchedWafer);
+    std::string sd=std::get<0>(bestMatchedWafer);
     int lay=std::get<1>(bestMatchedWafer);
-    std::pair<int,int> key(sd,lay);
+    std::pair<std::string,int> key(sd,lay);
     if(wafersOfInterest.find(key)==wafersOfInterest.end())
       wafersOfInterest[key]=std::set<WaferOccupancyHisto::UVKey_t>();
 
@@ -180,40 +148,45 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
     WaferOccupancyHisto::UVKey_t uv(u,v);
     wafersOfInterest[key].insert(uv);
   }
+  */
   
 
   //analyze digi collections
   edm::Handle<HGCalDigiCollection> ceeDigisHandle;
   iEvent.getByToken(digisCEE_,ceeDigisHandle);
-  analyzeDigis(0,ceeDigisHandle);
+  analyzeDigis("CEE",ceeDigisHandle);
   
   edm::Handle<HGCalDigiCollection> cehDigisHandle;
   iEvent.getByToken(digisCEH_,cehDigisHandle);
-  analyzeDigis(1,cehDigisHandle);
+  analyzeDigis("CEH",cehDigisHandle);
 
   //fill wafer histos and save the max. found in each layer
-  std::map<std::pair<int,int>,std::pair<WaferOccupancyHisto::UVKey_t, float> > hotWaferOccPerLayer;
+  std::map<std::pair<std::string,int>,std::pair<WaferOccupancyHisto::UVKey_t, float> > hotWaferOccPerLayer;
   for(auto &it : waferHistos_) {
 
-    int sd=std::get<0>(it.first);
+    std::string sd=std::get<0>(it.first);
     int lay=std::get<1>(it.first);
-    std::pair<int,int> key(sd,lay);
+    std::pair<std::string,int> key(sd,lay);
 
-    //filter wafers matched to gen objects by UV coordinates
-    std::set<WaferOccupancyHisto::UVKey_t> genMatchedUVs;
-    if(wafersOfInterest.find(key)!=wafersOfInterest.end()) {
+    /*
+      //filter wafers matched to gen objects by UV coordinates
+      std::set<WaferOccupancyHisto::UVKey_t> genMatchedUVs;
+      if(wafersOfInterest.find(key)!=wafersOfInterest.end()) {
       for(auto &w:wafersOfInterest[key]) {
-        if(!it.second->isUVEquivalent(w)) continue;
-        genMatchedUVs.insert(w);
+      if(!it.second->isUVEquivalent(w)) continue;
+      genMatchedUVs.insert(w);
       }
-    }
+      }
+    */
 
     //analyze counts
+    std::set<WaferOccupancyHisto::UVKey_t> genMatchedUVs;
     it.second->analyze(genMatchedUVs);
 
     //get hottest wafer
     WaferOccupancyHisto::UVKey_t hotWaferUV=it.second->getHotWaferUV();
     float hotWaferOcc=float(it.second->getHotWaferCounts())/float(it.second->getCells());    
+
     if(hotWaferOccPerLayer.find(key)==hotWaferOccPerLayer.end() || hotWaferOccPerLayer[key].second<hotWaferOcc)       
       hotWaferOccPerLayer[key]=std::pair<WaferOccupancyHisto::UVKey_t,float>(hotWaferUV,hotWaferOcc);
   }
@@ -221,19 +194,19 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
   //fill the max. counts per layer and in the neighboring cells
   for(auto &it : hotWaferOccPerLayer) {
 
-    int sd=it.first.first;
+    std::string sd=it.first.first;
     int lay=it.first.second;
     WaferOccupancyHisto::UVKey_t hotWaferUV=it.second.first;
     if(hotWaferUV.first==0 && hotWaferUV.second==0) continue; //empty layer
-
     float hotOcc=it.second.second;
-    std::pair<int,int> key(sd,lay);
+
+    std::pair<std::string,int> key(sd,lay);
     hottestWaferH_[key][0]->Fill(hotOcc);
 
     //find neighbors
     std::vector<float> neighborOccs;
     for(auto &jt : waferHistos_) {
-      int isd=std::get<0>(jt.first);
+      std::string isd=std::get<0>(jt.first);
       if(isd!=sd) continue;
       int ilay=std::get<1>(jt.first);
       if(ilay!=lay) continue;
@@ -251,21 +224,19 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
       hottestWaferH_[key][i+1]->Fill( neighborOccs[i] );
     }
   }
-  
-
- 
+   
   //all done, reset counters
-  for(auto &it : waferHistos_) it.second->resetCounters();
+  for(auto &it : waferHistos_) it.second->resetCounters();  
 }
 
 
 //
-void HGCOccupancyAnalyzer::analyzeDigis(int isd,edm::Handle<HGCalDigiCollection> &digiColl)
+void HGCOccupancyAnalyzer::analyzeDigis(std::string sd,edm::Handle<HGCalDigiCollection> &digiColl)
 {
   //check inputs
   if(!digiColl.isValid()) return;
 
-  const HGCalGeometry *geom=hgcGeometries_[isd==0 ? "CEE" : "CEH"];
+  const HGCalGeometry *geom=hgcGeometries_[sd];
   
   //get ddd constants to get cell properties
   const HGCalDDDConstants &ddd=geom->topology().dddConstants();
@@ -285,32 +256,17 @@ void HGCOccupancyAnalyzer::analyzeDigis(int isd,edm::Handle<HGCalDigiCollection>
       int waferTypeL = ddd.waferType(detId);
 
       std::pair<int,int> waferUV=detId.waferUV();
-      std::pair<int,int> uvEq=uvEqMap_[waferUV];
+      WaferEquivalentId_t ikey(std::make_tuple(sd,layer,waferUV.first,waferUV.second));
+      std::pair<int,int> uvEq=uvEqMap_[ikey];
+      WaferEquivalentId_t key(std::make_tuple(sd,layer,uvEq.first,uvEq.second));
 
       uint32_t rawData(hit.sample(idx).data() );
-
-      //correct ADC by the readoutmode (ADC or TDC)
-      //FIXME : THIS NEEDS TO USE THE PROPER GAIN 
-      //double q_mipeq(rawData);
-      //if(hit.sample(idx).mode()){
-      //  q_mipeq = (std::floor(tdcOnset_/adcLSB_)+1.0)*adcLSB_ + (q_mipeq+0.5)*tdcLSB_;
-      // }else {
-      //  q_mipeq *= adcLSB_;        
-      // }  
-      //normalize to expected MIP response
-      //q_mipeq = q_mipeq*mipEqCorr_[waferTypeL-1];
-      //float thr(mipEqThr_);
-      //if(applyAngleCorr_) {
-      //  thr *= 1./fabs(cos(geom->getPosition(detId).theta()));
-      // }
-      
       bool isTOA( hit.sample(idx).getToAValid() );
       bool isTDC( hit.sample(idx).mode() );
       bool isBusy( isTDC && rawData==0 );
-
-      WaferEquivalentId_t key(std::make_tuple(isd,layer,uvEq.first,uvEq.second));
-      waferHistos_[key]->count(waferUV.first,waferUV.second,rawData,isTOA,isTDC,isBusy,0.);
+      waferHistos_[key]->count(waferUV.first,waferUV.second,rawData,isTOA,isTDC,isBusy);
     }
+  
 }
 
 //define this as a plug-in
