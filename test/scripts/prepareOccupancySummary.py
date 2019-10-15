@@ -163,8 +163,22 @@ def showPlotCollSummary(plotColl,extraText,pname,fitPeak=False,plotCDF=False):
             histos[-1].GetYaxis().SetTitleSize(0.045)
             histos[-1].GetYaxis().SetTitleOffset(1.1)
             histos[-1].GetYaxis().SetTitle('PDF or CDF' if plotCDF else 'CDF')
-            histos[-1].GetYaxis().SetRangeUser(1e-4,1)
-            leg.AddEntry(histos[-1],histos[-1].GetTitle(),'l')
+            histos[-1].GetYaxis().SetRangeUser(1e-4,1)            
+
+            legTitle=histos[-1].GetTitle()
+
+            #hack to find threshold
+            if plot=='adc' and len(plotColl)==1:
+                nbinsx=histos[-1].GetNbinsX()
+                for xbin in range(1,nbinsx+1):
+                    if histos[-1].GetBinContent(xbin)==0 : continue
+                    ootThrBin=histos[-1].GetXaxis().FindBin( histos[-1].GetXaxis().GetBinLowEdge(xbin)*2*2.5 )
+                    ootFrac = histos[-1].Integral(ootThrBin,nbinsx+1)
+                    ootFrac /=histos[-1].Integral(0,nbinsx+1)
+                    legTitle='#splitline{%s}{f(>2.5MIP)=%3.3f}'%(legTitle,ootFrac)
+                    break
+
+            leg.AddEntry(histos[-1],legTitle,'l')
 
             if fitPeak and plot=='adc':
                 histos[-1].Fit(langau,'MLRQ+','same',0.5,2)    
@@ -284,7 +298,7 @@ def main():
     for waferKey in plots[0]:
         if not waferKey in sensorPos : continue
 
-        ncells,r,z,eta,phi,xpos,ypos=sensorPos[waferKey]
+        ncells,waferType,r,z,eta,phi,xpos,ypos=sensorPos[waferKey]
         plotColl=[ x[waferKey] for x in plots]
 
         quantilesSummary[waferKey]=getQuantiles(plotColl=plotColl,q=[0.1,0.5,0.9])

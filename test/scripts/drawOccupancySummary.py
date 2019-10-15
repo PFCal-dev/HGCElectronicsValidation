@@ -59,7 +59,7 @@ def showWaferMomentSummary(momentSummary,sensorPos,proc,outdir,tag,showUVLabeled
                 isd,ilay,iu,iv=waferKey
                 if isd!=sd or ilay!=lay :continue
 
-                ncells,r,z,eta,phi,xpos,ypos=sensorPos[waferKey]               
+                ncells,waferType,r,z,eta,phi,xpos,ypos=sensorPos[waferKey]               
                 occ=[float(x-qbias)/float(ncells) for x in momentSummary[waferKey]]
 
                 #uvzlist.append( [iu,iv,occ[0]] )
@@ -113,9 +113,9 @@ def dumpCSVOccupancy(momentSummary,sensorPos,outdir):
     for waferKey,counts in sorted(momentSummary.items(), key=lambda x: x[0]):
 
         isd,ilay,iu,iv=waferKey
-        ncells,r,z,eta,phi,xpos,ypos=sensorPos[waferKey] 
+        ncells,waferType,r,z,eta,phi,xpos,ypos=sensorPos[waferKey] 
         occ=[float(x-qbias)/float(ncells) for x in counts]
-        csv_writer.writerow( [isd,ilay,1 if ncells>400 else 0,ncells,xpos,ypos,iu,iv]+occ )
+        csv_writer.writerow( [isd,ilay,1 if waferType==0 else 0,ncells,xpos,ypos,iu,iv]+occ )
 
     fOut.close()
 
@@ -145,12 +145,12 @@ def getRadialSummary(momentSummary,sensorPos,proc):
                 isd,ilay,iu,iv=waferKey
                 if isd!=sd or ilay!=lay :continue
 
-                ncells,r,z,eta,phi,xpos,ypos=sensorPos[waferKey]
+                ncells,waferType,r,z,eta,phi,xpos,ypos=sensorPos[waferKey]
                 if phi<0 or phi>maxPhiSector[isd]:
                     continue
 
                 occ=[float(x-qbias)/float(ncells) for x in momentSummary[waferKey]]
-                densIdx=1 if ncells>400 else 0
+                densIdx=1 if waferType==0 else 0
                 ipt=radialProf[layKey][densIdx].GetN()
                 radialProf[layKey][densIdx].SetPoint(ipt,r,occ[1])
                 radialProf[layKey][densIdx].SetPointError(ipt,0,0,0,occ[2]-occ[1])
@@ -186,7 +186,7 @@ def getWaferUVSummary(momentSummary,sensorPos,proc,waferLongProfiles):
                 waferUVSummary[sumKey].SetName(name)
                 waferUVSummary[sumKey].SetTitle(proc)
 
-            ncells,r,z,eta,phi,xpos,ypos=sensorPos[waferKey]
+            ncells,waferType,r,z,eta,phi,xpos,ypos=sensorPos[waferKey]
             occ=[float(x-qbias)/float(ncells) for x in momentSummary[waferKey]]
             ipt=waferUVSummary[sumKey].GetN()
             waferUVSummary[sumKey].SetPoint(ipt,z,occ[1])

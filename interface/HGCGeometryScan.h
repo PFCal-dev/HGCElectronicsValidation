@@ -54,7 +54,7 @@
 */
 
 struct WaferEquivalentInfo_t {
-  int layer,ncells,u,v;
+  int layer,ncells,u,v,waferType;
   double radius,z,eta,x,y,phi;
   std::set<std::pair<int,int> > uvList;
 };

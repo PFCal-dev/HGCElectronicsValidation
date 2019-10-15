@@ -53,7 +53,8 @@ def parseWaferPositionsMap(url):
             z=float(tokens[6])
             eta=float(tokens[7])
             ncells=int(tokens[10])
-            sensorPos[key]=[ncells,r,z,eta,phi,x,y]
+            waferType=int(tokens[11])
+            sensorPos[key]=[ncells,waferType,r,z,eta,phi,x,y]
 
     return sensorPos
 

@@ -83,8 +83,8 @@ void HGCGeometryScan::prepareAnalysis()
 
         int layer=detId.layer();
         std::pair<int,int> waferUV=detId.waferUV();        
-        int waferTypeL = ddd.waferType(detId);
-
+        int waferTypeL = ddd.waferType(layer,waferUV.first,waferUV.second);
+        
         TString key(Form("%s_lay%d_xy",it.first.c_str(),layer));
         if(histos.find(key)==histos.end()) {
           histos[key]=fs->make<TGraph2D>();
@@ -121,6 +121,7 @@ void HGCGeometryScan::prepareAnalysis()
           newWafer.u=waferUV.first;
           newWafer.v=waferUV.second;
           uvEqMap[layer][waferUV]=newWafer;
+          newWafer.waferType=waferTypeL;
         }
         uvEqMap[layer][waferUV].ncells+=1;
         uvEqMap[layer][waferUV].uvList.insert(waferUV);
@@ -138,7 +139,7 @@ void HGCGeometryScan::prepareAnalysis()
           wafer_pos << kt.second.radius << " " << kt.second.x << " " << kt.second.y << " " << kt.second.phi << " "
                     << kt.second.z << " " << kt.second.eta << " ";
           wafer_pos.width(2);
-          wafer_pos << kt.second.u << " " << kt.second.v << " " << kt.second.ncells;
+          wafer_pos << kt.second.u << " " << kt.second.v << " " << kt.second.ncells << " " << kt.second.waferType;
           wafer_pos << endl;
         }
       }
