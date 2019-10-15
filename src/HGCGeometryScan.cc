@@ -27,6 +27,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 
 using namespace std;
 
@@ -136,8 +137,10 @@ void HGCGeometryScan::prepareAnalysis()
           wafer_pos.width(5);
           wafer_pos << it.first << " " << jt.first << " ";
           wafer_pos.width(12);
+          wafer_pos << std::setprecision(9);
           wafer_pos << kt.second.radius << " " << kt.second.x << " " << kt.second.y << " " << kt.second.phi << " "
                     << kt.second.z << " " << kt.second.eta << " ";
+          wafer_pos << std::fixed;
           wafer_pos.width(2);
           wafer_pos << kt.second.u << " " << kt.second.v << " " << kt.second.ncells << " " << kt.second.waferType;
           wafer_pos << endl;
