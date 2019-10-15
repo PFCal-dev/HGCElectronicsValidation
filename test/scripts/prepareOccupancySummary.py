@@ -67,7 +67,9 @@ def getPlotsIn(url,dirName,title,pfix):
         sdname=k.GetName()
         
         #parse sub-det, layer + u, v from name
-        vals = [int(d) for d in re.findall(r'-?\d+', sdname)]
+        subdet=sdname.split('_')[0]
+        vals = [subdet]+[int(d) for d in re.findall(r'-?\d+', sdname)]
+
 
         if sd.InheritsFrom('TH1') :
             layerKey=tuple(vals[0:2])
@@ -95,13 +97,14 @@ def getPlotsIn(url,dirName,title,pfix):
             
     return (layerPlots,waferPlots)
 
-def getQuantiles(plotColl,q=[0.5,0.9]):
+def getQuantiles(plotColl,q=[0.1,0.5,0.9]):
+
+    """computes the quantiles for every plot in the collection passed"""
 
     momentSummary=[]
     for i in range(len(plotColl)):
         momentSummary.append({})
         for p in plotColl[i]:
-            plotColl[i][p].SetBinContent(1,0) #FIXME in the analyzer
             qval=np.array([0.]*len(q))
             if plotColl[i][p].Integral()>0:
                 prob=np.array(q)
@@ -111,6 +114,8 @@ def getQuantiles(plotColl,q=[0.5,0.9]):
     return momentSummary
 
 def showPlotCollSummary(plotColl,extraText,pname,fitPeak=False,plotCDF=False):
+
+    """dump a canvas with this plot collection"""
 
     nPlots=len(plotColl[0])
     pnames=plotColl[0].keys()
@@ -219,6 +224,7 @@ def main():
     parser.add_option('-o', '--out',            dest='output',        help='output directory [%default]',                 default='occ_plots', type='string')
     parser.add_option(      '--noSummary',      dest='noSummary',     help='skip creation of pck file [%default]',        default=False, action='store_true')    
     parser.add_option(      '--waferPlots',     dest='waferPlots',    help='show these wafer plots [%default]',             default=None, type='string')
+    parser.add_option(      '--onlyLayers',     dest='onlyLayers',    help='show these layers (subdet:lay CSV list) [%default]',             default='CEE:5,CEE:15,CEH:2', type='string')
     parser.add_option(      '--noGlobalPlots',  dest='noGlobalPlots', help='disable global plots [%default]',             default=False, action='store_true')
     parser.add_option(      '--noCountHistosSummary',  dest='noCountHistosSummary', help='disable saving the count histos [%default]',             
                             default=False, action='store_true')
@@ -229,6 +235,13 @@ def main():
     if opt.waferPlots:
         opt.waferPlots=[[int(y) for y in x.split(',')] for x in opt.waferPlots.split(':')]
         print opt.waferPlots
+
+    #decode layer list string
+    if opt.onlyLayers:
+        opt.onlyLayers=[x.split(':') for x in opt.onlyLayers.split(',')]
+        for i in range(len(opt.onlyLayers)):
+            opt.onlyLayers[i][1]=int(opt.onlyLayers[i][1])
+        print opt.onlyLayers
 
     #prepare output/root style
     ROOT.gStyle.SetOptStat(0)
@@ -261,9 +274,7 @@ def main():
         #plot if required
         if opt.noGlobalPlots : continue
         pname='summary_sd%d_lay%d'%layerKey
-        extraText=[
-            '%s layer %d'%('CEE' if layerKey[0]==0 else 'CEH', layerKey[1]),
-        ]
+        extraText=['%s layer %d'%layerKey[0:2]]
         showPlotCollSummary(plotColl=plotColl,
                             extraText=extraText,
                             pname=os.path.join(opt.output,pname))
@@ -273,22 +284,25 @@ def main():
     for waferKey in plots[0]:
         if not waferKey in sensorPos : continue
 
-        ncells,r,z,eta,phi=sensorPos[waferKey]
-        if abs(eta)<1.5 or abs(eta)>3.0 : continue
+        ncells,r,z,eta,phi,xpos,ypos=sensorPos[waferKey]
         plotColl=[ x[waferKey] for x in plots]
 
         quantilesSummary[waferKey]=getQuantiles(plotColl=plotColl,q=[0.1,0.5,0.9])
         
+        if opt.onlyLayers:
+            if not [waferKey[0],waferKey[1]] in opt.onlyLayers: 
+                continue
+
         #skip if wafer plots were not required
         if not opt.waferPlots: continue
         waferUV=[waferKey[2],waferKey[3]]
         if not waferUV in opt.waferPlots: continue
             
-        pname='sd%d_lay%d_%d_%d'%waferKey
+        pname='%s_lay%d_%d_%d'%waferKey
         pname=pname.replace('-','m')
         extraText=[
-            '%s layer %d'%('CEE' if waferKey[0]==0 else 'CEH', waferKey[1]),
-            '(u,v)=(%s,%s)'%(waferKey[2],waferKey[3]),
+            '%s layer %d'%waferKey[0:2],
+            '(u,v)=(%s,%s) %d pads'%(waferKey[2],waferKey[3],ncells),
             'R=%3.2f z=%3.2f'%(r,z),
             '#eta=%3.2f #phi=%3.2f'%(eta,phi)
         ]

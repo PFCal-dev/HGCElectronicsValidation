@@ -6,6 +6,8 @@ import pickle
 
 from prepareOccupancySummary import PLOTTITLES
 from sensorEquivalentMap import *
+maxPhiSector={'CEH':2*ROOT.TMath.Pi()/3.,
+              'CEE':ROOT.TMath.Pi()/3.}
 
 def getRatio(num,den):
 
@@ -38,7 +40,7 @@ def getRatio(num,den):
     return gr
 
 
-def showWaferMomentSummary(momentSummary,sensorPos,proc,outdir,tag):
+def showWaferMomentSummary(momentSummary,sensorPos,proc,outdir,tag,showUVLabeled=False):
 
     """show the wafer data in a layer-by-layer representation"""
 
@@ -51,26 +53,46 @@ def showWaferMomentSummary(momentSummary,sensorPos,proc,outdir,tag):
         for lay in layers:
             layerKey=(sd,lay)
                 
-            uvzlist=[]
-            labels=[]
+            uvzlist,sectoreq_uvzlist=[],[]
+            labels,sectoreq_labels,sectoreq_uvlabels=[],[],[]
             for waferKey in momentSummary:
                 isd,ilay,iu,iv=waferKey
                 if isd!=sd or ilay!=lay :continue
 
-                ncells,r,z,eta,phi=sensorPos[waferKey]               
+                ncells,r,z,eta,phi,xpos,ypos=sensorPos[waferKey]               
                 occ=[float(x-qbias)/float(ncells) for x in momentSummary[waferKey]]
 
-                uvzlist.append( [iu,iv,occ[0]] )
-                labels.append( r'$%d^{+%d}_{-%d}$'%(100*occ[1],100*(occ[2]-occ[1]),100*(occ[1]-occ[0]) ) )
+                #uvzlist.append( [iu,iv,occ[0]] )
+                if phi>=0 and phi<=maxPhiSector[sd]:
+                    sectoreq_uvzlist.append( [xpos,ypos,occ[0]] )
+                    sectoreq_labels.append( r'$%d^{+%d}_{-%d}$'%(round(100*occ[1]),
+                                                                 round(100*(occ[2]-occ[1])),
+                                                                 round(100*(occ[1]-occ[0])) ) )
+                    sectoreq_uvlabels.append( r'(%d,%d)'%(iu,iv) )
+
+                uvzlist.append( [xpos,ypos,occ[0]] )
+                labels.append( '%d'%round(100*occ[1]) )
 
             if len(uvzlist)==0: continue
-            extraText=[ proc,
-                        PLOTTITLES[tag],
-                        '%s layer %d'%('CEE' if sd==0 else 'CEH', lay)
-            ]
+            extraText=[ proc, PLOTTITLES[tag], '%s layer %d'%(sd, lay)]
             drawSensorEquivalentMap(uvzlist=uvzlist,
                                     labels=labels,
-                                    outname=os.path.join(outdir,'%s_sd%d_lay%d'%(tag,sd,lay)),
+                                    outname=os.path.join(outdir,'%s_%s_lay%d'%(tag,sd,lay)),
+                                    extraText=extraText,
+                                    cmapName='Wistia',
+                                    zran=[0,1],
+                                    labelSize=14)
+            drawSensorEquivalentMap(uvzlist=sectoreq_uvzlist,
+                                    labels=sectoreq_labels,
+                                    outname=os.path.join(outdir,'%s_%s_lay%d_sectoreq'%(tag,sd,lay)),
+                                    extraText=extraText,
+                                    cmapName='Wistia',
+                                    zran=[0,1],
+                                    labelSize=14)
+            if not showUVLabeled: continue
+            drawSensorEquivalentMap(uvzlist=sectoreq_uvzlist,
+                                    labels=sectoreq_uvlabels,
+                                    outname=os.path.join(outdir,'%s_%s_lay%d_sectorequv'%(tag,sd,lay)),
                                     extraText=extraText,
                                     cmapName='Wistia',
                                     zran=[0,1],
@@ -91,9 +113,9 @@ def dumpCSVOccupancy(momentSummary,sensorPos,outdir):
     for waferKey,counts in sorted(momentSummary.items(), key=lambda x: x[0]):
 
         isd,ilay,iu,iv=waferKey
-        ncells,r,z,eta,phi=sensorPos[waferKey] 
+        ncells,r,z,eta,phi,xpos,ypos=sensorPos[waferKey] 
         occ=[float(x-qbias)/float(ncells) for x in counts]
-        csv_writer.writerow( [isd,ilay,1 if ncells>400 else 0,iu,iv]+occ )
+        csv_writer.writerow( [isd,ilay,1 if ncells>400 else 0,ncells,xpos,ypos,iu,iv]+occ )
 
     fOut.close()
 
@@ -113,8 +135,8 @@ def getRadialSummary(momentSummary,sensorPos,proc):
             
             layKey=(sd,lay)
             radialProf[layKey]=[ROOT.TGraphAsymmErrors(),ROOT.TGraphAsymmErrors()]
-            radialProf[layKey][0].SetName('ld_%d_%d'%(sd,lay))
-            radialProf[layKey][1].SetName('hd_%d_%d'%(sd,lay))
+            radialProf[layKey][0].SetName('ld_%s_%d'%(sd,lay))
+            radialProf[layKey][1].SetName('hd_%s_%d'%(sd,lay))
             radialProf[layKey][0].SetTitle(proc+' (LD)')
             radialProf[layKey][1].SetTitle(proc+' (HD)')
 
@@ -123,7 +145,10 @@ def getRadialSummary(momentSummary,sensorPos,proc):
                 isd,ilay,iu,iv=waferKey
                 if isd!=sd or ilay!=lay :continue
 
-                ncells,r,z,eta,phi=sensorPos[waferKey]
+                ncells,r,z,eta,phi,xpos,ypos=sensorPos[waferKey]
+                if phi<0 or phi>maxPhiSector[isd]:
+                    continue
+
                 occ=[float(x-qbias)/float(ncells) for x in momentSummary[waferKey]]
                 densIdx=1 if ncells>400 else 0
                 ipt=radialProf[layKey][densIdx].GetN()
@@ -136,7 +161,7 @@ def getRadialSummary(momentSummary,sensorPos,proc):
     return radialProf
 
 
-def getWaferUVSummary(momentSummary,sensorPos,proc):
+def getWaferUVSummary(momentSummary,sensorPos,proc,waferLongProfiles):
 
     """builds the longitudinal profile summary for a particular wafer"""
     
@@ -149,17 +174,19 @@ def getWaferUVSummary(momentSummary,sensorPos,proc):
     for sd in subdets:
         for waferKey in momentSummary:
             isd,ilay,iu,iv=waferKey
+
             if isd != sd: continue
+            if not [iu,iv] in waferLongProfiles: continue
             
             sumKey=(isd,iu,iv)
             if not sumKey in waferUVSummary:
                 waferUVSummary[sumKey]=ROOT.TGraphAsymmErrors()
-                name='sd_%d_%d_%d'%sumKey
+                name='%s_%d_%d'%sumKey
                 name=name.replace('-','m')
                 waferUVSummary[sumKey].SetName(name)
                 waferUVSummary[sumKey].SetTitle(proc)
 
-            ncells,r,z,eta,phi=sensorPos[waferKey]
+            ncells,r,z,eta,phi,xpos,ypos=sensorPos[waferKey]
             occ=[float(x-qbias)/float(ncells) for x in momentSummary[waferKey]]
             ipt=waferUVSummary[sumKey].GetN()
             waferUVSummary[sumKey].SetPoint(ipt,z,occ[1])
@@ -329,8 +356,14 @@ def main():
     parser = optparse.OptionParser(usage)
     parser.add_option('-o', '--out',   dest='output',  help='output directory [%default]',  default='occ_plots', type='string')    
     parser.add_option('-p', '--plots', dest='plots',  help='plots (csv) [%default]',       default='counts', type='string')    
-    parser.add_option(      '--noWaferPlots',   dest='noWaferPlots',  help='disable wafer plots [%default]',             default=False, action='store_true')
+    parser.add_option(      '--waferLongProfiles',   dest='waferLongProfiles',    help='show these wafer longitudinal profiles [%default]',  default='0,3:0,5:0,10', type='string')
+    parser.add_option(      '--noWaferPlots',        dest='noWaferPlots',         help='disable wafer plots [%default]',                     default=False,          action='store_true')
     (opt, args) = parser.parse_args()
+
+    #decode wafer plot list string                                                                                                                                                                                                                                                                
+    if opt.waferLongProfiles:
+        opt.waferLongProfiles=[[int(y) for y in x.split(',')] for x in opt.waferLongProfiles.split(':')]
+        print opt.waferLongProfiles
 
     #generic root cfg
     ROOT.gStyle.SetOptStat(0)
@@ -353,7 +386,7 @@ def main():
         #prepare output
         iarg+=1
         plotout='%s/proc%d'%(opt.output,iarg)
-        os.system('mkdir -p '+plotout)
+        os.system('rm -rf {0} && mkdir -p {0}'.format(plotout))
 
         #read summary from pickle file
         with open(cache,'r') as cache:
@@ -372,12 +405,12 @@ def main():
                 radialProfiles[dist]=[]
                 longProfiles[dist]=[]
             radialProfiles[dist].append( getRadialSummary(selMomentSummary,sensorPos,proc) )
-            longProfiles[dist].append( getWaferUVSummary(selMomentSummary,sensorPos,proc) )
+            longProfiles[dist].append( getWaferUVSummary(selMomentSummary,sensorPos,proc,opt.waferLongProfiles) )
 
             if dist=='counts':         
                 dumpCSVOccupancy(selMomentSummary,sensorPos,plotout)
                 if not opt.noWaferPlots:
-                    showWaferMomentSummary(selMomentSummary,sensorPos,proc,plotout,tag=dist)
+                    showWaferMomentSummary(selMomentSummary,sensorPos,proc,plotout,tag=dist,showUVLabeled=True if idx==1 else False)
 
     for profColl,profType,xtitle,ytitle in [(radialProfiles, 'radial', 'R [cm]', 'Occupancy'), 
                                             (longProfiles,   'long',   'z[cm]',  'Occupancy')]:

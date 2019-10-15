@@ -57,18 +57,18 @@ HGCOccupancyAnalyzer::HGCOccupancyAnalyzer( const edm::ParameterSet &iConfig ) :
     while (ss >> buf)
       if(buf.size()>0)
         tokens.push_back(buf);
-    if(tokens.size()<14) continue;
-
+    if(tokens.size()<11) continue;
+  
     std::string subdet(tokens[0]);
     int ilay(atoi(tokens[1].c_str()));
-    int waferU(atoi(tokens[9].c_str()));
-    int waferV(atoi(tokens[10].c_str()));
-    int ncells(atoi(tokens[11].c_str()));
-    // float phi(atof(tokens[6].c_str()));
-    // float eta(atof(tokens[8].c_str()));
+    int waferU(atoi(tokens[8].c_str()));
+    int waferV(atoi(tokens[9].c_str()));
+    int ncells(atoi(tokens[10].c_str()));
 
     WaferEquivalentId_t key(subdet,ilay,waferU,waferV);
     waferHistos_[key]=new WaferOccupancyHisto(subdet,ilay,waferU,waferV,ncells,&fs);
+
+    /*
     for(size_t i=13; i<tokens.size(); i+=2) {
       int u=atoi(tokens[i].c_str());
       int v=atoi(tokens[i+1].c_str());
@@ -77,7 +77,7 @@ HGCOccupancyAnalyzer::HGCOccupancyAnalyzer( const edm::ParameterSet &iConfig ) :
       WaferEquivalentId_t ikey(subdet,ilay,u,v);
       uvEqMap_[ikey]=std::pair<int,int>(waferU,waferV);
     }
-
+    
 
     std::vector<TH1F *> hotoccHistos;
     for(int iwaf=0; iwaf<7; iwaf++) {
@@ -87,6 +87,7 @@ HGCOccupancyAnalyzer::HGCOccupancyAnalyzer( const edm::ParameterSet &iConfig ) :
     }
     std::pair<std::string,int> hotkey(subdet,ilay);
     hottestWaferH_[hotkey]=hotoccHistos;
+    */
   }
 
   inF.close();
@@ -100,9 +101,7 @@ HGCOccupancyAnalyzer::~HGCOccupancyAnalyzer()
 //
 void HGCOccupancyAnalyzer::endJob()
 {
-  /*
-    for(auto &it : waferHistos_) it.second->endJob();
-  */
+  for(auto &it : waferHistos_) it.second->endJob();
 }
 
   
@@ -150,18 +149,18 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
   }
   */
   
-
   //analyze digi collections
   edm::Handle<HGCalDigiCollection> ceeDigisHandle;
   iEvent.getByToken(digisCEE_,ceeDigisHandle);
   analyzeDigis("CEE",ceeDigisHandle);
-  
+   
   edm::Handle<HGCalDigiCollection> cehDigisHandle;
   iEvent.getByToken(digisCEH_,cehDigisHandle);
   analyzeDigis("CEH",cehDigisHandle);
 
+
   //fill wafer histos and save the max. found in each layer
-  std::map<std::pair<std::string,int>,std::pair<WaferOccupancyHisto::UVKey_t, float> > hotWaferOccPerLayer;
+  //std::map<std::pair<std::string,int>,std::pair<WaferOccupancyHisto::UVKey_t, float> > hotWaferOccPerLayer;
   for(auto &it : waferHistos_) {
 
     std::string sd=std::get<0>(it.first);
@@ -183,14 +182,17 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
     std::set<WaferOccupancyHisto::UVKey_t> genMatchedUVs;
     it.second->analyze(genMatchedUVs);
 
+    /*
     //get hottest wafer
     WaferOccupancyHisto::UVKey_t hotWaferUV=it.second->getHotWaferUV();
     float hotWaferOcc=float(it.second->getHotWaferCounts())/float(it.second->getCells());    
 
     if(hotWaferOccPerLayer.find(key)==hotWaferOccPerLayer.end() || hotWaferOccPerLayer[key].second<hotWaferOcc)       
       hotWaferOccPerLayer[key]=std::pair<WaferOccupancyHisto::UVKey_t,float>(hotWaferUV,hotWaferOcc);
+    */
   }
-    
+
+  /*
   //fill the max. counts per layer and in the neighboring cells
   for(auto &it : hotWaferOccPerLayer) {
 
@@ -224,6 +226,7 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
       hottestWaferH_[key][i+1]->Fill( neighborOccs[i] );
     }
   }
+  */
    
   //all done, reset counters
   for(auto &it : waferHistos_) it.second->resetCounters();  
@@ -256,9 +259,11 @@ void HGCOccupancyAnalyzer::analyzeDigis(std::string sd,edm::Handle<HGCalDigiColl
       int waferTypeL = ddd.waferType(detId);
 
       std::pair<int,int> waferUV=detId.waferUV();
-      WaferEquivalentId_t ikey(std::make_tuple(sd,layer,waferUV.first,waferUV.second));
+      WaferEquivalentId_t key(std::make_tuple(sd,layer,waferUV.first,waferUV.second));
+      /*
       std::pair<int,int> uvEq=uvEqMap_[ikey];
       WaferEquivalentId_t key(std::make_tuple(sd,layer,uvEq.first,uvEq.second));
+      */
 
       uint32_t rawData(hit.sample(idx).data() );
       bool isTOA( hit.sample(idx).getToAValid() );

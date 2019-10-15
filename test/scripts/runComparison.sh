@@ -1,18 +1,24 @@
 #!/bin/bash
 
-python test/scripts/prepareOccupancySummary.py \
-    --waferPlots -3,0:-5,0:-10,0 \
-    t#bar{t}:ttbar_ttbar_v11_aged_biased_20191009_numEvent${maxEvents}.root:ana \
-    t#bar{t},biased:ttbar_ak8GenJetsNoNu_100_1_ttbar_v11_aged_biased_20191009_numEvent${maxEvents}.root:ana \
-    -o ${outdir}
+baseDir=/eos/cms/store/cmst3/user/psilva/HGCal/Occupancies
+outdir=/eos/user/p/psilva/www/HGCal/Electronics/Occupancies_`date +%d%b%y`
 
-python test/scripts/drawOccupancySummary.py \
-    -o ${outdir} \
-    t#bar{t}:${outdir}/summary.pck:0 \
-    t#bar{t},biased:${outdir}/summary.pck:1
+#python prepareOccupancySummary.py --waferPlots 0,3:0,5:0,10 --onlyLayers CEE:5,CEE:15,CEH:2 \
+#    noOOT,noNoise:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_aged_noOOT_noNoise_20191010.root:ana \
+#    noOOT:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_aged_noOOT_20191010.root:ana \
+#    noNoise:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_aged_noNoise_20191010.root:ana \
+#    aged:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_aged_pu200_20191010.root:ana \
+#    -o ${outdir}
 
+python drawOccupancySummary.py -o ${outdir} \
+    aged:${outdir}/summary.pck:3 \
+    noOOT,noNoise:${outdir}/summary.pck:0 \
+    noOOT:${outdir}/summary.pck:1 \
+    noNoise:${outdir}/summary.pck:2 \
+    
 cp /eos/user/p/psilva/www/index.php ${outdir}
-cp /eos/user/p/psilva/www/index.php ${outdir}/proc1
-cp /eos/user/p/psilva/www/index.php ${outdir}/proc2
+for i in `seq 1 4`; do
+    cp /eos/user/p/psilva/www/index.php ${outdir}/proc${i};
+done
 
 

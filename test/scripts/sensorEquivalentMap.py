@@ -39,14 +39,22 @@ def getEquivalentUV(x,y):
 
 def parseWaferPositionsMap(url):
 
+    """reads the txt file with sensor positions"""
+
     sensorPos={}
     with open(url,'r') as f:
         for line in f:
             tokens=line.split()
-            key=tuple([int(x) for x in tokens[0:4]])
-            ncells=int(tokens[4])
-            pos=[float(x) for x in tokens[5:]]
-            sensorPos[key]=[ncells]+pos
+            key=(tokens[0],int(tokens[1]),int(tokens[8]),int(tokens[9]))
+            r=float(tokens[2])
+            x=float(tokens[3])
+            y=float(tokens[4])
+            phi=float(tokens[5])
+            z=float(tokens[6])
+            eta=float(tokens[7])
+            ncells=int(tokens[10])
+            sensorPos[key]=[ncells,r,z,eta,phi,x,y]
+
     return sensorPos
 
 
@@ -60,11 +68,12 @@ def drawSensorEquivalentMap(uvzlist,labels,outname,extraText=[],cmapName='Pastel
     cont_patches=[]
     xran=[0,0]
     yran=[0,0]
-    radius=2./np.sqrt(3.)
+    radius=8*2.54*0.5*np.sqrt(3.)/2
     circleRadius=[]
     for i in range(len(uvzlist)):
-        u,v,_=uvzlist[i]
-        x,y=getXY(u,v)
+        x,y,_=uvzlist[i]
+        #u,v,_=uvzlist[i]
+        #x,y=getXY(u,v)
         xran[0]=min(x-2*radius,xran[0])
         xran[1]=max(x+2*radius,xran[1])
         yran[0]=min(y-2*radius,yran[0])
@@ -75,7 +84,7 @@ def drawSensorEquivalentMap(uvzlist,labels,outname,extraText=[],cmapName='Pastel
                                        orientation=np.radians(60), 
                                        alpha=0.2, edgecolor='k') )
         
-        if v==0: circleRadius.append( np.sqrt(x*x+y*y) )
+        #if v==0: circleRadius.append( np.sqrt(x*x+y*y) )
 
         if len(labels)<i : continue
         label=labels[i]
