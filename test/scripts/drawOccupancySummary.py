@@ -327,6 +327,7 @@ def showSummaryProfiles(profColl,outdir,tag,profType='radial',xtitle='R [cm]', y
             mg_ratio.GetYaxis().SetTitleOffset(0.75)
             mg_ratio.GetXaxis().SetTitleOffset(0.9)
             mg_ratio.GetYaxis().SetRangeUser(0.6,1.4)        
+            mg_ratio.GetYaxis().SetRangeUser(0.92,1.08)        
             mg_ratio.GetYaxis().SetTitleSize(0.08)
             mg_ratio.GetYaxis().SetNdivisions(5)
             mg_ratio.GetYaxis().SetLabelSize(0.08)

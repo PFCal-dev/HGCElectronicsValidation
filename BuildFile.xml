@@ -9,5 +9,6 @@
 <use name="CommonTools/UtilAlgos"/>
 <use name="SimCalorimetry/HGCalSimProducers"/>
 <use name="SimCalorimetry/HGCalSimAlgos"/>
+<use name="SimDataFormats/PileupSummaryInfo"/>
 <use name="DataFormats/JetReco"/>
 <flags EDM_PLUGIN="1"/>

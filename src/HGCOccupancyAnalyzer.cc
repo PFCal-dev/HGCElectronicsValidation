@@ -35,6 +35,7 @@ using namespace std;
 
 //
 HGCOccupancyAnalyzer::HGCOccupancyAnalyzer( const edm::ParameterSet &iConfig ) :   
+  puToken_(consumes<std::vector<PileupSummaryInfo>>(edm::InputTag("addPileupInfo"))),
   genJets_( consumes<std::vector<reco::GenJet> >(edm::InputTag("ak8GenJetsNoNu")) ),
   geoCEE_("HGCalEESensitive"),
   geoCEH_("HGCalHESiliconSensitive"),
@@ -89,8 +90,13 @@ HGCOccupancyAnalyzer::HGCOccupancyAnalyzer( const edm::ParameterSet &iConfig ) :
     hottestWaferH_[hotkey]=hotoccHistos;
     */
   }
-
   inF.close();
+
+  cellCount_=fs->make<TH1F>("cellcount",";Layer;Number of cells/layer",50,0.5,50.5);
+  tdcCountProf_=fs->make<TProfile>("tdccount",";Layer;Number of hits/layer",50,0.5,50.5);
+  toaCountProf_=fs->make<TProfile>("toacount",";Layer;Number of hits/layer",50,0.5,50.5);
+  adcCountProf_=fs->make<TProfile>("adccount",";Layer;Number of hits/layer",50,0.5,50.5);
+  adcHitsVsPU_=fs->make<TH2F>("adchitsvspu",";Number of PU interactions;log_{10}(ADC hits)",100,100,300,50,4,10);
 }
 
 //
@@ -108,6 +114,11 @@ void HGCOccupancyAnalyzer::endJob()
 //
 void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSetup &iSetup)
 {
+  //reset counters
+  tdcHits_.resize(50,0);
+  toaHits_.resize(50,0);
+  adcHits_.resize(50,0);
+
   //read geometry from event setup
   edm::ESHandle<HGCalGeometry> ceeGeoHandle;
   iSetup.get<IdealGeometryRecord>().get(geoCEE_,ceeGeoHandle);
@@ -115,6 +126,21 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
   edm::ESHandle<HGCalGeometry> cehGeoHandle;
   iSetup.get<IdealGeometryRecord>().get(geoCEH_,cehGeoHandle);
   hgcGeometries_["CEH"]=cehGeoHandle.product();
+
+
+  for(auto &it : hgcGeometries_ )
+    {
+      const std::vector<DetId> &validDetIds = it.second->getValidDetIds();
+      for(auto &didIt : validDetIds) {
+        HGCSiliconDetId detId(didIt.rawId());
+        if(detId.zside()<0) continue;
+        int layer=detId.layer();
+
+        int layidx(layer);
+        if(it.first=="CEH") layidx+=28;
+        cellCount_->Fill(layidx);
+      }
+    }
 
   /*
   //best matching wafer to gen (if dR>0.2 no match was found)
@@ -227,6 +253,30 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
     }
   }
   */
+
+
+  //get pileup information
+  edm::Handle<std::vector <PileupSummaryInfo> > PupInfo;
+  iEvent.getByToken(puToken_,PupInfo);
+  int npu(0);
+  if(PupInfo.isValid()){
+    std::vector<PileupSummaryInfo>::const_iterator ipu;
+    for (ipu = PupInfo->begin(); ipu != PupInfo->end(); ++ipu) 
+      {
+        if ( ipu->getBunchCrossing() != 0 ) continue; // storing detailed PU info only for BX=0
+        npu=ipu->getPU_NumInteractions();
+      }
+  }
+
+  int totalADC(0);
+  for(size_t idx=0; idx<tdcHits_.size(); idx++){
+    tdcCountProf_->Fill(idx+1,tdcHits_[idx]);
+    toaCountProf_->Fill(idx+1,toaHits_[idx]);
+    adcCountProf_->Fill(idx+1,adcHits_[idx]);
+    totalADC+=adcHits_[idx];
+  }
+  adcHitsVsPU_->Fill(npu,TMath::Log10(totalADC));
+  
    
   //all done, reset counters
   for(auto &it : waferHistos_) it.second->resetCounters();  
@@ -268,6 +318,13 @@ void HGCOccupancyAnalyzer::analyzeDigis(std::string sd,edm::Handle<HGCalDigiColl
       uint32_t rawData(hit.sample(idx).data() );
       bool isTOA( hit.sample(idx).getToAValid() );
       bool isTDC( hit.sample(idx).mode() );
+      
+      size_t layidx(layer-1);
+      if(sd=="CEH") layidx+=28;
+      if(isTDC) tdcHits_[layidx]+=1;
+      if(isTOA) toaHits_[layidx]+=1;
+      if(!isTDC) adcHits_[layidx]+=1;
+
       bool isBusy( isTDC && rawData==0 );
       waferHistos_[key]->count(waferUV.first,waferUV.second,rawData,isTOA,isTDC,isBusy);
     }

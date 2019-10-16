@@ -44,8 +44,13 @@
 #include "Geometry/TrackerGeometryBuilder/interface/TrackerGeometry.h"
 #include "MagneticField/Engine/interface/MagneticField.h"
 #include "Geometry/HGCalGeometry/interface/HGCalGeometry.h"
+#include "SimDataFormats/PileupSummaryInfo/interface/PileupSummaryInfo.h"
 
 #include <string>
+
+#include "TProfile.h"
+#include "TH2F.h"
+
 
 
 /**
@@ -76,6 +81,7 @@ class HGCOccupancyAnalyzer : public edm::EDAnalyzer
   std::map<WaferEquivalentId_t,std::pair<int,int> > uvEqMap_;
 
   //generator level information
+  edm::EDGetTokenT<std::vector<PileupSummaryInfo> > puToken_;
   edm::EDGetTokenT<std::vector<reco::GenJet> > genJets_;
 
   //geometry and digis to analyze
@@ -84,6 +90,11 @@ class HGCOccupancyAnalyzer : public edm::EDAnalyzer
   edm::EDGetTokenT<HGCalDigiCollection> digisCEE_,digisCEH_;  
 
   std::map<std::pair<std::string,int>, std::vector<TH1F *> > hottestWaferH_;
+
+  std::vector<int> tdcHits_, toaHits_,adcHits_;
+  TH1F *cellCount_;
+  TProfile *tdcCountProf_,*toaCountProf_,*adcCountProf_;
+  TH2F *adcHitsVsPU_;
 };
  
 
