@@ -102,7 +102,7 @@ void HGCGeometryScan::prepareAnalysis()
         histos[key]->SetPoint(npts,pt.x(),pt.y(),ci);
  
         //find rotation to equivalence sector
-        std::pair<double, double> waferPos=ddd.waferPosition(waferUV.first,waferUV.second,true);
+        std::pair<double, double> waferPos=ddd.waferPosition(layer,waferUV.first,waferUV.second,true);
         double waferPhi=atan2(waferPos.second,waferPos.first);
         double waferRadius=hypot(waferPos.first,waferPos.second);
         double z(ddd.waferZ(layer,true));
