@@ -13,10 +13,10 @@ function copyphp {
 }
 
 function dottbar {
-#    python prepareOccupancySummary.py --waferPlots -3,0:-5,0:-8,0 --onlyLayers CEE:5,CEE:20,CEH:2 \
-#        "#nugun":${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_aged_pu200_20191010.root:ana \
-#        "t#bar{t}":${baseDir}/ttbar_ttbar_v11_aged_unbiased_20191009.root:ana \
-#        -o ${outdir}/ttbar
+    python prepareOccupancySummary.py --waferPlots -3,0:-5,0:-8,0 --onlyLayers CEE:5,CEE:20,CEH:2 \
+        "#nugun":${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_aged_pu200_20191010.root:ana \
+        "t#bar{t}":${baseDir}/ttbar_ttbar_v11_aged_unbiased_20191009.root:ana \
+        -o ${outdir}/ttbar
 
     python drawOccupancySummary.py -o ${outdir}/ttbar \
         "#nugun":${outdir}/ttbar/summary.pck:0 \
@@ -26,9 +26,19 @@ function dottbar {
 }
 
 function donugun {
-    #python prepareOccupancySummary.py --waferPlots -1,3:-2,0:-3,0:-4,0:-5,0:-6,0:-7,0:-8,0 --onlyLayers CEE:5,CEE:20,CEH:2 \
-    #    noOOT,noNoise:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_aged_noOOT_noNoise_20191010.root:ana \
-    #    -o ${outdir}/nootnonoise
+
+#    python prepareOccupancySummary.py --waferPlots -1,3:-2,0:-3,0:-4,0:-5,0:-6,0:-7,0:-8,0 --onlyLayers CEE:5,CEE:20,CEH:2 \
+#        v11:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_aged_pu200_20191010.root:ana \
+#        v11,geomfix:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_geomfixes_aged_pu200_20191018.root:ana \
+#        -o ${outdir}/geomfix
+    
+    python drawOccupancySummary.py -o ${outdir}/geomfix \
+        v11,geomfix:${outdir}/geomfix/summary.pck:1 \
+        v11:${outdir}/geomfix/summary.pck:0
+    
+    copyphp ${outdir}/geomfix
+
+    exit -1
     
     python prepareOccupancySummary.py --waferPlots -3,0:-5,0:-8,0 --onlyLayers CEE:5,CEE:20,CEH:2 \
         noOOT,noNoise:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_aged_noOOT_noNoise_20191010.root:ana \
@@ -46,6 +56,7 @@ function donugun {
 }
 
 
-dottbar
+#dottbar
+donugun
 
 

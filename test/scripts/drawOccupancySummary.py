@@ -44,7 +44,7 @@ def showWaferMomentSummary(momentSummary,sensorPos,proc,outdir,tag,showUVLabeled
 
     """show the wafer data in a layer-by-layer representation"""
 
-    qbias=0.5 #the binning introduces a bias in the quantile
+    xbias=0.5 #the binning introduces a bias in the quantile
     
     #loop over each sub-detector layer
     subdets=set([x[0] for x in sensorPos])
@@ -60,10 +60,10 @@ def showWaferMomentSummary(momentSummary,sensorPos,proc,outdir,tag,showUVLabeled
                 if isd!=sd or ilay!=lay :continue
 
                 ncells,waferType,r,z,eta,phi,xpos,ypos=sensorPos[waferKey]               
-                occ=[float(x-qbias)/float(ncells) for x in momentSummary[waferKey]]
+                occ=[float(max(x-xbias,0))/float(ncells) for x in momentSummary[waferKey]]
 
                 #uvzlist.append( [iu,iv,occ[0]] )
-                if phi>=0 and phi<=maxPhiSector[sd]:
+                if (phi>=0 or (iu<0 and iv>=0)) and phi<=maxPhiSector[sd]:
                     sectoreq_uvzlist.append( [xpos,ypos,occ[0]] )
                     sectoreq_labels.append( r'$%d^{+%d}_{-%d}$'%(round(100*occ[1]),
                                                                  round(100*(occ[2]-occ[1])),
@@ -104,7 +104,7 @@ def dumpCSVOccupancy(momentSummary,sensorPos,outdir):
 
     """dumps a CSV file with the summary of occupancies"""
 
-    qbias=0.5
+    xbias=0.5
 
     import csv
     fOut=open(os.path.join(outdir,'occupancy_summary.dat'),'w')
@@ -114,7 +114,7 @@ def dumpCSVOccupancy(momentSummary,sensorPos,outdir):
 
         isd,ilay,iu,iv=waferKey
         ncells,waferType,r,z,eta,phi,xpos,ypos=sensorPos[waferKey] 
-        occ=[float(x-qbias)/float(ncells) for x in counts]
+        occ=[float(max(x-xbias,0))/float(ncells) for x in counts]
         csv_writer.writerow( [isd,ilay,1 if waferType==0 else 0,ncells,xpos,ypos,iu,iv]+occ )
 
     fOut.close()
@@ -125,7 +125,7 @@ def getRadialSummary(momentSummary,sensorPos,proc):
     
     radialProf={}
 
-    qbias=0.5
+    xbias=0.5
 
     #loop over each sub-detector layer
     subdets=set([x[0] for x in sensorPos])
@@ -149,7 +149,7 @@ def getRadialSummary(momentSummary,sensorPos,proc):
                 if phi<0 or phi>maxPhiSector[isd]:
                     continue
 
-                occ=[float(x-qbias)/float(ncells) for x in momentSummary[waferKey]]
+                occ=[float(max(x-xbias,0))/float(ncells) for x in momentSummary[waferKey]]
                 densIdx=1 if waferType==0 else 0
                 ipt=radialProf[layKey][densIdx].GetN()
                 radialProf[layKey][densIdx].SetPoint(ipt,r,occ[1])
@@ -167,7 +167,7 @@ def getWaferUVSummary(momentSummary,sensorPos,proc,waferLongProfiles):
     
     waferUVSummary={}
 
-    qbias=0.5
+    xbias=0.5
 
     #loop over each sub-detector layer
     subdets=set([x[0] for x in sensorPos])
@@ -187,7 +187,7 @@ def getWaferUVSummary(momentSummary,sensorPos,proc,waferLongProfiles):
                 waferUVSummary[sumKey].SetTitle(proc)
 
             ncells,waferType,r,z,eta,phi,xpos,ypos=sensorPos[waferKey]
-            occ=[float(x-qbias)/float(ncells) for x in momentSummary[waferKey]]
+            occ=[float(max(x-xbias,0))/float(ncells) for x in momentSummary[waferKey]]
             ipt=waferUVSummary[sumKey].GetN()
             waferUVSummary[sumKey].SetPoint(ipt,z,occ[1])
             waferUVSummary[sumKey].SetPointError(ipt,0,0,0,occ[2]-occ[1])
@@ -308,9 +308,9 @@ def showSummaryProfiles(profColl,outdir,tag,profType='radial',xtitle='R [cm]', y
         tex.SetTextAlign(ROOT.kHAlignRight+ROOT.kVAlignCenter)
         tex.SetTextSize(0.04 if nprocs==1 else 0.05)
         if len(collKey)==2:
-            tex.DrawLatex(0.97,0.97,'%s layer %d'%('CEE' if collKey[0]==0 else 'CEH',collKey[1]))
+            tex.DrawLatex(0.97,0.97,'%s layer %d'%(collKey[0],collKey[1]))
         else:
-            tex.DrawLatex(0.97,0.97,'%s (u,v)=(%d,%d)'%('CEE' if collKey[0]==0 else 'CEH',collKey[1],collKey[2]))
+            tex.DrawLatex(0.97,0.97,'%s (u,v)=(%d,%d)'%(collKey[0],collKey[1],collKey[2]))
 
 
         #add ratios if available
