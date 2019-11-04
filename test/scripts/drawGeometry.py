@@ -9,10 +9,11 @@ def drawLayer(gr):
     gr.GetYaxis().SetTitle('y [cm]')
 
     tkns=gr.GetName().split('_')
-    title=''
-    if tkns[0]=="sd0" : title = 'CE-E'
-    if tkns[0]=="sd1" : title = 'CE-H'
-    title += ', layer %s'%(tkns[1].replace('lay',''))
+    title='%s, layer %s'%(tkns[0],tkns[1].replace('lay',''))
+
+    l=ROOT.TLine()
+    l.DrawLine(0,-150,0,150)
+    l.DrawLine(-150,0,150,0)
 
 
     tex=ROOT.TLatex()
@@ -22,9 +23,7 @@ def drawLayer(gr):
     tex.DrawLatex(0.12,0.96,'#bf{CMS} #it{simulation preliminary}')
     tex.DrawLatex(0.12,0.92,title)
     tex.SetTextSize(0.04)
-    
-
-    
+        
 ROOT.gROOT.SetBatch(False)
 ROOT.gStyle.SetOptTitle(0)
 ROOT.gStyle.SetOptStat(0)    
