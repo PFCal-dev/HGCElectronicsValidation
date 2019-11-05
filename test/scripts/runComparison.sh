@@ -2,6 +2,7 @@
 
 baseDir=/eos/cms/store/cmst3/user/psilva/HGCal/Occupancies/4Nov/
 outdir=/eos/user/p/psilva/www/HGCal/Electronics/Occupancies_`date +%d%b%y`
+mkdir -p $outdir
 
 function copyphp {
 
@@ -37,6 +38,13 @@ function dottbar {
 
 function donugun {
 
+    mkdir -p ${outdir}/nugun_noot_nonoise
+    python prepareOccupancySummary.py --waferPlots -2,0:-3,0:-4,0:-5,0:-6,0:-7,0:-8,0 --onlyLayers CEE:2,CEE:5,CEE:20,CEH:2 \
+        noOOT,noNoise:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_noOOT_noNoise_aged_20191101.root:ana \
+        -o ${outdir}/nugun_noot_nonoise
+
+    copyphp $outdir/nugun_noot_nonoise
+
 #    python prepareOccupancySummary.py --waferPlots -3,0:-5,0:-8,0 --onlyLayers CEE:5,CEE:20,CEH:2 \
 #        noOOT,noNoise:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_noOOT_noNoise_aged_20191101.root:ana \
 #        noOOT:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_noOOT_aged_20191101.root:ana \
@@ -48,18 +56,19 @@ function donugun {
 #        aged:${outdir}/nugun/summary.pck:3 \
 #        noOOT,noNoise:${outdir}/nugun/summary.pck:0 \
 #        noOOT:${outdir}/nugun/summary.pck:1 \
-#        noNoise:${outdir}/nugun/summary.pck:2
+#        noNoise:${outdir}/nugun/summary.pck:2 \
+#        --yratioran 0.22,1.08
 
-    python prepareOccupancySummary.py --waferPlots -3,0:-5,0:-8,0 --onlyLayers CEE:5,CEE:20,CEH:2 \
-        aged:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_Aged_20191101.root:ana \
-        agedv2:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_aged_20191104.root:ana \
-        startup:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_startup_20191104.root:ana \
-        -o ${outdir}/nugunv2
+#    copyphp $outdir/nugun
 
-    copyphp $outdir/nugun
-    copyphp $outdir/nugunv2
+    #python prepareOccupancySummary.py --waferPlots -3,0:-5,0:-8,0 --onlyLayers CEE:5,CEE:20,CEH:2 \
+    #    aged:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_Aged_20191101.root:ana \
+    #    agedv2:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_aged_20191104.root:ana \
+    #    startup:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_startup_20191104.root:ana \
+    #    -o ${outdir}/nugunv2
+    
+    #copyphp $outdir/nugunv2
 }
-
 
 #dottbar
 donugun

@@ -199,7 +199,7 @@ def getWaferUVSummary(momentSummary,sensorPos,proc,waferLongProfiles):
 
     return waferUVSummary
 
-def showSummaryProfiles(profColl,outdir,tag,profType='radial',xtitle='R [cm]', ytitle='Occupancy', yran=(0.5e-2,1)):
+def showSummaryProfiles(profColl,outdir,tag,profType='radial',xtitle='R [cm]', ytitle='Occupancy', yran=(0.5e-2,1),yratioran=(0.92,1.08)):
 
     """ final grand summary plot """
 
@@ -326,8 +326,7 @@ def showSummaryProfiles(profColl,outdir,tag,profType='radial',xtitle='R [cm]', y
             mg_ratio.GetXaxis().SetTitle(xtitle)
             mg_ratio.GetYaxis().SetTitleOffset(0.75)
             mg_ratio.GetXaxis().SetTitleOffset(0.9)
-            mg_ratio.GetYaxis().SetRangeUser(0.6,1.4)        
-            mg_ratio.GetYaxis().SetRangeUser(0.92,1.08)        
+            mg_ratio.GetYaxis().SetRangeUser(yratioran[0],yratioran[1])
             mg_ratio.GetYaxis().SetTitleSize(0.08)
             mg_ratio.GetYaxis().SetNdivisions(5)
             mg_ratio.GetYaxis().SetLabelSize(0.08)
@@ -357,9 +356,12 @@ def main():
     parser = optparse.OptionParser(usage)
     parser.add_option('-o', '--out',   dest='output',  help='output directory [%default]',  default='occ_plots', type='string')    
     parser.add_option('-p', '--plots', dest='plots',  help='plots (csv) [%default]',       default='counts', type='string')    
+    parser.add_option('--yratioran', dest='yratioran',  help='y rato [%default]',       default='0.92,1.08', type='string')    
     parser.add_option(      '--waferLongProfiles',   dest='waferLongProfiles',    help='show these wafer longitudinal profiles [%default]',  default='0,3:0,5:0,10', type='string')
     parser.add_option(      '--noWaferPlots',        dest='noWaferPlots',         help='disable wafer plots [%default]',                     default=False,          action='store_true')
     (opt, args) = parser.parse_args()
+
+    yratioran=[float(x) for x in opt.yratioran.split(',')]
 
     #decode wafer plot list string                                                                                                                                                                                                                                                                
     if opt.waferLongProfiles:
@@ -417,7 +419,7 @@ def main():
                                             (longProfiles,   'long',   'z[cm]',  'Occupancy')]:
         for dist in profColl:
             if len(profColl[dist])==0 : continue
-            showSummaryProfiles(profColl[dist],opt.output,tag=dist,profType=profType,xtitle=xtitle,ytitle=ytitle)
+            showSummaryProfiles(profColl[dist],opt.output,tag=dist,profType=profType,xtitle=xtitle,ytitle=ytitle,yratioran=yratioran)
 
 
 

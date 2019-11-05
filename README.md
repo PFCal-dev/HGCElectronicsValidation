@@ -42,6 +42,16 @@ The output is a ROOT file with TGraph2D showing the position of the wafers in ea
 You can plot them with `python test/scripts/drawGeometry.py` and an ascii file called `wafer_pos.dat`.
 To use the later in the occupancy analyzer copy it to the data folder.
 
+## Wafer position optimization
+
+Prepare a ntuple with the fluence and S/N in each wafer, layer and sub-detector
+
+```
+cmsRun test/hgcsiopscan_cfg.py doseMap=SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.5.15.9.txt &
+```
+
+Then you can use the SiSensorOptim notebook to interact with its contents.
+
 ## Occupancy analysis
 
 A set of control plots is produced globally per layer and per wafer-equivalent position in each layer.

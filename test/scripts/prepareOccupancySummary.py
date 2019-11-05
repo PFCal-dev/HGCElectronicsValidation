@@ -168,7 +168,7 @@ def showPlotCollSummary(plotColl,extraText,pname,fitPeak=False,plotCDF=False):
             legTitle=histos[-1].GetTitle()
 
             #hack to find threshold
-            if plot=='adc' and len(plotColl)==1:
+            if plot=='adc'  and len(plotColl)==1:
                 nbinsx=histos[-1].GetNbinsX()
                 for xbin in range(1,nbinsx+1):
                     if histos[-1].GetBinContent(xbin)==0 : continue
