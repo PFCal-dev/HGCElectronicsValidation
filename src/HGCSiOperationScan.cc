@@ -145,14 +145,14 @@ void HGCSiOperationScan::endJob()
         snthick[ncells], sthick[ncells], nthick[ncells];
       for(size_t icell=0; icell<ncells; icell++) {
         fluence[icell] = cellOp[icell].fluence;
-        sfine[icell]   = cellOp[icell].cce      * cellOp[icell].mipfC;
+        sfine[icell]   = cellOp[icell].cce * cellOp[icell].mipfC;
         nfine[icell]   = cellOp[icell].noise;
         snfine[icell]  = sfine[icell] / nfine[icell];
-        sthin[icell]   = cellOp[icell].cce      * cellOp[icell].mipfC;
-        nthin[icell]   = cellOp[icell].noise;
+        sthin[icell]   = cellOpThin[icell].cce * cellOpThin[icell].mipfC;
+        nthin[icell]   = cellOpThin[icell].noise;
         snthin[icell]  = sthin[icell] / nthin[icell];
-        sthick[icell]  = cellOp[icell].cce      * cellOp[icell].mipfC;
-        nthick[icell]  = cellOp[icell].noise;
+        sthick[icell]  = cellOpThick[icell].cce * cellOpThick[icell].mipfC;
+        nthick[icell]  = cellOpThick[icell].noise;
         snthick[icell] = sthick[icell] / nthick[icell];
       }     
       
@@ -161,7 +161,7 @@ void HGCSiOperationScan::endJob()
       summaryVals[2]  = waferKey.first;
       summaryVals[3]  = waferKey.second;
       summaryVals[4]  = waferPos_[layKey][waferKey].first;
-      summaryVals[5]  = waferPos_[layKey][waferKey].second;
+      summaryVals[5]  = waferPos_[layKey][waferKey].second;      
       summaryVals[6]  = ncells;
       summaryVals[7]  = TMath::MinElement<double>(ncells,fluence);
       summaryVals[8]  = TMath::Median<double>    (ncells,fluence);
