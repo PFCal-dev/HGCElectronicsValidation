@@ -40,7 +40,8 @@ HGCOccupancyAnalyzer::HGCOccupancyAnalyzer( const edm::ParameterSet &iConfig ) :
   geoCEE_("HGCalEESensitive"),
   geoCEH_("HGCalHESiliconSensitive"),
   digisCEE_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","EE")) ),
-  digisCEH_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","HEfront")) )
+  digisCEH_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","HEfront")) ),
+  nevts_(0)
 {  
 
   edm::Service<TFileService> fs;
@@ -96,7 +97,11 @@ HGCOccupancyAnalyzer::HGCOccupancyAnalyzer( const edm::ParameterSet &iConfig ) :
   tdcCountProf_=fs->make<TProfile>("tdccount",";Layer;Number of hits/layer",50,0.5,50.5);
   toaCountProf_=fs->make<TProfile>("toacount",";Layer;Number of hits/layer",50,0.5,50.5);
   adcCountProf_=fs->make<TProfile>("adccount",";Layer;Number of hits/layer",50,0.5,50.5);
-  adcHitsVsPU_=fs->make<TH2F>("adchitsvspu",";Number of PU interactions;log_{10}(ADC hits)",100,100,300,50,4,10);
+  adcHitsVsPU_=fs->make<TH2F>("adchitsvspu",";Number of PU interactions; Number of ADC hits",100,100,300,1000,0.5e5,5e5);
+  tdcHits_.resize(50,0);
+  toaHits_.resize(50,0);
+  adcHits_.resize(50,0);
+
 }
 
 //
@@ -108,16 +113,23 @@ HGCOccupancyAnalyzer::~HGCOccupancyAnalyzer()
 void HGCOccupancyAnalyzer::endJob()
 {
   for(auto &it : waferHistos_) it.second->endJob();
+
+  if(nevts_>0) {
+    float sf( 1./float(nevts_) );
+    cellCount_->Scale(sf);
+  }
 }
 
   
 //
 void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSetup &iSetup)
 {
+  nevts_+=1;
+
   //reset counters
-  tdcHits_.resize(50,0);
-  toaHits_.resize(50,0);
-  adcHits_.resize(50,0);
+  std::fill(tdcHits_.begin(), tdcHits_.end(), 0);
+  std::fill(toaHits_.begin(), toaHits_.end(), 0);
+  std::fill(adcHits_.begin(), adcHits_.end(), 0);
 
   //read geometry from event setup
   edm::ESHandle<HGCalGeometry> ceeGeoHandle;
@@ -275,7 +287,7 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
     adcCountProf_->Fill(idx+1,adcHits_[idx]);
     totalADC+=adcHits_[idx];
   }
-  adcHitsVsPU_->Fill(npu,TMath::Log10(totalADC));
+  adcHitsVsPU_->Fill(npu,totalADC);
   
    
   //all done, reset counters
@@ -321,8 +333,8 @@ void HGCOccupancyAnalyzer::analyzeDigis(std::string sd,edm::Handle<HGCalDigiColl
       
       size_t layidx(layer-1);
       if(sd=="CEH") layidx+=28;
-      if(isTDC) tdcHits_[layidx]+=1;
-      if(isTOA) toaHits_[layidx]+=1;
+      if(isTDC)  tdcHits_[layidx]+=1;
+      if(isTOA)  toaHits_[layidx]+=1;
       if(!isTDC) adcHits_[layidx]+=1;
 
       bool isBusy( isTDC && rawData==0 );

@@ -11,12 +11,12 @@ maxevents   = -1
 outdir      = /eos/cms/store/cmst3/user/psilva/HGCal/Occupancies/4Nov
 
 queue tag from (
-#      ttbar_ttbar_v11_aged_unbiased_20191101
+      ttbar_ttbar_v11_aged_unbiased_20191101
       ttbar_ak8GenJetsNoNu_100_1_ttbar_v11_aged_biased_20191101
-#      FlatRandomPtGunProducer_NeutrinoGun_v11_Aged_20191101
-#      FlatRandomPtGunProducer_NeutrinoGun_v11_noOOT_aged_20191101
-#      FlatRandomPtGunProducer_NeutrinoGun_v11_noNoise_aged_20191101
-#      FlatRandomPtGunProducer_NeutrinoGun_v11_noOOT_noNoise_aged_20191101
-#      FlatRandomPtGunProducer_NeutrinoGun_v11_startup_20191104
-#      FlatRandomPtGunProducer_NeutrinoGun_v11_aged_20191104
+      FlatRandomPtGunProducer_NeutrinoGun_v11_Aged_20191101
+      FlatRandomPtGunProducer_NeutrinoGun_v11_noOOT_aged_20191101
+      FlatRandomPtGunProducer_NeutrinoGun_v11_noNoise_aged_20191101
+      FlatRandomPtGunProducer_NeutrinoGun_v11_noOOT_noNoise_aged_20191101
+      FlatRandomPtGunProducer_NeutrinoGun_v11_startup_20191104
+      FlatRandomPtGunProducer_NeutrinoGun_v11_aged_20191104
 )

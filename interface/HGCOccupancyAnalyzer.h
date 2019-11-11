@@ -95,6 +95,8 @@ class HGCOccupancyAnalyzer : public edm::EDAnalyzer
   TH1F *cellCount_;
   TProfile *tdcCountProf_,*toaCountProf_,*adcCountProf_;
   TH2F *adcHitsVsPU_;
+
+  int nevts_;
 };
  
 
