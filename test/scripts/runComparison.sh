@@ -2,6 +2,7 @@
 
 baseDir=/eos/cms/store/cmst3/user/psilva/HGCal/Occupancies/4Nov/
 outdir=/eos/user/p/psilva/www/HGCal/Electronics/Occupancies_`date +%d%b%y`
+outdir=/eos/user/p/psilva/www/HGCal/Electronics/Occupancies_04Nov19
 mkdir -p $outdir
 
 function copyphp {
@@ -38,12 +39,12 @@ function dottbar {
 
 function donugun {
 
-    mkdir -p ${outdir}/nugun_noot_nonoise
-    python prepareOccupancySummary.py --waferPlots -2,0:-3,0:-4,0:-5,0:-6,0:-7,0:-8,0 --onlyLayers CEE:2,CEE:5,CEE:20,CEH:2 \
-        noOOT,noNoise:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_noOOT_noNoise_aged_20191101.root:ana \
-        -o ${outdir}/nugun_noot_nonoise
+    #mkdir -p ${outdir}/nugun_noot_nonoise
+    #python prepareOccupancySummary.py --waferPlots -2,0:-3,0:-4,0:-5,0:-6,0:-7,0:-8,0 --onlyLayers CEE:2,CEE:5,CEE:20,CEH:2 \
+    #    noOOT,noNoise:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_noOOT_noNoise_aged_20191101.root:ana \
+    #    -o ${outdir}/nugun_noot_nonoise
 
-    copyphp $outdir/nugun_noot_nonoise
+    #copyphp $outdir/nugun_noot_nonoise
 
 #    python prepareOccupancySummary.py --waferPlots -3,0:-5,0:-8,0 --onlyLayers CEE:5,CEE:20,CEH:2 \
 #        noOOT,noNoise:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_noOOT_noNoise_aged_20191101.root:ana \
@@ -58,8 +59,18 @@ function donugun {
 #        noOOT:${outdir}/nugun/summary.pck:1 \
 #        noNoise:${outdir}/nugun/summary.pck:2 \
 #        --yratioran 0.22,1.08
-
 #    copyphp $outdir/nugun
+
+
+    mkdir -p ${outdir}/nugun_busy
+    python drawOccupancySummary.py -o ${outdir}/nugun_busy \
+        aged:${outdir}/nugun/summary.pck:3 \
+        noOOT:${outdir}/nugun/summary.pck:1 \
+        noNoise:${outdir}/nugun/summary.pck:2 \
+        --yran 5e-5,1 \
+        --yratioran 0.8,1.18 \
+        -p tdccounts,busycounts --noWaferPlots
+    copyphp $outdir/nugun_busy
 
     #python prepareOccupancySummary.py --waferPlots -3,0:-5,0:-8,0 --onlyLayers CEE:5,CEE:20,CEH:2 \
     #    aged:${baseDir}/FlatRandomPtGunProducer_NeutrinoGun_v11_Aged_20191101.root:ana \

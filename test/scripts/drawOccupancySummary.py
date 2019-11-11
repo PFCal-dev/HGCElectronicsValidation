@@ -23,18 +23,51 @@ def getRatio(num,den):
     gr.SetTitle(num.GetTitle())
     gr.Set(0)
 
-    x,y_num,y_den=ROOT.Double(0),ROOT.Double(0),ROOT.Double(0)
+    x,y_num,x_den,y_den=ROOT.Double(0),ROOT.Double(0),ROOT.Double(0),ROOT.Double(0)
     for ipt in range(num.GetN()):
         num.GetPoint(ipt,x,y_num)
+        y_numval=float(y_num)
         ey_num=num.GetErrorYhigh(ipt)
-        den.GetPoint(ipt,x,y_den)
-        ey_den=den.GetErrorYhigh(ipt)
-        if float(y_den)<=0 : continue
+        y_num90=y_num+ey_num
+        ey_num=num.GetErrorYhigh(ipt)
 
-        ratio=float(y_num)/float(y_den)
-        ratio90=float(y_num+ey_num)/float(y_den+ey_den)
-        gr.SetPoint(ipt,x,ratio)
-        gr.SetPointError(ipt,0,0,0,ratio90-ratio)
+        #find closest
+        closestj=-1
+        closestdx=1e21
+        for jpt in range(den.GetN()):
+            den.GetPoint(jpt,x_den,y_den)         
+            dx=abs(float(x_den)-float(x))
+            if dx>closestdx: continue
+            closestj=jpt
+            closestdx=dx
+        if closestj<0 : continue
+        if closestdx>0.1 : continue
+
+        jpt=closestj
+        den.GetPoint(jpt,x_den,y_den)
+        y_denval=float(y_den)
+        ey_den=den.GetErrorYhigh(jpt)
+        y_den90=y_denval+ey_den
+
+        if y_denval==0:
+            if y_numval==0:
+                ratio=1
+            else:
+                continue
+        else:
+            ratio=y_numval/y_denval
+
+        if y_den90==0:
+            if y_num90==0:
+                ratioUnc=0
+            else:
+                ratioUnc=1
+        else:
+            ratioUnc=abs(y_num90/y_den90-ratio)
+
+        npt=gr.GetN()
+        gr.SetPoint(npt,x,ratio)
+        gr.SetPointError(npt,0,0,0,ratioUnc)
 
     gr.Sort()
     return gr
@@ -215,7 +248,7 @@ def showSummaryProfiles(profColl,outdir,tag,profType='radial',xtitle='R [cm]', y
     c.SetBottomMargin(0)
     c.cd()
     p1=ROOT.TPad('p1','p1',0,0 if nprocs==1 else 0.4,1,1)
-    p1.SetTopMargin(0.06)
+    p1.SetTopMargin(0.07)
     p1.SetLeftMargin(0.12)
     p1.SetRightMargin(0.02)
     p1.SetBottomMargin(0.1 if nprocs==1 else 0.02)
@@ -251,6 +284,8 @@ def showSummaryProfiles(profColl,outdir,tag,profType='radial',xtitle='R [cm]', y
 
         mg=ROOT.TMultiGraph()
         ratios=[]
+        x,y=ROOT.Double(0),ROOT.Double(0)
+        xmin,xmax=1e21,-1e21
         for iproc in range(nprocs):       
 
             if type(profColl[iproc][collKey])==list:
@@ -259,6 +294,12 @@ def showSummaryProfiles(profColl,outdir,tag,profType='radial',xtitle='R [cm]', y
                     ms=markers[2*iproc+igr]
                     fs=fills[iproc]
                     gr=profColl[iproc][collKey][igr]
+
+                    gr.GetPoint(0,x,y)
+                    xmin=min(float(x),xmin)
+                    gr.GetPoint(gr.GetN()-1,x,y)
+                    xmax=max(float(x),xmax)
+
                     gr.SetLineColor(ci)
                     gr.SetFillColor(ci)
                     gr.SetFillStyle(fs)
@@ -286,56 +327,59 @@ def showSummaryProfiles(profColl,outdir,tag,profType='radial',xtitle='R [cm]', y
                 if iproc>0:
                     ratios.append( getRatio(gr,profColl[0][collKey]) )
 
-        #draw
-        mg.Draw('a3p')
-        mg.GetYaxis().SetTitle()
-        mg.GetXaxis().SetTitle(xtitle)
-        mg.GetYaxis().SetMoreLogLabels()
-        mg.GetYaxis().SetRangeUser(yran[0],yran[1])
-        if nprocs>1:
-            mg.GetYaxis().SetTitleSize(0.05)
-            mg.GetYaxis().SetLabelSize(0.05)
-            mg.GetXaxis().SetTitleSize(0)
-            mg.GetXaxis().SetLabelSize(0)
+        frame=ROOT.TH1F('frame',';%s;Fraction of channels;'%xtitle,1,xmin,xmax)
+        frame.SetDirectory(0)
+        rframe=frame.Clone('rframe')
+        rframe.SetDirectory(0)
+        rframe.GetYaxis().SetTitle('Ratio to ref.')
 
+        #draw            
+        frame.Draw()
+        frame.GetYaxis().SetTitleOffset(0.8)
+        frame.GetYaxis().SetRangeUser(yran[0],yran[1])
+        frame.GetYaxis().SetTitle()
+        mg.GetYaxis().SetMoreLogLabels()
+        if nprocs>1:
+            frame.GetYaxis().SetTitleSize(0.05)
+            frame.GetYaxis().SetLabelSize(0.05)
+            frame.GetXaxis().SetTitleSize(0)
+            frame.GetXaxis().SetLabelSize(0)
+
+        mg.Draw('3p')
         leg.Draw()
         
         tex=ROOT.TLatex()
         tex.SetTextFont(42)
         tex.SetTextSize(0.05 if nprocs==1 else 0.06)
         tex.SetNDC()
-        tex.DrawLatex(0.12,0.96,'#bf{CMS} #it{simulation preliminary}')        
+        tex.DrawLatex(0.12,0.955,'#bf{CMS} #it{simulation preliminary}')        
         tex.SetTextAlign(ROOT.kHAlignRight+ROOT.kVAlignCenter)
         tex.SetTextSize(0.04 if nprocs==1 else 0.05)
         if len(collKey)==2:
-            tex.DrawLatex(0.97,0.97,'%s layer %d'%(collKey[0],collKey[1]))
+            tex.DrawLatex(0.97,0.965,'%s layer %d'%(collKey[0],collKey[1]))
         else:
-            tex.DrawLatex(0.97,0.97,'%s (u,v)=(%d,%d)'%(collKey[0],collKey[1],collKey[2]))
-
+            tex.DrawLatex(0.97,0.965,'%s (u,v)=(%d,%d)'%(collKey[0],collKey[1],collKey[2]))
 
         #add ratios if available
         if p2:
             p2.cd()
             p2.SetGridy()
             p2.Clear()
+            rframe.GetYaxis().GetCenterTitle()
+            rframe.GetYaxis().SetTitleOffset(0.75)
+            rframe.GetXaxis().SetTitleOffset(0.9)
+            rframe.GetYaxis().SetRangeUser(yratioran[0],yratioran[1])
+            rframe.GetYaxis().SetTitleSize(0.08)
+            rframe.GetYaxis().SetNdivisions(5)
+            rframe.GetYaxis().SetLabelSize(0.08)
+            rframe.GetXaxis().SetTitleSize(0.08)
+            rframe.GetXaxis().SetLabelSize(0.08)
+            rframe.Draw()
+
             mg_ratio=ROOT.TMultiGraph()
             for g in ratios:
                 mg_ratio.Add(g)
-            mg_ratio.Draw('a3p')
-            mg_ratio.GetYaxis().SetTitle('Ratio')
-            mg_ratio.GetXaxis().SetTitle(xtitle)
-            mg_ratio.GetYaxis().SetTitleOffset(0.75)
-            mg_ratio.GetXaxis().SetTitleOffset(0.9)
-            mg_ratio.GetYaxis().SetRangeUser(yratioran[0],yratioran[1])
-            mg_ratio.GetYaxis().SetTitleSize(0.08)
-            mg_ratio.GetYaxis().SetNdivisions(5)
-            mg_ratio.GetYaxis().SetLabelSize(0.08)
-            mg_ratio.GetXaxis().SetTitleSize(0.08)
-            mg_ratio.GetXaxis().SetLabelSize(0.08)
-
-            #synchronize x-axis ratio
-            mg.GetXaxis().SetRangeUser( mg_ratio.GetXaxis().GetXmin(), mg_ratio.GetXaxis().GetXmax() )
-
+            mg_ratio.Draw('p')
         
         c.cd()
         c.Modified()
@@ -343,9 +387,16 @@ def showSummaryProfiles(profColl,outdir,tag,profType='radial',xtitle='R [cm]', y
         outNameFromKey='_'.join([str(x) for x in collKey])
         outNameFromKey=outNameFromKey.replace('-','m')
         c.SaveAs(os.path.join(outdir,'%sprofile_%s_%s.png'%(profType,tag,outNameFromKey)))
+        rframe.Delete()
 
-    p1.Delete()
-    if p2: p2.Delete()
+    try:
+        frame.Delete()
+        p1.Delete()
+        if p2:
+            rframe.Delete()
+            p2.Delete()
+    except Exception as e:
+        print e
 
 
 def main():
@@ -355,12 +406,14 @@ def main():
     usage = 'usage: %prog [options]'
     parser = optparse.OptionParser(usage)
     parser.add_option('-o', '--out',   dest='output',  help='output directory [%default]',  default='occ_plots', type='string')    
-    parser.add_option('-p', '--plots', dest='plots',  help='plots (csv) [%default]',       default='counts', type='string')    
-    parser.add_option('--yratioran', dest='yratioran',  help='y rato [%default]',       default='0.92,1.08', type='string')    
+    parser.add_option('-p', '--plots', dest='plots',  help='plots (csv) [%default]',        default='counts', type='string')    
+    parser.add_option('--yran',        dest='yran',  help='y range [%default]',             default='5e-3,1', type='string')    
+    parser.add_option('--yratioran',   dest='yratioran',  help='y ratio range [%default]',  default='0.92,1.08', type='string')    
     parser.add_option(      '--waferLongProfiles',   dest='waferLongProfiles',    help='show these wafer longitudinal profiles [%default]',  default='0,3:0,5:0,10', type='string')
     parser.add_option(      '--noWaferPlots',        dest='noWaferPlots',         help='disable wafer plots [%default]',                     default=False,          action='store_true')
     (opt, args) = parser.parse_args()
 
+    yran=[float(x) for x in opt.yran.split(',')]
     yratioran=[float(x) for x in opt.yratioran.split(',')]
 
     #decode wafer plot list string                                                                                                                                                                                                                                                                
@@ -419,7 +472,7 @@ def main():
                                             (longProfiles,   'long',   'z[cm]',  'Occupancy')]:
         for dist in profColl:
             if len(profColl[dist])==0 : continue
-            showSummaryProfiles(profColl[dist],opt.output,tag=dist,profType=profType,xtitle=xtitle,ytitle=ytitle,yratioran=yratioran)
+            showSummaryProfiles(profColl[dist],opt.output,tag=dist,profType=profType,xtitle=xtitle,ytitle=ytitle,yran=yran,yratioran=yratioran)
 
 
 

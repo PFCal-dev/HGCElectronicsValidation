@@ -24,6 +24,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <algorithm>
 
 #include "TMath.h"
 
@@ -41,7 +42,12 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
   geoCEH_("HGCalHESiliconSensitive")
 {  
   edm::Service<TFileService> fs;
-  summaryTuple_=fs->make<TNtuple>("data","data","section:layer:u:v:minf:medf:maxf:minsn_fine:medsn_fine:maxsn_fine:minsn_thin:medsn_thin:maxsn_thin:minsn_thick:medsn_thick:maxsn_thick");
+  TString vars("section:layer:u:v:x:y:ncells");
+  vars+=":minf:medf:maxf";
+  vars+=":minsn_fine:q10sn_fine:medsn_fine:meds_fine:medn_fine";
+  vars+=":minsn_thin:q10sn_thin:medsn_thin:meds_thin:medn_thin";
+  vars+=":minsn_thick:q10sn_thick:medsn_thick:meds_thick:medn_thick";
+  summaryTuple_=fs->make<TNtuple>("data","data",vars);
 
   std::string doseMapURL(iConfig.getParameter<std::string>("doseMap"));
   unsigned int doseMapAlgo(iConfig.getParameter<unsigned int>("doseMapAlgo"));
@@ -65,6 +71,7 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
   std::ifstream inF(uvmapF.fullPath());  
   cellOp_t baseCellOp;
   waferOp_t baseWaferOp;
+  waferPos_t baseWaferPos;
   layerOp_t baseLayerOp;
   while(inF) {
 
@@ -80,15 +87,19 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
   
     std::string subdet(tokens[0]);
     int ilay(atoi(tokens[1].c_str()));
+    float waferX(atof(tokens[3].c_str()));
+    float waferY(atof(tokens[4].c_str()));
     int waferU(atoi(tokens[8].c_str()));
     int waferV(atoi(tokens[9].c_str()));
 
     layKey_t layKey(subdet,ilay);
     if(baseLayerOp.find(layKey)==baseLayerOp.end()){
       baseLayerOp[layKey]=baseWaferOp;
+      waferPos_[layKey]=baseWaferPos;
     }
     waferKey_t waferKey(waferU,waferV);
     baseLayerOp[layKey][waferKey]=baseCellOp;
+    waferPos_[layKey][waferKey]=std::pair<float,float>(waferX,waferY);
   }
   inF.close();
 
@@ -108,7 +119,8 @@ HGCSiOperationScan::~HGCSiOperationScan()
 //
 void HGCSiOperationScan::endJob()
 {
-  Float_t *summaryVals=new Float_t(16);
+  Float_t *summaryVals=new Float_t(25);
+
   for(layerOp_t::iterator lit=layerOpColl_["fine"].begin();
       lit!=layerOpColl_["fine"].end();
       lit++) {
@@ -127,30 +139,57 @@ void HGCSiOperationScan::endJob()
       cellOp_t cellOpThick=layerOpColl_["thick"][layKey][waferKey];
 
       size_t ncells(cellOp.size());
-      double fluence[ncells], snfine[ncells], snthin[ncells], snthick[ncells];
+      double fluence[ncells], 
+        snfine[ncells], sfine[ncells], nfine[ncells],  
+        snthin[ncells], sthin[ncells], nthin[ncells], 
+        snthick[ncells], sthick[ncells], nthick[ncells];
       for(size_t icell=0; icell<ncells; icell++) {
         fluence[icell] = cellOp[icell].fluence;
-        snfine[icell]  = cellOp[icell].cce      * cellOp[icell].mipfC      / cellOp[icell].noise;
-        snthin[icell]  = cellOpThin[icell].cce  * cellOpThin[icell].mipfC  / cellOpThin[icell].noise;
-        snthick[icell] = cellOpThick[icell].cce * cellOpThick[icell].mipfC / cellOpThick[icell].noise;
+        sfine[icell]   = cellOp[icell].cce      * cellOp[icell].mipfC;
+        nfine[icell]   = cellOp[icell].noise;
+        snfine[icell]  = sfine[icell] / nfine[icell];
+        sthin[icell]   = cellOp[icell].cce      * cellOp[icell].mipfC;
+        nthin[icell]   = cellOp[icell].noise;
+        snthin[icell]  = sthin[icell] / nthin[icell];
+        sthick[icell]  = cellOp[icell].cce      * cellOp[icell].mipfC;
+        nthick[icell]  = cellOp[icell].noise;
+        snthick[icell] = sthick[icell] / nthick[icell];
       }     
       
       summaryVals[0]  = sdcode;
       summaryVals[1]  = layKey.second;
       summaryVals[2]  = waferKey.first;
       summaryVals[3]  = waferKey.second;
-      summaryVals[4]  = TMath::MinElement<double>(ncells,fluence);
-      summaryVals[5]  = TMath::Median<double>    (ncells,fluence);
-      summaryVals[6]  = TMath::MaxElement<double>(ncells,fluence);
-      summaryVals[7]  = TMath::MinElement<double>(ncells,snfine);
-      summaryVals[8]  = TMath::Median<double>    (ncells,snfine);
-      summaryVals[9]  = TMath::MaxElement<double>(ncells,snfine);
-      summaryVals[10] = TMath::MinElement<double>(ncells,snthin);
-      summaryVals[11] = TMath::Median<double>    (ncells,snthin);
-      summaryVals[12] = TMath::MaxElement<double>(ncells,snthin);
-      summaryVals[13] = TMath::MinElement<double>(ncells,snthick);
-      summaryVals[14] = TMath::Median<double>    (ncells,snthick);
-      summaryVals[15] = TMath::MaxElement<double>(ncells,snthick);
+      summaryVals[4]  = waferPos_[layKey][waferKey].first;
+      summaryVals[5]  = waferPos_[layKey][waferKey].second;
+      summaryVals[6]  = ncells;
+      summaryVals[7]  = TMath::MinElement<double>(ncells,fluence);
+      summaryVals[8]  = TMath::Median<double>    (ncells,fluence);
+      summaryVals[9]  = TMath::MaxElement<double>(ncells,fluence);
+      
+      size_t iq=TMath::Floor(0.1*ncells);
+
+      std::sort(snfine,snfine+ncells);
+      summaryVals[10]  = TMath::MinElement<double>(ncells,snfine);      
+      summaryVals[11]  = snfine[iq];
+      summaryVals[12]  = TMath::Median<double>    (ncells,snfine);
+      summaryVals[13] = TMath::Median<double>    (ncells,sfine);
+      summaryVals[14] = TMath::Median<double>    (ncells,nfine);
+
+      std::sort(snthin,snthin+ncells);
+      summaryVals[15] = TMath::MinElement<double>(ncells,snthin);
+      summaryVals[16] = snthin[iq]; 
+      summaryVals[17] = TMath::Median<double>    (ncells,snthin);
+      summaryVals[18] = TMath::Median<double>    (ncells,sthin);
+      summaryVals[19] = TMath::Median<double>    (ncells,nthin);
+
+      std::sort(snthick,snthick+ncells);
+      summaryVals[20] = TMath::MinElement<double>(ncells,snthick);
+      summaryVals[21] = snthick[iq]; 
+      summaryVals[22] = TMath::Median<double>    (ncells,snthick);
+      summaryVals[23] = TMath::Median<double>    (ncells,sthick);
+      summaryVals[24] = TMath::Median<double>    (ncells,nthick);
+
       summaryTuple_->Fill( summaryVals );
     }
   }
