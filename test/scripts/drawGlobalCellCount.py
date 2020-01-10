@@ -39,16 +39,17 @@ for f,title,ci in [ ('FlatRandomPtGunProducer_NeutrinoGun_v11_noNoise_aged_20191
     profs=[]
     drawOpt='e1'
     c.SetLogy()
-    leg=ROOT.TLegend(0.65,0.94,0.95,0.8)
+    leg=ROOT.TLegend(0.15,0.94,0.95,0.84)
     leg.SetFillStyle(0)
     leg.SetBorderSize(0)
     leg.SetTextFont(42)
     leg.SetTextSize(0.035)
+    leg.SetNColumns(4)
     c.SetGridy()
     for t in ['cell','adc','toa','tdc']:
         profs.append( fIn.Get('ana/%scount'%t) )
         profs[-1].SetTitle(t)
-        #profs[-1].GetYaxis().SetRangeUser(1,5e4)
+        profs[-1].GetYaxis().SetRangeUser(10,5e5)
         ci=ROOT.kGray+1
         if t=='adc' : ci=ROOT.kBlack
         if t=='toa' : ci=ROOT.kGreen+1
@@ -56,6 +57,8 @@ for f,title,ci in [ ('FlatRandomPtGunProducer_NeutrinoGun_v11_noNoise_aged_20191
         profs[-1].SetLineColor(ci)
         profs[-1].SetLineWidth(2)
         profs[-1].Draw(drawOpt)
+        profs[-1].SetMarkerStyle(24)
+        profs[-1].SetMarkerColor(ci)
         drawOpt='e1same'
         leg.AddEntry(profs[-1],profs[-1].GetTitle(),'ep')
 

@@ -1,8 +1,5 @@
 #!/bin/bash
 
-inputDir=/eos/cms/store/cmst3/group/hgcal/CMG_studies/Production/
-outdir=/eos/user/p/psilva/www/HGCal/Electronics/Occupancies_`date +%d%d%Y`
-#!/bin/bash
 cmssw=${1}
 input=${2}
 maxEvents=${3}

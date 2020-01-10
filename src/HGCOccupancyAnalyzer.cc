@@ -113,11 +113,6 @@ HGCOccupancyAnalyzer::~HGCOccupancyAnalyzer()
 void HGCOccupancyAnalyzer::endJob()
 {
   for(auto &it : waferHistos_) it.second->endJob();
-
-  if(nevts_>0) {
-    float sf( 1./float(nevts_) );
-    cellCount_->Scale(sf);
-  }
 }
 
   
@@ -139,20 +134,21 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
   iSetup.get<IdealGeometryRecord>().get(geoCEH_,cehGeoHandle);
   hgcGeometries_["CEH"]=cehGeoHandle.product();
 
-
-  for(auto &it : hgcGeometries_ )
-    {
-      const std::vector<DetId> &validDetIds = it.second->getValidDetIds();
-      for(auto &didIt : validDetIds) {
-        HGCSiliconDetId detId(didIt.rawId());
-        if(detId.zside()<0) continue;
-        int layer=detId.layer();
-
-        int layidx(layer);
-        if(it.first=="CEH") layidx+=28;
-        cellCount_->Fill(layidx);
+  //count cells first time around
+  if(nevts_==1) {
+    for(auto &it : hgcGeometries_ )
+      {
+        const std::vector<DetId> &validDetIds = it.second->getValidDetIds();
+        for(auto &didIt : validDetIds) {
+          HGCSiliconDetId detId(didIt.rawId());
+          if(detId.zside()<0) continue;
+          int layer=detId.layer();
+          int layidx(layer);
+          if(it.first=="CEH") layidx+=28;
+          cellCount_->Fill(layidx);
+        }
       }
-    }
+  }
 
   /*
   //best matching wafer to gen (if dR>0.2 no match was found)

@@ -35,6 +35,7 @@ process.siopddfz = cms.EDAnalyzer("HGCSiOperationScan",
                                   ileakParam         = HGCAL_ileakParam_toUse,
                                   cceParams          = HGCAL_ddfzParams
                               )
+process.siopddfz_startup = process.siopddfz.clone( doseMapAlgo        = cms.uint32(1) )
 
 #epi Si operation
 from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import HGCAL_cceParams_toUse, cceParamFine_epi600, cceParamThin_epi600, cceParamThick_epi600
@@ -49,10 +50,13 @@ process.siopepi = cms.EDAnalyzer("HGCSiOperationScan",
                                   ileakParam         = HGCAL_ileakParam_toUse,
                                   cceParams          = HGCAL_epiParams
                               )
+process.siopepi_startup = process.siopepi.clone( doseMapAlgo        = cms.uint32(1) )
 
 process.TFileService = cms.Service("TFileService",
                                    fileName = cms.string(options.output)
                                )
 
 process.p = cms.Path(process.siopddfz
-                     *process.siopepi)
+                     *process.siopepi
+                     *process.siopddfz_startup
+                     *process.siopepi_startup)
