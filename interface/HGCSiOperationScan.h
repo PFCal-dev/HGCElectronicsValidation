@@ -52,15 +52,17 @@ class HGCSiOperationScan : public edm::EDAnalyzer
   typedef std::map<waferKey_t, std::pair<float,float> > waferPos_t;
   typedef std::map<waferKey_t, int > waferChoice_t;
   typedef std::map<layKey_t, waferOp_t> layerOp_t;
+  std::map<layKey_t,std::map<waferKey_t,std::vector<waferKey_t> > > layerCellUVColl_;
   std::map<std::string, layerOp_t> layerOpColl_;
   std::map<layKey_t,waferPos_t> waferPos_;
   std::map<layKey_t,waferChoice_t> waferPreChoice_;
+
 
   std::string geoCEE_,geoCEH_;
   std::map<std::string,const HGCalGeometry *> hgcGeometries_;
   std::map<std::string, std::unique_ptr<HGCalSiNoiseMap>> noiseMaps_;
   
-  TNtuple *summaryTuple_;
+  TNtuple *summaryTuple_,*padSummaryTuple_;
 };
  
 

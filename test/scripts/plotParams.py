@@ -109,6 +109,7 @@ for gr,title,name,yran in [(cces,'CCE','CCE',(0,1)),
     for i in range(len(gr)):
         gr[i].Draw('same')
         leg.AddEntry(gr[i],gr[i].GetTitle(),'l')
+        print i,gr[i].GetTitle(),gr[i].Eval(10**15),gr[i].Eval(10**14.85)
     leg.Draw()
     drawHeader()
 
