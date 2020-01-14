@@ -7,6 +7,7 @@ from FWCore.ParameterSet.VarParsing import VarParsing
 options = VarParsing ('standard')
 options.register('geometry', 'Extended2026D46', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'geometry to use')
 options.register("doseMap", "",  VarParsing.multiplicity.singleton, VarParsing.varType.string)
+options.register("savePadInfo", False,  VarParsing.multiplicity.singleton, VarParsing.varType.bool)
 options.parseArguments()
 
 #set geometry/global tag
@@ -26,37 +27,81 @@ process.MessageLogger.cerr.FwkReport.reportEvery = 500
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1) )
 process.source = cms.Source("EmptySource")
 
-#ddFZ Si operation
+#import standard Ileak and CCE parameterizations
 from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import HGCAL_ileakParam_toUse
-from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import HGCAL_cceParams_toUse as HGCAL_ddfzParams
-process.siopddfz = cms.EDAnalyzer("HGCSiOperationScan",
-                                  doseMap            = cms.string( options.doseMap ),
-                                  doseMapAlgo        = cms.uint32(0),
-                                  ileakParam         = HGCAL_ileakParam_toUse,
-                                  cceParams          = HGCAL_ddfzParams
-                              )
-process.siopddfz_startup = process.siopddfz.clone( doseMapAlgo        = cms.uint32(1) )
+from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import cceParamFine_epi600, cceParamThin_tdr600, cceParamThick_tdr600
 
-#epi Si operation
-from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import HGCAL_cceParams_toUse, cceParamFine_epi600, cceParamThin_epi600, cceParamThick_epi600
-HGCAL_epiParams = cms.PSet(
-    cceParamFine  = cms.vdouble(cceParamFine_epi600),
-    cceParamThin  = cms.vdouble(cceParamThin_epi600),
-    cceParamThick = cms.vdouble(cceParamThick_epi600)
+#define the Si types to scan
+siTypesToScan = cms.VPSet(
+    cms.PSet( tag        = cms.string('epi80fine'),
+              mipEqfC    = cms.double(65),
+              cellVol    = cms.double(0.52*(80.e-4)),
+              cellCap    = cms.double(74),
+              cceParam   = cceParamFine_epi600),
+    cms.PSet( tag        = cms.string('epi80coarse'),
+              mipEqfC    = cms.double(65),
+              cellVol    = cms.double(1.18*(80.e-4)),
+              cellCap    = cms.double(167),
+              cceParam   = cceParamFine_epi600),
+    cms.PSet( tag        = cms.string('epi100fine'),
+              mipEqfC    = cms.double(66),
+              cellVol    = cms.double(0.52*(100.e-4)),
+              cellCap    = cms.double(59),
+              cceParam   = cceParamFine_epi600),
+    cms.PSet( tag        = cms.string('epi100coarse'),
+              mipEqfC    = cms.double(66),
+              cellVol    = cms.double(1.18*(100.e-4)),
+              cellCap    = cms.double(134),
+              cceParam   = cceParamFine_epi600),
+    cms.PSet( tag        = cms.string('epi120fine'),
+              mipEqfC    = cms.double(67),
+              cellVol    = cms.double(0.52*(120.e-4)),
+              cellCap    = cms.double(49),
+              cceParam   = cceParamFine_epi600),
+    cms.PSet( tag        = cms.string('epi120coarse'),
+              mipEqfC    = cms.double(67),
+              cellVol    = cms.double(1.18*(120.e-4)),
+              cellCap    = cms.double(111),
+              cceParam   = cceParamFine_epi600),
+    cms.PSet( tag        = cms.string('ddfz200fine'),
+              mipEqfC    = cms.double(70),
+              cellVol    = cms.double(0.52*(200.e-4)),
+              cellCap    = cms.double(29),
+              cceParam   = cceParamThin_tdr600),
+    cms.PSet( tag        = cms.string('ddfz200coarse'),
+              mipEqfC    = cms.double(70),
+              cellVol    = cms.double(1.18*(200.e-4)),
+              cellCap    = cms.double(65),
+              cceParam   = cceParamThin_tdr600),
+    cms.PSet( tag        = cms.string('ddfz300fine'),
+              mipEqfC    = cms.double(73),
+              cellVol    = cms.double(0.52*(300.e-4)),
+              cellCap    = cms.double(20),
+              cceParam   = cceParamThick_tdr600),
+    cms.PSet( tag        = cms.string('ddfz300coarse'),
+              mipEqfC    = cms.double(73),
+              cellVol    = cms.double(1.18*(300.e-4)),
+              cellCap    = cms.double(45),
+              cceParam   = cceParamThick_tdr600),
 )
-process.siopepi = cms.EDAnalyzer("HGCSiOperationScan",
-                                  doseMap            = cms.string( options.doseMap ),
-                                  doseMapAlgo        = cms.uint32(0),
-                                  ileakParam         = HGCAL_ileakParam_toUse,
-                                  cceParams          = HGCAL_epiParams
-                              )
-process.siopepi_startup = process.siopepi.clone( doseMapAlgo        = cms.uint32(1) )
+
+
+#analyzer (EOL conditions)
+process.siop_eol = cms.EDAnalyzer("HGCSiOperationScan",
+                                  savePadInfo = cms.bool( options.savePadInfo ),
+                                  doseMap     = cms.string( options.doseMap ),
+                                  doseMapAlgo = cms.uint32(0),
+                                  ileakParam  = HGCAL_ileakParam_toUse,
+                                  aimMIPtoADC = cms.int32(10),
+                                  siTypes     = siTypes)
+
+#analyzer (startup conditions)
+process.siop_startup = process.siop_eol.clone( doseMapAlgo        = cms.uint32(1) )
 
 process.TFileService = cms.Service("TFileService",
                                    fileName = cms.string(options.output)
                                )
 
-process.p = cms.Path(process.siopddfz
-                     *process.siopepi
-                     *process.siopddfz_startup
-                     *process.siopepi_startup)
+process.p = cms.Path(process.siop_eol)
+#                     *process.siop_startup)
+

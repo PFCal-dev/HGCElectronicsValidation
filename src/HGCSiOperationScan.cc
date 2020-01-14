@@ -30,44 +30,81 @@
 
 using namespace std;
 
-
 //
 // PLUGIN IMPLEMENTATION
 //
 
-
 //
 HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :   
   geoCEE_("HGCalEESensitive"),
-  geoCEH_("HGCalHESiliconSensitive")
+  geoCEH_("HGCalHESiliconSensitive"),
+  siTypes_(iConfig.getParameter<std::vector<edm::ParameterSet> >("siTypes")),
+  aimMIPtoADC_(iConfig.getParameter<int>("aimMIPtoADC")),
+  savePadInfo_(iConfig.getParameter<bool>("savePadInfo"))
 {  
   edm::Service<TFileService> fs;
-  TString vars("section:layer:u:v:x:y:ncells");
-  vars+=":waferPreChoice:minf:medf:maxf";
-  vars+=":minsn_fine:q10sn_fine:medsn_fine:meds_fine:medn_fine:censn_fine";
-  vars+=":minsn_thin:q10sn_thin:medsn_thin:meds_thin:medn_thin:censn_thin";
-  vars+=":minsn_thick:q10sn_thick:medsn_thick:meds_thick:medn_thick:censn_thick";
-  summaryTuple_=fs->make<TNtuple>("data","data",vars);
 
-  vars="section:layer:waferU:waferV:u:v:x:y:f:sn_fine:s_fine:n_fine:sn_thin:s_thin:n_thin:sn_thick:s_thick:n_thick";
-  padSummaryTuple_=fs->make<TNtuple>("pads","pads",vars);
+  //start the summary ntuple with information for each si sensor type hypothesis
+  data_ = fs->make<TTree>("data","data");
+  data_->Branch("section",        &t_section,        "section/I");
+  data_->Branch("layer",          &t_layer,          "layer/I");
+  data_->Branch("waferUV",        &t_waferUV,        "waferUV/I");
+  data_->Branch("waferX",         &t_waferX,         "waferX/F");
+  data_->Branch("waferY",         &t_waferY,         "waferY/F");
+  data_->Branch("waferPreChoice", &t_waferPreChoice, "waferPreChoice/I");
+  data_->Branch("minf",           &t_minf,           "minf/F");
+  data_->Branch("medf",           &t_medf,           "medf/F");
+  data_->Branch("maxf",           &t_maxf,           "maxf/F");
+  data_->Branch("npads",          &t_npads,          "npads/I");
+  if(savePadInfo_) {
+    data_->Branch("padUV",    t_padUV,     "padUV[npads]/I");
+    data_->Branch("padX",     t_padX,      "padX[npads]/F");
+    data_->Branch("padY",     t_padY,      "padY[npads]/F");
+    data_->Branch("padf",     t_padf,      "padf[npads]/F");
+  }
 
-  std::string doseMapURL(iConfig.getParameter<std::string>("doseMap"));
+  size_t nSiTypes(siTypes_.size());
+  t_minsn.resize(nSiTypes);
+  t_q10sn.resize(nSiTypes);
+  t_medsn.resize(nSiTypes);
+  t_meds.resize(nSiTypes);
+  t_medn.resize(nSiTypes);
+
+  for(size_t i=0; i<nSiTypes; i++) {
+
+    edm::ParameterSet si( siTypes_[i] );
+    TString tag( (si.getParameter<std::string>("tag")).c_str() );
+
+    data_->Branch("minsn_"+tag,  &t_minsn[i], "minsn_"+tag+"/F");
+    data_->Branch("q10sn_"+tag,  &t_q10sn[i], "q10sn_"+tag+"/F");
+    data_->Branch("medsn_"+tag,  &t_medsn[i], "medsn_"+tag+"/F");
+    data_->Branch("meds_"+tag,   &t_meds[i],  "meds_"+tag+"/F");
+    data_->Branch("medn_"+tag,   &t_medn[i],  "medn_"+tag+"/F");
+
+    if(savePadInfo_) {
+
+      t_pads.push_back( new Float_t(500) );
+      t_padn.push_back( new Float_t(500) );
+      t_padsn.push_back( new Float_t(500) );
+
+      data_->Branch("pads_"+tag,  t_pads[i],  "pads_"+tag+"[npads]/F");
+      data_->Branch("padn_"+tag,  t_padn[i],  "padn_"+tag+"[npads]/F");
+      data_->Branch("padsn_"+tag, t_padsn[i], "padsn_"+tag+"[npads]/F");
+    }
+  }
+  
+  //start noise maps
+  std::string doseMapURL(iConfig.getParameter<std::string>("doseMap"));  
   unsigned int doseMapAlgo(iConfig.getParameter<unsigned int>("doseMapAlgo"));
-  std::vector<double> ileakParam(iConfig.getParameter<edm::ParameterSet>("ileakParam").template getParameter<std::vector<double>>("ileakParam"));
-  std::vector<double> cceParamFine(iConfig.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamFine"));
-  std::vector<double> cceParamThin(iConfig.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamThin"));
-  std::vector<double> cceParamThick(iConfig.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamThick"));
+  std::vector<double> ileakParam(iConfig.getParameter<std::vector<double>>("ileakParam"));
 
   noiseMaps_["CEE"] = std::unique_ptr<HGCalSiNoiseMap>(new HGCalSiNoiseMap);
   noiseMaps_["CEE"]->setDoseMap(doseMapURL,doseMapAlgo);
   noiseMaps_["CEE"]->setIleakParam(ileakParam);
-  noiseMaps_["CEE"]->setCceParam(cceParamFine, cceParamThin, cceParamThick);
 
   noiseMaps_["CEH"] = std::unique_ptr<HGCalSiNoiseMap>(new HGCalSiNoiseMap);
   noiseMaps_["CEH"]->setDoseMap(doseMapURL,doseMapAlgo);
   noiseMaps_["CEH"]->setIleakParam(ileakParam);
-  noiseMaps_["CEH"]->setCceParam(cceParamFine, cceParamThin, cceParamThick);
 
   //parse u-v equivalence map file and start the layer operation map
   edm::FileInPath uvmapF("UserCode/HGCElectronicsValidation/data/geomnew_corrected_360.txt");
@@ -94,7 +131,10 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
     std::string subdet(ilay<=28 ? "CEE" : "CEH");
     if(ilay>28) ilay-=28;
     int sens(atoi(tokens[2].c_str()));
-    int wafType(sens==120 ? 1 : (sens==200 ? 2 : 3) );
+    int wafType(0);
+    if(sens==120) wafType=0; // 120, 0.5cm^2
+    if(sens==200) wafType=3; // 200, 1 cm^2
+    if(sens==300) wafType=5; // 300, 1 cm^2
     float waferX(atof(tokens[3].c_str()));
     float waferY(atof(tokens[4].c_str()));
     int waferU(atoi(tokens[6].c_str()));
@@ -102,23 +142,37 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
 
     layKey_t layKey(subdet,ilay);
     if(baseLayerOp.find(layKey)==baseLayerOp.end()){
-      baseLayerOp[layKey]=baseWaferOp;
-      waferPos_[layKey]=baseWaferPos;
-      waferPreChoice_[layKey]=baseWaferChoice;
+      baseLayerOp[layKey]     = baseWaferOp;
+      waferPos_[layKey]       = baseWaferPos;
+      waferPreChoice_[layKey] = baseWaferChoice;
     }
     waferKey_t waferKey(waferU,waferV);
     baseLayerOp[layKey][waferKey]=baseCellOp;
-    waferPos_[layKey][waferKey]=std::pair<float,float>(waferX,waferY);
+    waferPos_[layKey][waferKey]=std::pair<double,double>(waferX,waferY);
     waferPreChoice_[layKey][waferKey]=wafType;
+
+    //start the helper map to save uv of the pads belonging to each wafer
+    if(layerCellUVColl_.find(layKey)==layerCellUVColl_.end()) {
+      std::map<waferKey_t,std::vector<waferKey_t> > layerBase;
+      layerCellUVColl_[layKey]=layerBase;
+    }
+    if(layerCellUVColl_[layKey].find(waferKey)==layerCellUVColl_[layKey].end()) {
+      std::vector<waferKey_t> waferBase;
+      layerCellUVColl_[layKey][waferKey]=waferBase;
+    }
   }
+
   inF.close();
 
-  cout << "Base layer operation has" << baseLayerOp.size() << " layer keys" << endl;
+  cout << "Base layer operation has " << baseLayerOp.size() << " layer keys" << endl;
 
   //replicate layer operation map for the different modes
-  layerOpColl_["fine"]=baseLayerOp;
-  layerOpColl_["thin"]=baseLayerOp;
-  layerOpColl_["thick"]=baseLayerOp;
+  for(size_t i=0; i<nSiTypes; i++) {
+
+    edm::ParameterSet si( siTypes_[i] );
+    std::string tag( si.getParameter<std::string>("tag") );
+    layerOpColl_[tag]=baseLayerOp;
+  }
 }
 
 //
@@ -129,108 +183,86 @@ HGCSiOperationScan::~HGCSiOperationScan()
 //
 void HGCSiOperationScan::endJob()
 {
-  Float_t *summaryVals=new Float_t(29);
-  for(layerOp_t::iterator lit=layerOpColl_["fine"].begin();
-      lit!=layerOpColl_["fine"].end();
-      lit++) {
+  //helper arrays
+  double fvals[500], svals[500], nvals[500], snvals[500];
+  
+  for(auto lit : layerCellUVColl_) {
 
-    layKey_t layKey(lit->first);
+    layKey_t layKey(lit.first);
     std::string subdet(layKey.first);
     int sdcode=0;
     if(subdet=="CEH") sdcode=1;
 
-    waferOp_t waferOp(lit->second);
-    for(waferOp_t::iterator wit=waferOp.begin();
-        wit!=waferOp.end();
-        wit++) {
-      waferKey_t waferKey(wit->first);
+    for(auto wit : lit.second ) {
 
-      std::vector< waferKey_t > cellUVs= layerCellUVColl_[layKey][waferKey];
+      waferKey_t waferKey(wit.first);
+      std::vector< waferKey_t > cellUVs(wit.second);
+      std::vector< std::pair<double,double> > cellXYs(layerCellXYColl_[layKey][waferKey]);
 
-      cellOp_t cellOp(wit->second);
-      cellOp_t cellOpThin=layerOpColl_["thin"][layKey][waferKey];
-      cellOp_t cellOpThick=layerOpColl_["thick"][layKey][waferKey];
+      t_section        = sdcode;
+      t_layer          = layKey.second;
+      t_waferUV        = waferKey.first*1000+waferKey.second;
+      t_waferPreChoice = waferPreChoice_[layKey][waferKey];
+      t_npads          = cellUVs.size();
+      t_waferX         = waferPos_[layKey][waferKey].first;
+      t_waferY         = waferPos_[layKey][waferKey].second;      
 
-      size_t ncells(cellOp.size());
-      bool isHD(ncells>200);
-      double fluence[ncells], 
-        snfine[ncells], sfine[ncells], nfine[ncells],  
-        snthin[ncells], sthin[ncells], nthin[ncells], 
-        snthick[ncells], sthick[ncells], nthick[ncells];
-      double snfinecen(0),snthincen(0),snthickcen(0);
-      for(size_t icell=0; icell<ncells; icell++) {
-        fluence[icell] = cellOp[icell].fluence;
-        sfine[icell]   = cellOp[icell].cce * cellOp[icell].mipfC;
-        nfine[icell]   = cellOp[icell].noise;
-        snfine[icell]  = sfine[icell] / nfine[icell];
-        sthin[icell]   = cellOpThin[icell].cce * cellOpThin[icell].mipfC;
-        nthin[icell]   = cellOpThin[icell].noise;
-        snthin[icell]  = sthin[icell] / nthin[icell];
-        sthick[icell]  = cellOpThick[icell].cce * cellOpThick[icell].mipfC;
-        nthick[icell]  = cellOpThick[icell].noise;
-        snthick[icell] = sthick[icell] / nthick[icell];
+      for(size_t i=0; i<siTypes_.size(); i++) {
 
-        std::pair<int,int> uv=cellUVs[icell];
-        if(
-           (isHD  && uv.first==12 && uv.second==12) ||
-           (!isHD && uv.first==8  && uv.second==8) 
-           )
-          {
-            snfinecen=snfine[icell];
-            snthincen=snthin[icell];
-            snthickcen=snthick[icell];
+        std::string tag( siTypes_[i].getParameter<std::string>("tag") );
+        const cellOp_t &cellOp=layerOpColl_[tag][layKey][waferKey];
+
+        for(int icell=0; icell<t_npads; icell++) {
+
+          fvals[icell]     = cellOp[icell].fluence;
+
+          if(i==0 && savePadInfo_) {
+            waferKey_t wafUV=cellUVs[icell];
+            std::pair<double,double> wafXY=cellXYs[icell];
+            t_padUV[icell] = wafUV.first*1000+wafUV.second;           
+            t_padX[icell]  = wafXY.first;
+            t_padY[icell]  = wafXY.second;
+            t_padf[icell]  = fvals[icell];
           }
-      }     
+
+          svals[icell]      = cellOp[icell].cce * cellOp[icell].mipfC;
+          t_pads[i][icell]  = svals[icell];
+          nvals[icell]      = cellOp[icell].noise;
+          t_padn[i][icell]  = nvals[icell];
+          snvals[icell]     = svals[icell] / nvals[icell];
+          t_padsn[i][icell] = snvals[icell];
+        }
       
-      summaryVals[0]  = sdcode;
-      summaryVals[1]  = layKey.second;
-      summaryVals[2]  = waferKey.first;
-      summaryVals[3]  = waferKey.second;
-      summaryVals[4]  = waferPos_[layKey][waferKey].first;
-      summaryVals[5]  = waferPos_[layKey][waferKey].second;      
-      summaryVals[6]  = ncells;
-      summaryVals[7]  = waferPreChoice_[layKey][waferKey];
-      summaryVals[8]  = TMath::MinElement<double>(ncells,fluence);
-      summaryVals[9]  = TMath::Median<double>    (ncells,fluence);
-      summaryVals[10]  = TMath::MaxElement<double>(ncells,fluence);
+        //only needs to be computed for the first Si type
+        if(i==0 && savePadInfo_) {
+          t_minf = TMath::MinElement<double>(t_npads,fvals);
+          t_medf = TMath::Median<double>    (t_npads,fvals);
+          t_maxf = TMath::MaxElement<double>(t_npads,fvals);
+        }
 
-      size_t iq=TMath::Floor(0.1*ncells);
+        size_t iq=TMath::Floor(0.1*t_npads);
+        std::sort(snvals,snvals+t_npads);
+        t_minsn[i] = TMath::MinElement<double>(t_npads,snvals);      
+        t_q10sn[i] = snvals[iq];
+        t_medsn[i] = TMath::Median<double>(t_npads,snvals);
+        t_meds[i]  = TMath::Median<double>(t_npads,svals);
+        t_medn[i]  = TMath::Median<double>(t_npads,nvals);
+      
+      }//end Si types
 
-      std::sort(snfine,snfine+ncells);
-      summaryVals[11] = TMath::MinElement<double>(ncells,snfine);      
-      summaryVals[12] = snfine[iq];
-      summaryVals[13] = TMath::Median<double>    (ncells,snfine);
-      summaryVals[14] = TMath::Median<double>    (ncells,sfine);
-      summaryVals[15] = TMath::Median<double>    (ncells,nfine);
-      summaryVals[16] = snfinecen;
+      //fill the ntuple
+      data_->Fill();
+    
+    }//end wafer 
+    
+  }//end layer
 
-      std::sort(snthin,snthin+ncells);
-      summaryVals[17] = TMath::MinElement<double>(ncells,snthin);
-      summaryVals[18] = snthin[iq]; 
-      summaryVals[19] = TMath::Median<double>    (ncells,snthin);
-      summaryVals[20] = TMath::Median<double>    (ncells,sthin);
-      summaryVals[21] = TMath::Median<double>    (ncells,nthin);
-      summaryVals[22] = snthincen;
-
-      std::sort(snthick,snthick+ncells);
-      summaryVals[23] = TMath::MinElement<double>(ncells,snthick);
-      summaryVals[24] = snthick[iq]; 
-      summaryVals[25] = TMath::Median<double>    (ncells,snthick);
-      summaryVals[26] = TMath::Median<double>    (ncells,sthick);
-      summaryVals[27] = TMath::Median<double>    (ncells,nthick);
-      summaryVals[28] = snthickcen;
-
-      summaryTuple_->Fill( summaryVals );
-    }
-  }
 }
 
   
 //
 void HGCSiOperationScan::analyze(const edm::Event &iEvent, const edm::EventSetup &iSetup)
 {
-  Float_t *padSummaryVals=new Float_t(18);
-
   edm::ESHandle<HGCalGeometry> ceeGeoHandle;
   iSetup.get<IdealGeometryRecord>().get(geoCEE_,ceeGeoHandle);
   hgcGeometries_["CEE"]=ceeGeoHandle.product();
@@ -247,61 +279,34 @@ void HGCSiOperationScan::analyze(const edm::Event &iEvent, const edm::EventSetup
         HGCSiliconDetId detId(rawId);
         if(detId.zside()<0) continue;
 
-        //detid info
-        int layer=detId.layer();
+        //decode detid info
+        int layer( detId.layer() );
+        int subdet( detId.subdet() );
         std::pair<std::string,int> layKey(it.first,layer);
         std::pair<int,int> waferUV=detId.waferUV();
         std::pair<int,int> cellUV=detId.cellUV();
-        layerCellUVColl_[layKey][waferUV].push_back(cellUV);
-
-        HGCalSiNoiseMap::GainRange_t gainToSet(HGCalSiNoiseMap::AUTO);
-
-        //fine hypothesis
-        unsigned int masked_word( (HGCSiliconDetId::HGCalFine & HGCSiliconDetId::kHGCalTypeMask) << HGCSiliconDetId::kHGCalTypeOffset);
-        rawId &= ~(HGCSiliconDetId::kHGCalTypeMask << HGCSiliconDetId::kHGCalTypeOffset);
-        rawId |= (masked_word); 
-        layerOpColl_["fine"][layKey][waferUV].push_back(
-                                                        noiseMaps_[it.first]->getSiCellOpCharacteristics(HGCSiliconDetId(rawId), gainToSet, 10)
-                                                        );
-
-        //thin hypothesis
-        masked_word=( (HGCSiliconDetId::HGCalCoarseThin & HGCSiliconDetId::kHGCalTypeMask) << HGCSiliconDetId::kHGCalTypeOffset);
-        rawId &= ~(HGCSiliconDetId::kHGCalTypeMask << HGCSiliconDetId::kHGCalTypeOffset);
-        rawId |= (masked_word); 
-        layerOpColl_["thin"][layKey][waferUV].push_back(
-                                                        noiseMaps_[it.first]->getSiCellOpCharacteristics(HGCSiliconDetId(rawId), gainToSet, 10)
-                                                        );
-
-        //thick hypothesis
-        masked_word=( (HGCSiliconDetId::HGCalCoarseThick & HGCSiliconDetId::kHGCalTypeMask) << HGCSiliconDetId::kHGCalTypeOffset);
-        rawId &= ~(HGCSiliconDetId::kHGCalTypeMask << HGCSiliconDetId::kHGCalTypeOffset);
-        rawId |= (masked_word); 
-        layerOpColl_["thick"][layKey][waferUV].push_back(
-                                                         noiseMaps_[it.first]->getSiCellOpCharacteristics(HGCSiliconDetId(rawId), gainToSet, 10)
-                                                         );
-
-        //fill pad information
-        size_t pidx=layerOpColl_["fine"][layKey][waferUV].size()-1;
         GlobalPoint pt=it.second->getPosition(detId);
-        padSummaryVals[0]=(it.first=="CEE" ? 0 : 1);
-        padSummaryVals[1]=layer;
-        padSummaryVals[2]=waferUV.first;
-        padSummaryVals[3]=waferUV.second;
-        padSummaryVals[4]=cellUV.first;
-        padSummaryVals[5]=cellUV.second;
-        padSummaryVals[6]=pt.x();
-        padSummaryVals[7]=pt.y();
-        padSummaryVals[8]=layerOpColl_["fine"][layKey][waferUV][pidx].fluence;
-        padSummaryVals[9]=layerOpColl_["fine"][layKey][waferUV][pidx].cce * layerOpColl_["fine"][layKey][waferUV][pidx].mipfC;
-        padSummaryVals[10]=layerOpColl_["fine"][layKey][waferUV][pidx].noise;
-        padSummaryVals[11]=padSummaryVals[9]/padSummaryVals[10];
-        padSummaryVals[12]=layerOpColl_["thin"][layKey][waferUV][pidx].cce * layerOpColl_["thin"][layKey][waferUV][pidx].mipfC;
-        padSummaryVals[13]=layerOpColl_["thin"][layKey][waferUV][pidx].noise;
-        padSummaryVals[14]=padSummaryVals[12]/padSummaryVals[13];
-        padSummaryVals[15]=layerOpColl_["thin"][layKey][waferUV][pidx].cce * layerOpColl_["thin"][layKey][waferUV][pidx].mipfC;
-        padSummaryVals[16]=layerOpColl_["thin"][layKey][waferUV][pidx].noise;
-        padSummaryVals[17]=padSummaryVals[15]/padSummaryVals[16];
-        padSummaryTuple_->Fill( padSummaryVals );
+        double radius2 = std::pow(pt.x(), 2) + std::pow(pt.y(), 2);  //in cm
+        HGCalSiNoiseMap::GainRange_t gain(HGCalSiNoiseMap::AUTO);
+        
+        layerCellUVColl_[layKey][waferUV].push_back( cellUV );
+        layerCellXYColl_[layKey][waferUV].push_back( std::pair<double,double>(pt.x(),pt.y()) );
+                                                     
+        //iterate over si types to test
+        for(size_t i=0; i<siTypes_.size(); i++) {
+          
+          edm::ParameterSet si( siTypes_[i] );
+          std::string tag( si.getParameter<std::string>("tag") );
+          double mipEqfC( si.getParameter<double>("mipEqfC") );
+          double cellVol( si.getParameter<double>("cellVol") );
+          double cellCap( si.getParameter<double>("cellCap") );
+          std::vector<double> cceParam( si.getParameter<std::vector<double> >("cceParam") );
+          
+          layerOpColl_[tag][layKey][waferUV].push_back(
+                                                       noiseMaps_[it.first]->getSiCellOpCharacteristics(cellCap,cellVol,mipEqfC,cceParam,
+                                                                                                        subdet,layer,radius2,
+                                                                                                        gain,aimMIPtoADC_) );
+        }
       }
     }
 }
