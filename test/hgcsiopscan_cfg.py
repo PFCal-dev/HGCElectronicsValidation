@@ -28,7 +28,7 @@ process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1) )
 process.source = cms.Source("EmptySource")
 
 #import standard Ileak and CCE parameterizations
-from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import HGCAL_ileakParam_toUse
+from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import ileakParam_600V
 from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import cceParamFine_epi600, cceParamThin_tdr600, cceParamThick_tdr600
 
 #define the Si types to scan
@@ -91,7 +91,7 @@ process.siop_eol = cms.EDAnalyzer("HGCSiOperationScan",
                                   savePadInfo = cms.bool( options.savePadInfo ),
                                   doseMap     = cms.string( options.doseMap ),
                                   doseMapAlgo = cms.uint32(0),
-                                  ileakParam  = HGCAL_ileakParam_toUse,
+                                  ileakParam  = cms.vdouble(ileakParam_600V),
                                   aimMIPtoADC = cms.int32(10),
                                   siTypes     = cms.VPSet(siTypesToScan)
                               )
