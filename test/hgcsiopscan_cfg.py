@@ -32,59 +32,59 @@ from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import ileakParam_600V
 from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import cceParamFine_epi600, cceParamThin_tdr600, cceParamThick_tdr600
 
 #define the Si types to scan
+qefC=1.60217646e-4
 siTypesToScan = cms.VPSet(
     cms.PSet( tag        = cms.string('epi80fine'),
-              mipEqfC    = cms.double(65),
-              cellVol    = cms.double(0.52*(80.e-4)),
+              mipEqfC    = cms.double(65*80*qefC),
+              cellVol    = cms.double(0.52*80e-4),
               cellCap    = cms.double(74),
               cceParam   = cms.vdouble(cceParamFine_epi600)),
     cms.PSet( tag        = cms.string('epi80coarse'),
-              mipEqfC    = cms.double(65),
-              cellVol    = cms.double(1.18*(80.e-4)),
+              mipEqfC    = cms.double(65*80*qefC),
+              cellVol    = cms.double(1.18*80e-4),
               cellCap    = cms.double(167),
               cceParam   = cms.vdouble(cceParamFine_epi600)),
     cms.PSet( tag        = cms.string('epi100fine'),
-              mipEqfC    = cms.double(66),
-              cellVol    = cms.double(0.52*(100.e-4)),
+              mipEqfC    = cms.double(66*100*qefC),
+              cellVol    = cms.double(0.52*100e-4),
               cellCap    = cms.double(59),
               cceParam   = cms.vdouble(cceParamFine_epi600)),
     cms.PSet( tag        = cms.string('epi100coarse'),
-              mipEqfC    = cms.double(66),
-              cellVol    = cms.double(1.18*(100.e-4)),
+              mipEqfC    = cms.double(66*100*qefC),
+              cellVol    = cms.double(1.18*100e-4),
               cellCap    = cms.double(134),
               cceParam   = cms.vdouble(cceParamFine_epi600)),
     cms.PSet( tag        = cms.string('epi120fine'),
-              mipEqfC    = cms.double(67),
-              cellVol    = cms.double(0.52*(120.e-4)),
+              mipEqfC    = cms.double(67*120*qefC),
+              cellVol    = cms.double(0.52*120e-4),
               cellCap    = cms.double(49),
               cceParam   = cms.vdouble(cceParamFine_epi600)),
     cms.PSet( tag        = cms.string('epi120coarse'),
-              mipEqfC    = cms.double(67),
-              cellVol    = cms.double(1.18*(120.e-4)),
+              mipEqfC    = cms.double(67*120*qefC),
+              cellVol    = cms.double(1.18*120e-4),
               cellCap    = cms.double(111),
               cceParam   = cms.vdouble(cceParamFine_epi600)),
     cms.PSet( tag        = cms.string('ddfz200fine'),
-              mipEqfC    = cms.double(70),
-              cellVol    = cms.double(0.52*(200.e-4)),
+              mipEqfC    = cms.double(70*200*qefC),
+              cellVol    = cms.double(0.52*200e-4),
               cellCap    = cms.double(29),
               cceParam   = cms.vdouble(cceParamThin_tdr600)),
     cms.PSet( tag        = cms.string('ddfz200coarse'),
-              mipEqfC    = cms.double(70),
-              cellVol    = cms.double(1.18*(200.e-4)),
+              mipEqfC    = cms.double(70*200*qefC),
+              cellVol    = cms.double(1.18*200e-4),
               cellCap    = cms.double(65),
               cceParam   = cms.vdouble(cceParamThin_tdr600)),
     cms.PSet( tag        = cms.string('ddfz300fine'),
-              mipEqfC    = cms.double(73),
-              cellVol    = cms.double(0.52*(300.e-4)),
+              mipEqfC    = cms.double(73*300*qefC),
+              cellVol    = cms.double(0.52*300e-4),
               cellCap    = cms.double(20),
               cceParam   = cms.vdouble(cceParamThick_tdr600)),
     cms.PSet( tag        = cms.string('ddfz300coarse'),
-              mipEqfC    = cms.double(73),
-              cellVol    = cms.double(1.18*(300.e-4)),
+              mipEqfC    = cms.double(73*300*qefC),
+              cellVol    = cms.double(1.18*300e-4),
               cellCap    = cms.double(45),
               cceParam   = cms.vdouble(cceParamThick_tdr600)),
 )
-
 
 #analyzer (EOL conditions)
 process.siop_eol = cms.EDAnalyzer("HGCSiOperationScan",
@@ -97,12 +97,9 @@ process.siop_eol = cms.EDAnalyzer("HGCSiOperationScan",
                               )
 
 #analyzer (startup conditions)
-process.siop_startup = process.siop_eol.clone( doseMapAlgo        = cms.uint32(1) )
+process.siop_startup = process.siop_eol.clone( doseMapAlgo = cms.uint32(1) )
 
-process.TFileService = cms.Service("TFileService",
-                                   fileName = cms.string(options.output)
-                               )
+process.TFileService = cms.Service("TFileService",fileName = cms.string(options.output))
 
-process.p = cms.Path(process.siop_eol)
-#                     *process.siop_startup)
+process.p = cms.Path(process.siop_eol*process.siop_startup)
 

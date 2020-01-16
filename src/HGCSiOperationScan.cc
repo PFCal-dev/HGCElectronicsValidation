@@ -48,19 +48,23 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
   data_ = fs->make<TTree>("data","data");
   data_->Branch("section",        &t_section,        "section/I");
   data_->Branch("layer",          &t_layer,          "layer/I");
-  data_->Branch("waferUV",        &t_waferUV,        "waferUV/I");
+  data_->Branch("waferU",         &t_waferU,        "waferU/I");
+  data_->Branch("waferV",         &t_waferV,        "waferV/I");
   data_->Branch("waferX",         &t_waferX,         "waferX/F");
   data_->Branch("waferY",         &t_waferY,         "waferY/F");
   data_->Branch("waferPreChoice", &t_waferPreChoice, "waferPreChoice/I");
+  data_->Branch("isHDWafer",      &t_isHDWafer,      "isHDWafer/O");
   data_->Branch("minf",           &t_minf,           "minf/F");
   data_->Branch("medf",           &t_medf,           "medf/F");
   data_->Branch("maxf",           &t_maxf,           "maxf/F");
   data_->Branch("npads",          &t_npads,          "npads/I");
+
   if(savePadInfo_) {
-    data_->Branch("padUV",    t_padUV,     "padUV[npads]/I");
-    data_->Branch("padX",     t_padX,      "padX[npads]/F");
-    data_->Branch("padY",     t_padY,      "padY[npads]/F");
-    data_->Branch("padf",     t_padf,      "padf[npads]/F");
+    data_->Branch("padU",  t_padU,  "padU[npads]/I");
+    data_->Branch("padV",  t_padV,  "padV[npads]/I");
+    data_->Branch("padX",  t_padX,  "padX[npads]/F");
+    data_->Branch("padY",  t_padY,  "padY[npads]/F");
+    data_->Branch("padf",  t_padf,  "padf[npads]/F");
   }
 
   size_t nSiTypes(siTypes_.size());
@@ -75,18 +79,13 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
     edm::ParameterSet si( siTypes_[i] );
     TString tag( (si.getParameter<std::string>("tag")).c_str() );
 
-    data_->Branch("minsn_"+tag,  &t_minsn[i], "minsn_"+tag+"/F");
-    data_->Branch("q10sn_"+tag,  &t_q10sn[i], "q10sn_"+tag+"/F");
-    data_->Branch("medsn_"+tag,  &t_medsn[i], "medsn_"+tag+"/F");
-    data_->Branch("meds_"+tag,   &t_meds[i],  "meds_"+tag+"/F");
-    data_->Branch("medn_"+tag,   &t_medn[i],  "medn_"+tag+"/F");
+    data_->Branch("minsn_"+tag,  &(t_minsn[i]), "minsn_"+tag+"/F");
+    data_->Branch("q10sn_"+tag,  &(t_q10sn[i]), "q10sn_"+tag+"/F");
+    data_->Branch("medsn_"+tag,  &(t_medsn[i]), "medsn_"+tag+"/F");
+    data_->Branch("meds_"+tag,   &(t_meds[i]),  "meds_"+tag+"/F");
+    data_->Branch("medn_"+tag,   &(t_medn[i]),  "medn_"+tag+"/F");
 
     if(savePadInfo_) {
-
-      t_pads.push_back( new Float_t(500) );
-      t_padn.push_back( new Float_t(500) );
-      t_padsn.push_back( new Float_t(500) );
-
       data_->Branch("pads_"+tag,  t_pads[i],  "pads_"+tag+"[npads]/F");
       data_->Branch("padn_"+tag,  t_padn[i],  "padn_"+tag+"[npads]/F");
       data_->Branch("padsn_"+tag, t_padsn[i], "padsn_"+tag+"[npads]/F");
@@ -133,8 +132,8 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
     int sens(atoi(tokens[2].c_str()));
     int wafType(0);
     if(sens==120) wafType=0; // 120, 0.5cm^2
-    if(sens==200) wafType=3; // 200, 1 cm^2
-    if(sens==300) wafType=5; // 300, 1 cm^2
+    if(sens==200) wafType=1; // 200, 1 cm^2
+    if(sens==300) wafType=2; // 300, 1 cm^2
     float waferX(atof(tokens[3].c_str()));
     float waferY(atof(tokens[4].c_str()));
     int waferU(atoi(tokens[6].c_str()));
@@ -183,76 +182,81 @@ HGCSiOperationScan::~HGCSiOperationScan()
 //
 void HGCSiOperationScan::endJob()
 {
-  //helper arrays
-  double fvals[500], svals[500], nvals[500], snvals[500];
-  
   for(auto lit : layerCellUVColl_) {
 
     layKey_t layKey(lit.first);
     std::string subdet(layKey.first);
     int sdcode=0;
     if(subdet=="CEH") sdcode=1;
-
+    
     for(auto wit : lit.second ) {
 
       waferKey_t waferKey(wit.first);
       std::vector< waferKey_t > cellUVs(wit.second);
       std::vector< std::pair<double,double> > cellXYs(layerCellXYColl_[layKey][waferKey]);
 
+      //fill wafer header
       t_section        = sdcode;
       t_layer          = layKey.second;
-      t_waferUV        = waferKey.first*1000+waferKey.second;
+      t_waferU         = waferKey.first;
+      t_waferV         = waferKey.second;
       t_waferPreChoice = waferPreChoice_[layKey][waferKey];
+      t_isHDWafer      = (t_waferPreChoice==0);
       t_npads          = cellUVs.size();
       t_waferX         = waferPos_[layKey][waferKey].first;
       t_waferY         = waferPos_[layKey][waferKey].second;      
-
+      
+      //fill for different si types
       for(size_t i=0; i<siTypes_.size(); i++) {
+
+        //reset value arrays
+        memset(t_padU,     0, t_npads);
+        memset(t_padV,     0, t_npads);
+        memset(t_padX,     0, t_npads);
+        memset(t_padY,     0, t_npads);
+        memset(t_padf,     0, t_npads);
+        memset(t_pads[i],  0, t_npads);
+        memset(t_padn[i],  0, t_npads);
+        memset(t_padsn[i], 0, t_npads); 
 
         std::string tag( siTypes_[i].getParameter<std::string>("tag") );
         const cellOp_t &cellOp=layerOpColl_[tag][layKey][waferKey];
-
         for(int icell=0; icell<t_npads; icell++) {
-
-          fvals[icell]     = cellOp[icell].fluence;
-
+         
           if(i==0 && savePadInfo_) {
-            waferKey_t wafUV=cellUVs[icell];
-            std::pair<double,double> wafXY=cellXYs[icell];
-            t_padUV[icell] = wafUV.first*1000+wafUV.second;           
-            t_padX[icell]  = wafXY.first;
-            t_padY[icell]  = wafXY.second;
-            t_padf[icell]  = fvals[icell];
+            waferKey_t padUV=cellUVs[icell];
+            std::pair<double,double> padXY=cellXYs[icell];
+            t_padU[icell]  = padUV.first;
+            t_padV[icell]  = padUV.second;
+            t_padX[icell]  = padXY.first;
+            t_padY[icell]  = padXY.second;            
           }
 
-          svals[icell]      = cellOp[icell].cce * cellOp[icell].mipfC;
-          t_pads[i][icell]  = svals[icell];
-          nvals[icell]      = cellOp[icell].noise;
-          t_padn[i][icell]  = nvals[icell];
-          snvals[icell]     = svals[icell] / nvals[icell];
-          t_padsn[i][icell] = snvals[icell];
+          t_padf[icell]     = cellOp[icell].fluence;          
+          t_pads[i][icell]  = cellOp[icell].mipfC;
+          t_padn[i][icell]  = cellOp[icell].noise;
+          t_padsn[i][icell] = t_padn[i][icell] > 0 ? t_pads[i][icell]/t_padn[i][icell] : -1;
         }
       
         //only needs to be computed for the first Si type
-        if(i==0 && savePadInfo_) {
-          t_minf = TMath::MinElement<double>(t_npads,fvals);
-          t_medf = TMath::Median<double>    (t_npads,fvals);
-          t_maxf = TMath::MaxElement<double>(t_npads,fvals);
+        if(i==0) {
+          t_minf = TMath::MinElement<float>(t_npads,t_padf);
+          t_medf = TMath::Median<float>    (t_npads,t_padf);
+          t_maxf = TMath::MaxElement<float>(t_npads,t_padf);
         }
 
-        size_t iq=TMath::Floor(0.1*t_npads);
-        std::sort(snvals,snvals+t_npads);
-        t_minsn[i] = TMath::MinElement<double>(t_npads,snvals);      
-        t_q10sn[i] = snvals[iq];
-        t_medsn[i] = TMath::Median<double>(t_npads,snvals);
-        t_meds[i]  = TMath::Median<double>(t_npads,svals);
-        t_medn[i]  = TMath::Median<double>(t_npads,nvals);
-      
+        std::sort(t_padsn[i],t_padsn[i]+t_npads);
+        t_minsn[i] = TMath::MinElement<float>(t_npads,t_padsn[i]);
+        size_t iq  = TMath::Floor(0.1*t_npads);
+        t_q10sn[i] = t_padsn[i][iq];
+        t_medsn[i] = TMath::Median<float>(t_npads,t_padsn[i]);
+        t_meds[i]  = TMath::Median<float>(t_npads,t_pads[i]);
+        t_medn[i]  = TMath::Median<float>(t_npads,t_padn[i]);        
       }//end Si types
 
       //fill the ntuple
       data_->Fill();
-    
+
     }//end wafer 
     
   }//end layer
@@ -301,7 +305,7 @@ void HGCSiOperationScan::analyze(const edm::Event &iEvent, const edm::EventSetup
           double cellVol( si.getParameter<double>("cellVol") );
           double cellCap( si.getParameter<double>("cellCap") );
           std::vector<double> cceParam( si.getParameter<std::vector<double> >("cceParam") );
-          
+
           layerOpColl_[tag][layKey][waferUV].push_back(
                                                        noiseMaps_[it.first]->getSiCellOpCharacteristics(cellCap,cellVol,mipEqfC,cceParam,
                                                                                                         subdet,layer,radius2,

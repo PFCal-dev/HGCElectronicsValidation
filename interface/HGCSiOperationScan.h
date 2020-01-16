@@ -73,12 +73,13 @@ class HGCSiOperationScan : public edm::EDAnalyzer
 
   //summary tree
   TTree *data_;
-  Int_t t_section,t_layer,t_waferUV,t_waferPreChoice,t_npads;
+  Int_t t_section,t_layer,t_waferU,t_waferV,t_waferPreChoice,t_npads;
   Float_t t_waferX,t_waferY,t_minf,t_medf,t_maxf;
-  Int_t t_padUV[500];
+  Bool_t t_isHDWafer;
+  Int_t t_padU[500],t_padV[500];
   Float_t t_padX[500],t_padY[500],t_padf[500];
   std::vector<Float_t> t_minsn,t_q10sn,t_medsn,t_meds,t_medn;
-  std::vector<Float_t *> t_pads,t_padn,t_padsn;
+  Float_t t_pads[25][500],t_padn[25][500],t_padsn[25][500];
   bool savePadInfo_;
 };
  
