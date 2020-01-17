@@ -5,7 +5,7 @@ These tools are used to debug the development on the main cmssw repository.
 The current installation instructions are below
 
 ```
-work_branch=customsi_dev
+work_branch=custom_siop
 cmssw_rel=CMSSW_11_1_0_pre1
 cmsrel ${cmssw_rel}
 cd ${cmssw_rel}/src
