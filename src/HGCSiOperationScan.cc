@@ -53,6 +53,8 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
   data_->Branch("waferX",         &t_waferX,         "waferX/F");
   data_->Branch("waferY",         &t_waferY,         "waferY/F");
   data_->Branch("waferPreChoice", &t_waferPreChoice, "waferPreChoice/I");
+  data_->Branch("waferShape",     &t_waferShape,     "waferShape/I");
+  data_->Branch("waferRot",       &t_waferRot,       "waferRot/I");
   data_->Branch("isHDWafer",      &t_isHDWafer,      "isHDWafer/O");
   data_->Branch("minf",           &t_minf,           "minf/F");
   data_->Branch("medf",           &t_medf,           "medf/F");
@@ -112,7 +114,18 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
   waferOp_t baseWaferOp;
   waferPos_t baseWaferPos;
   waferChoice_t baseWaferChoice;
+  waferGeom_t baseWaferGeom;
   layerOp_t baseLayerOp;
+
+  //converts the shape string to an integer
+  std::map<std::string,int> shapeToInt;
+  shapeToInt["F"]=0;
+  shapeToInt["a"]=1;
+  shapeToInt["b"]=2;
+  shapeToInt["c"]=3;
+  shapeToInt["d"]=4;
+  shapeToInt["dm"]=5;
+  shapeToInt["gm"]=6;
 
   while(inF) {
 
@@ -134,21 +147,27 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
     if(sens==120) wafType=0; // 120, 0.5cm^2
     if(sens==200) wafType=1; // 200, 1 cm^2
     if(sens==300) wafType=2; // 300, 1 cm^2
+    int waferShape( shapeToInt[tokens[1].c_str()] );
+    int waferRot(atoi(tokens[5].c_str()));
     float waferX(atof(tokens[3].c_str()));
     float waferY(atof(tokens[4].c_str()));
     int waferU(atoi(tokens[6].c_str()));
     int waferV(atoi(tokens[7].c_str()));
 
+    
+                 
     layKey_t layKey(subdet,ilay);
     if(baseLayerOp.find(layKey)==baseLayerOp.end()){
       baseLayerOp[layKey]     = baseWaferOp;
       waferPos_[layKey]       = baseWaferPos;
       waferPreChoice_[layKey] = baseWaferChoice;
+      waferGeom_[layKey]      = baseWaferGeom;
     }
     waferKey_t waferKey(waferU,waferV);
     baseLayerOp[layKey][waferKey]=baseCellOp;
     waferPos_[layKey][waferKey]=std::pair<double,double>(waferX,waferY);
     waferPreChoice_[layKey][waferKey]=wafType;
+    waferGeom_[layKey][waferKey]=waferKey_t(waferShape,waferRot);
 
     //start the helper map to save uv of the pads belonging to each wafer
     if(layerCellUVColl_.find(layKey)==layerCellUVColl_.end()) {
@@ -201,6 +220,8 @@ void HGCSiOperationScan::endJob()
       t_waferU         = waferKey.first;
       t_waferV         = waferKey.second;
       t_waferPreChoice = waferPreChoice_[layKey][waferKey];
+      t_waferShape     = waferGeom_[layKey][waferKey].first;
+      t_waferRot       = waferGeom_[layKey][waferKey].second;
       t_isHDWafer      = (t_waferPreChoice==0);
       t_npads          = cellUVs.size();
       t_waferX         = waferPos_[layKey][waferKey].first;

@@ -47,7 +47,7 @@ To use the later in the occupancy analyzer copy it to the data folder.
 Prepare a ntuple with the fluence and S/N in each wafer, layer and sub-detector
 
 ```
-cmsRun test/hgcsiopscan_cfg.py doseMap=SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.5.15.9.txt &
+cmsRun test/hgcsiopscan_cfg.py doseMap=SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.5.15.9.txt savePadInfo=True&
 ```
 
 Then you can use the SiSensorOptim notebook to interact with its contents.
