@@ -120,7 +120,7 @@ for s in ['epi','ddfz']:
             
             setattr(process,
                     "siop_{0}_startup_600V".format(sitag),
-                    process.siop_template.clone(doseMapAlgo       = cms.uint32(0),
+                    process.siop_template.clone(doseMapAlgo       = cms.uint32(3),
                                                 ileakParam        = cms.vdouble(ileakParam_600V),
                                                 siType            = cms.PSet(siat600V[sitag]),
                                                 encCommonNoiseSub = cms.double(1.0),
@@ -156,29 +156,29 @@ if options.scenario=='startup_600V':
         *process.siop_ddfz300fine_startup_600V
         *process.siop_ddfz300coarse_startup_600V)
 
-if options.scenario=='i3ab_600V':
+if options.scenario=='3iab_600V':
     process.p=cms.Path( 
-        process.siop_epi80fine_i3ab_600V
-        *process.siop_epi80coarse_i3ab_600V
-        *process.siop_epi100fine_i3ab_600V
-        *process.siop_epi100coarse_i3ab_600V
-        *process.siop_epi120fine_i3ab_600V
-        *process.siop_epi120coarse_i3ab_600V
-        *process.siop_ddfz200fine_i3ab_600V    
-        *process.siop_ddfz200coarse_i3ab_600V
-        *process.siop_ddfz300fine_i3ab_600V
-        *process.siop_ddfz300coarse_i3ab_600V)
+        process.siop_epi80fine_3iab_600V
+        *process.siop_epi80coarse_3iab_600V
+        *process.siop_epi100fine_3iab_600V
+        *process.siop_epi100coarse_3iab_600V
+        *process.siop_epi120fine_3iab_600V
+        *process.siop_epi120coarse_3iab_600V
+        *process.siop_ddfz200fine_3iab_600V    
+        *process.siop_ddfz200coarse_3iab_600V
+        *process.siop_ddfz300fine_3iab_600V
+        *process.siop_ddfz300coarse_3iab_600V)
 
-if options.scenario=='i4ab_600V':
+if options.scenario=='4iab_600V':
     process.p=cms.Path( 
-        process.siop_epi80fine_i4ab_600V
-        *process.siop_epi80coarse_i4ab_600V
-        *process.siop_epi100fine_i4ab_600V
-        *process.siop_epi100coarse_i4ab_600V
-        *process.siop_epi120fine_i4ab_600V
-        *process.siop_epi120coarse_i4ab_600V
-        *process.siop_ddfz200fine_i4ab_600V    
-        *process.siop_ddfz200coarse_i4ab_600V
-        *process.siop_ddfz300fine_i4ab_600V
-        *process.siop_ddfz300coarse_i4ab_600V)
+        process.siop_epi80fine_4iab_600V
+        *process.siop_epi80coarse_4iab_600V
+        *process.siop_epi100fine_4iab_600V
+        *process.siop_epi100coarse_4iab_600V
+        *process.siop_epi120fine_4iab_600V
+        *process.siop_epi120coarse_4iab_600V
+        *process.siop_ddfz200fine_4iab_600V    
+        *process.siop_ddfz200coarse_4iab_600V
+        *process.siop_ddfz300fine_4iab_600V
+        *process.siop_ddfz300coarse_4iab_600V)
 
