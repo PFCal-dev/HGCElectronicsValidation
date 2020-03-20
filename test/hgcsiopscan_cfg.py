@@ -146,9 +146,9 @@ for s in ['epi','ddfz']:
 if options.scenario=='startup_600V':
     process.p=cms.Path( 
         process.siop_epi80fine_startup_600V
-        *process.siop_epi80coarse_startup_600V
+        #*process.siop_epi80coarse_startup_600V
         *process.siop_epi100fine_startup_600V
-        *process.siop_epi100coarse_startup_600V
+        #*process.siop_epi100coarse_startup_600V
         *process.siop_epi120fine_startup_600V
         *process.siop_epi120coarse_startup_600V
         *process.siop_ddfz200fine_startup_600V    
@@ -159,9 +159,9 @@ if options.scenario=='startup_600V':
 if options.scenario=='3iab_600V':
     process.p=cms.Path( 
         process.siop_epi80fine_3iab_600V
-        *process.siop_epi80coarse_3iab_600V
+        #*process.siop_epi80coarse_3iab_600V
         *process.siop_epi100fine_3iab_600V
-        *process.siop_epi100coarse_3iab_600V
+        #*process.siop_epi100coarse_3iab_600V
         *process.siop_epi120fine_3iab_600V
         *process.siop_epi120coarse_3iab_600V
         *process.siop_ddfz200fine_3iab_600V    
@@ -172,9 +172,9 @@ if options.scenario=='3iab_600V':
 if options.scenario=='4iab_600V':
     process.p=cms.Path( 
         process.siop_epi80fine_4iab_600V
-        *process.siop_epi80coarse_4iab_600V
+        #*process.siop_epi80coarse_4iab_600V
         *process.siop_epi100fine_4iab_600V
-        *process.siop_epi100coarse_4iab_600V
+        #*process.siop_epi100coarse_4iab_600V
         *process.siop_epi120fine_4iab_600V
         *process.siop_epi120coarse_4iab_600V
         *process.siop_ddfz200fine_4iab_600V    
