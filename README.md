@@ -30,7 +30,7 @@ and on a geometry. These analyzers can be found in SimCalorimetry/HGCalSimAlgos/
 
 ```
 cmsRun ../../SimCalorimetry/HGCalSimAlgos/test/hgcsiNoiseMapTester_cfg.py \
-       doseMap=SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.17.20.txt
+       doseMap=SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.7.20.txt
 python test/scripts/drawRadiationMapPlots.py ../../SimCalorimetry/HGCalSimAlgos/dosemap_output.root 
 ```
 
@@ -53,7 +53,11 @@ To use the later in the occupancy analyzer copy it to the data folder.
 Prepare a ntuple with the fluence and S/N in each wafer, layer and sub-detector
 
 ```
-cmsRun test/hgcsiopscan_cfg.py doseMap=SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.5.15.9.txt savePadInfo=True&
+cmsRun test/hgcsiopscan_cfg.py \
+       doseMap=SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.7.20.txt \
+       savePadInfo=True \
+       scenario=startup_600V \
+       output=SiOpScan_startup_600V.root
 ```
 
 Then you can use the SiSensorOptim notebook to interact with its contents.

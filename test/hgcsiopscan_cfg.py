@@ -7,7 +7,7 @@ from FWCore.ParameterSet.VarParsing import VarParsing
 options = VarParsing ('standard')
 options.register('geometry', 'Extended2026D46', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'geometry to use')
 options.register("doseMap", "",  VarParsing.multiplicity.singleton, VarParsing.varType.string)
-options.register("scenario", "600V",  VarParsing.multiplicity.singleton, VarParsing.varType.string)
+options.register("scenario", "startup_600V",  VarParsing.multiplicity.singleton, VarParsing.varType.string)
 options.register("savePadInfo", False,  VarParsing.multiplicity.singleton, VarParsing.varType.bool)
 options.parseArguments()
 
