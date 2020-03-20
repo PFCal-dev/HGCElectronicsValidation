@@ -53,13 +53,14 @@ class HGCSiOperationScan : public edm::EDAnalyzer
   typedef std::map<waferKey_t, std::pair<double,double> > waferPos_t;
   typedef std::map<waferKey_t, int > waferChoice_t;
   typedef std::map<layKey_t, waferOp_t> layerOp_t;
-  std::map<std::string, layerOp_t> layerOpColl_;
+  layerOp_t layerOp_;
   std::map<layKey_t,waferPos_t> waferPos_;
   std::map<layKey_t,waferChoice_t> waferPreChoice_;
   std::map<layKey_t,waferGeom_t> waferGeom_;
 
   std::map<layKey_t,std::map<waferKey_t,std::vector<waferKey_t> > > layerCellUVColl_;
   std::map<layKey_t,std::map<waferKey_t,std::vector<std::pair<double,double> > > > layerCellXYColl_;
+  std::map<layKey_t,std::map<waferKey_t,std::vector<int> > > layerCellROCColl_;
 
   //geometry
   std::string geoCEE_,geoCEH_;
@@ -68,19 +69,20 @@ class HGCSiOperationScan : public edm::EDAnalyzer
   //radiation map
   std::map<std::string, std::unique_ptr<HGCalSiNoiseMap>> noiseMaps_;
   
-  //si characteristics to scan
-  std::vector<edm::ParameterSet> siTypes_;
+  //si characteristics
+  edm::ParameterSet siType_;
   int aimMIPtoADC_;
+
+  double encCommonNoiseSub_,fluenceSF_;
 
   //summary tree
   TTree *data_;
   Int_t t_section,t_layer,t_waferU,t_waferV,t_waferPreChoice,t_waferShape,t_waferRot,t_npads;
   Float_t t_waferX,t_waferY,t_minf,t_medf,t_maxf;
   Bool_t t_isHDWafer;
-  Int_t t_padU[500],t_padV[500];
-  Float_t t_padX[500],t_padY[500],t_padf[500];
-  std::vector<Float_t> t_minsn,t_q10sn,t_medsn,t_meds,t_medn;
-  Float_t t_pads[25][500],t_padn[25][500],t_padsn[25][500];
+  Float_t t_minsn, t_q10sn, t_medsn, t_meds, t_medn,t_medencs,t_medileak;
+  Int_t t_padU[500],t_padV[500], t_padROC[500];
+  Float_t t_padX[500],t_padY[500],t_padf[500],t_pads[500],t_padn[500],t_padsn[500],t_padencs[500],t_padileak[500];
   bool savePadInfo_;
 };
  
