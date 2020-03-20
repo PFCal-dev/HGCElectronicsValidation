@@ -5,8 +5,8 @@ These tools are used to debug the development on the main cmssw repository.
 The current installation instructions are below
 
 ```
-work_branch=custom_siop
-cmssw_rel=CMSSW_11_1_0_pre1
+work_branch=rad_noise_update
+cmssw_rel=CMSSW_11_1_0_pre3
 cmsrel ${cmssw_rel}
 cd ${cmssw_rel}/src
 cmsenv
@@ -26,7 +26,13 @@ git push https://github.com/PFCal-dev/cmssw HEAD:${work_branch}
 ## Radiation map analysis
 
 A set of control plots for the noise, charge collection efficiency, fluence is produced based on a radiation map file
-and on a geometry. These analyzers can be found in SimCalorimetry/HGCalSimAlgos/test.
+and on a geometry. These analyzers can be found in SimCalorimetry/HGCalSimAlgos/test. An example is given below, assuming the current directory location
+
+```
+cmsRun ../../SimCalorimetry/HGCalSimAlgos/test/hgcsiNoiseMapTester_cfg.py \
+       doseMap=SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.17.20.txt
+python test/scripts/drawRadiationMapPlots.py ../../SimCalorimetry/HGCalSimAlgos/dosemap_output.root 
+```
 
 ## Wafer map
 
