@@ -56,8 +56,8 @@ Prepare a ntuple with the fluence and S/N in each wafer, layer and sub-detector
 cmsRun test/hgcsiopscan_cfg.py \
        doseMap=SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.7.20.txt \
        savePadInfo=True \
-       scenario=startup_600V \
-       output=SiOpScan_startup_600V.root
+       scenario=3iab_600V \
+       output=SiOpScan_3iab_600V.root
 ```
 
 Then you can use the SiSensorOptim notebook to interact with its contents.

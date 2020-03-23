@@ -224,16 +224,16 @@ void HGCSiOperationScan::endJob()
       t_waferY         = waferPos_[layKey][waferKey].second;      
       
       //reset value arrays
-      memset(t_padU,    0, t_npads);
-      memset(t_padV,    0, t_npads);
-      memset(t_padROC,  0, t_npads);
-      memset(t_padX,    0, t_npads);
-      memset(t_padY,    0, t_npads);
-      memset(t_padf,    0, t_npads);
-      memset(t_pads,    0, t_npads);
-      memset(t_padn,    0, t_npads);        
-      memset(t_padsn,   0, t_npads); 
-      memset(t_padencs, 0, t_npads); 
+      memset(t_padU,     0, t_npads);
+      memset(t_padV,     0, t_npads);
+      memset(t_padROC,   0, t_npads);
+      memset(t_padX,     0, t_npads);
+      memset(t_padY,     0, t_npads);
+      memset(t_padf,     0, t_npads);
+      memset(t_pads,     0, t_npads);
+      memset(t_padn,     0, t_npads);        
+      memset(t_padsn,    0, t_npads); 
+      memset(t_padencs,  0, t_npads); 
       memset(t_padileak, 0, t_npads); 
       
       const cellOp_t &cellOp=layerOp_[layKey][waferKey];
@@ -253,17 +253,17 @@ void HGCSiOperationScan::endJob()
         t_padsn[icell]   = t_padn[icell] > 0 ? t_pads[icell]/t_padn[icell] : -1;
       }
       
-      t_minf = TMath::MinElement<float>(t_npads,t_padf);
-      t_medf = TMath::Median<float>    (t_npads,t_padf);
-      t_maxf = TMath::MaxElement<float>(t_npads,t_padf);
+      t_minf     = TMath::MinElement<float>(t_npads,t_padf);
+      t_medf     = TMath::Median<float>    (t_npads,t_padf);
+      t_maxf     = TMath::MaxElement<float>(t_npads,t_padf);
       std::sort(t_padsn,t_padsn+t_npads);
-      t_minsn   = TMath::MinElement<float>(t_npads,t_padsn);
+      t_minsn    = TMath::MinElement<float>(t_npads,t_padsn);
       size_t iq    = TMath::Floor(0.1*t_npads);
-      t_q10sn   = t_padsn[iq];
-      t_medsn   = TMath::Median<float>(t_npads,t_padsn);
-      t_meds    = TMath::Median<float>(t_npads,t_pads);
-      t_medn    = TMath::Median<float>(t_npads,t_padn);        
-      t_medencs = TMath::Median<float>(t_npads,t_padencs);        
+      t_q10sn    = t_padsn[iq];
+      t_medsn    = TMath::Median<float>(t_npads,t_padsn);
+      t_meds     = TMath::Median<float>(t_npads,t_pads);
+      t_medn     = TMath::Median<float>(t_npads,t_padn);        
+      t_medencs  = TMath::Median<float>(t_npads,t_padencs);        
       t_medileak = TMath::Median<float>(t_npads,t_padileak);        
 
       //fill the ntuple
@@ -310,7 +310,7 @@ void HGCSiOperationScan::analyze(const edm::Event &iEvent, const edm::EventSetup
         std::pair<int,int> waferUV=detId.waferUV();
         std::pair<int,int> cellUV=detId.cellUV();
         GlobalPoint pt=it.second->getPosition(detId);
-        double radius2 = std::pow(pt.x(), 2) + std::pow(pt.y(), 2);  //in cm
+        double radius = sqrt(std::pow(pt.x(), 2) + std::pow(pt.y(), 2));  //in cm
         HGCalSiNoiseMap::GainRange_t gain(HGCalSiNoiseMap::AUTO);
         
         layerCellUVColl_[layKey][waferUV].push_back( cellUV );
@@ -319,7 +319,7 @@ void HGCSiOperationScan::analyze(const edm::Event &iEvent, const edm::EventSetup
                
         layerOp_[layKey][waferUV].push_back(
                                             noiseMaps_[it.first]->getSiCellOpCharacteristics(cellCap,cellVol,mipEqfC,cceParam,
-                                                                                             subdet,layer,radius2,
+                                                                                             subdet,layer,radius,
                                                                                              gain,aimMIPtoADC_) );
       }
     }    
