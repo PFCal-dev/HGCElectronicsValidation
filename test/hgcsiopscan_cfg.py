@@ -33,8 +33,8 @@ process.TFileService = cms.Service("TFileService",fileName = cms.string(options.
 
 #import standard Ileak and CCE parameterizations
 from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import ileakParam_600V, ileakParam_800V
-from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import cceParamFine_epi600, cceParamThin_ttu600, cceParamThick_ttu600
-from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import cceParamThin_ttu800, cceParamThick_ttu800
+from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import cceParamFine_epi600, cceParamThin_tdr600, cceParamThick_tdr600
+from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import cceParamThin_tdr800, cceParamThick_tdr800
 
 #define the Si types to scan
 def defineSiTypesToScan(cceParamEpi, cceParamThin, cceParamThick, qefC=1.60217646e-4):
@@ -95,8 +95,8 @@ def defineSiTypesToScan(cceParamEpi, cceParamThin, cceParamThick, qefC=1.6021764
 
 
 
-siat600V=defineSiTypesToScan(cceParamFine_epi600,cceParamThin_ttu600,cceParamThick_ttu600)
-siat800V=defineSiTypesToScan(cceParamFine_epi600,cceParamThin_ttu800,cceParamThick_ttu800)
+siat600V=defineSiTypesToScan(cceParamFine_epi600,cceParamThin_tdr600,cceParamThick_tdr600)
+siat800V=defineSiTypesToScan(cceParamFine_epi600,cceParamThin_tdr800,cceParamThick_tdr800)
 
 from math import sqrt
 #analyzer template
