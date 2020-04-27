@@ -31,7 +31,7 @@ and on a geometry. These analyzers can be found in SimCalorimetry/HGCalSimAlgos/
 ```
 cmsRun ../../SimCalorimetry/HGCalSimAlgos/test/hgcsiNoiseMapTester_cfg.py \
        doseMap=SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.7.20.txt
-python test/scripts/drawRadiationMapPlots.py ../../SimCalorimetry/HGCalSimAlgos/dosemap_output.root 
+python test/scripts/drawRadiationMapPlots.py dosemap_output.root 
 ```
 
 ## Wafer map
