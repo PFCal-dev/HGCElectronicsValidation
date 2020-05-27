@@ -55,6 +55,7 @@ Prepare a ntuple with the fluence and S/N in each wafer, layer and sub-detector
 ```
 cmsRun test/hgcsiopscan_cfg.py \
        doseMap=SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.7.20.txt \
+       uvmapfile=UserCode/HGCElectronicsValidation/data/geomnew_corrected_360.txt \
        savePadInfo=True \
        scenario=3iab_600V \
        output=SiOpScan_3iab_600V.root

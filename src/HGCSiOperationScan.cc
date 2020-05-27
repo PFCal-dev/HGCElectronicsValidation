@@ -84,7 +84,7 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
     data_->Branch("padn_"+tag,    t_padn,     "padn_"+tag+"[npads]/F");
     data_->Branch("padsn_"+tag,   t_padsn,    "padsn_"+tag+"[npads]/F");
     data_->Branch("padencs_"+tag, t_padencs,  "padencs_"+tag+"[npads]/F");  
-    data_->Branch("padileak_"+tag, t_padileak,  "padileak_"+tag+"[npads]/F");  
+    data_->Branch("padileak_"+tag, t_padileak,  "padileak_"+tag+"[npads]/D");  
   }
   
   //start noise maps
@@ -105,7 +105,7 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
   noiseMaps_["CEH"]->setFluenceScaleFactor(fluenceSF_);
 
   //parse u-v equivalence map file and start the layer operation map
-  edm::FileInPath uvmapF("UserCode/HGCElectronicsValidation/data/geomnew_corrected_360.txt");
+  edm::FileInPath uvmapF(iConfig.getParameter<std::string>("uvmapfile")); 
   std::ifstream inF(uvmapF.fullPath());  
   cellOp_t baseCellOp;
   waferOp_t baseWaferOp;
@@ -264,7 +264,7 @@ void HGCSiOperationScan::endJob()
       t_meds     = TMath::Median<float>(t_npads,t_pads);
       t_medn     = TMath::Median<float>(t_npads,t_padn);        
       t_medencs  = TMath::Median<float>(t_npads,t_padencs);        
-      t_medileak = TMath::Median<float>(t_npads,t_padileak);        
+      t_medileak = TMath::Median<double>(t_npads,t_padileak);        
 
       //fill the ntuple
       data_->Fill();

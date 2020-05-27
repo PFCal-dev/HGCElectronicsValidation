@@ -8,6 +8,7 @@ options = VarParsing ('standard')
 options.register('geometry', 'Extended2026D46', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'geometry to use')
 options.register("doseMap", "",  VarParsing.multiplicity.singleton, VarParsing.varType.string)
 options.register("scenario", "startup_600V",  VarParsing.multiplicity.singleton, VarParsing.varType.string)
+options.register("uvmapfile", "UserCode/HGCElectronicsValidation/data/geomnew_corrected_360.txt",  VarParsing.multiplicity.singleton, VarParsing.varType.string)
 options.register("savePadInfo", False,  VarParsing.multiplicity.singleton, VarParsing.varType.bool)
 options.parseArguments()
 
@@ -101,6 +102,7 @@ siat800V=defineSiTypesToScan(cceParamFine_epi600,cceParamThin_tdr800,cceParamThi
 from math import sqrt
 #analyzer template
 process.siop_template = cms.EDAnalyzer("HGCSiOperationScan",
+                                       uvmapfile    = cms.string(options.uvmapfile),
                                        savePadInfo  = cms.bool( options.savePadInfo ),
                                        doseMap      = cms.string( options.doseMap ),
                                        doseMapAlgo  = cms.uint32(0),
@@ -141,9 +143,7 @@ for s in ['epi','ddfz']:
                                                 ileakParam        = cms.vdouble(ileakParam_600V),
                                                 siType            = cms.PSet(siat600V[sitag]),
                                                 encCommonNoiseSub = cms.double(1.0),
-                                                fluenceSF         = cms.double(4.0/3.0)))
-
-            if t<=120: continue
+                                                fluenceSF         = cms.double(4.0/3.0)))            
 
             setattr(process,
                     "siop_{0}_3iab_800V".format(sitag),
@@ -176,7 +176,7 @@ if options.scenario=='startup_600V':
         *process.siop_ddfz300fine_startup_600V
         *process.siop_ddfz300coarse_startup_600V)
 
-if options.scenario=='3iab_600V':
+if options.scenario=='3iab_120-600V_200-300-600V':
     process.p=cms.Path( 
         process.siop_epi80fine_3iab_600V
         *process.siop_epi100fine_3iab_600V
@@ -188,7 +188,7 @@ if options.scenario=='3iab_600V':
         *process.siop_ddfz300coarse_3iab_600V
     )
 
-if options.scenario=='4iab_600V':
+if options.scenario=='4iab_120-600V_200-300-600V':
     process.p=cms.Path( 
         process.siop_epi80fine_4iab_600V
         *process.siop_epi100fine_4iab_600V
@@ -199,7 +199,7 @@ if options.scenario=='4iab_600V':
         *process.siop_ddfz300fine_4iab_600V
         *process.siop_ddfz300coarse_4iab_600V)
 
-if options.scenario=='3iab_800V':
+if options.scenario=='3iab_120-600V_200-300-800V':
     process.p=cms.Path( 
         process.siop_epi80fine_3iab_600V
         *process.siop_epi100fine_3iab_600V
@@ -210,12 +210,34 @@ if options.scenario=='3iab_800V':
         *process.siop_ddfz300fine_3iab_800V
         *process.siop_ddfz300coarse_3iab_800V)
 
-if options.scenario=='4iab_800V':
+if options.scenario=='4iab_120-600V_200-300-800V':
     process.p=cms.Path( 
         process.siop_epi80fine_4iab_600V
         *process.siop_epi100fine_4iab_600V
         *process.siop_epi120fine_4iab_600V
         *process.siop_epi120coarse_4iab_600V
+        *process.siop_ddfz200fine_4iab_800V    
+        *process.siop_ddfz200coarse_4iab_800V
+        *process.siop_ddfz300fine_4iab_800V
+        *process.siop_ddfz300coarse_4iab_800V)
+
+if options.scenario=='3iab_120-800V_200-300-800V':
+    process.p=cms.Path( 
+        process.siop_epi80fine_3iab_800V
+        *process.siop_epi100fine_3iab_800V
+        *process.siop_epi120fine_3iab_800V
+        *process.siop_epi120coarse_3iab_800V
+        *process.siop_ddfz200fine_3iab_800V    
+        *process.siop_ddfz200coarse_3iab_800V
+        *process.siop_ddfz300fine_3iab_800V
+        *process.siop_ddfz300coarse_3iab_800V)
+
+if options.scenario=='4iab_120-800V_200-300-800V':
+    process.p=cms.Path( 
+        process.siop_epi80fine_4iab_800V
+        *process.siop_epi100fine_4iab_800V
+        *process.siop_epi120fine_4iab_800V
+        *process.siop_epi120coarse_4iab_800V
         *process.siop_ddfz200fine_4iab_800V    
         *process.siop_ddfz200coarse_4iab_800V
         *process.siop_ddfz300fine_4iab_800V
