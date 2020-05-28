@@ -11,7 +11,7 @@ cmsrel ${cmssw_rel}
 cd ${cmssw_rel}/src
 cmsenv
 git cms-init
-git cms-checkout-topic PFCal-dev:${work_branch}
+git cms-merge-topic PFCal-dev:${work_branch}
 git clone https://github.com/PFCal-dev/HGCElectronicsValidation.git UserCode/HGCElectronicsValidation
 scram b -j 8
 ```
