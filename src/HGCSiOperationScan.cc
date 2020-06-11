@@ -247,7 +247,7 @@ void HGCSiOperationScan::endJob()
         t_padY[icell]    = padXY.second;                     
         t_padf[icell]    = cellOp[icell].fluence;          
         t_pads[icell]    = cellOp[icell].mipfC;
-        t_padn[icell]    = cellOp[icell].noise;          
+        t_padn[icell]    = cellOp[icell].core.noise;          
         t_padencs[icell] = cellOp[icell].enc_s; 
         t_padileak[icell] = cellOp[icell].ileak;
         t_padsn[icell]   = t_padn[icell] > 0 ? t_pads[icell]/t_padn[icell] : -1;
