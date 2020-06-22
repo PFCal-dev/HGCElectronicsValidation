@@ -104,7 +104,7 @@ from math import sqrt
 #analyzer template
 process.siop_template = cms.EDAnalyzer("HGCSiOperationScan",
                                        uvmapfile    = cms.string(options.uvmapfile),
-                                       setPreassignedWafersFromCMSSW = cms.bool(wafersFromCMSSW),
+                                       setPreassignedWafersFromCMSSW = cms.bool(options.wafersFromCMSSW),
                                        savePadInfo  = cms.bool( options.savePadInfo ),
                                        doseMap      = cms.string( options.doseMap ),
                                        doseMapAlgo  = cms.uint32(0),
