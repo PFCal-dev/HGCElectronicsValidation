@@ -65,6 +65,7 @@ class HGCSiOperationScan : public edm::EDAnalyzer
   //geometry
   std::string geoCEE_,geoCEH_;
   std::map<std::string,const HGCalGeometry *> hgcGeometries_;
+  bool setPreassignedWafersFromCMSSW_;
 
   //radiation map
   std::map<std::string, std::unique_ptr<HGCalSiNoiseMap>> noiseMaps_;

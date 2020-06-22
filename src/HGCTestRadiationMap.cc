@@ -45,7 +45,6 @@ void HGCTestRadiationMap::analyze( const edm::Event &iEvent, const edm::EventSet
   HGCalSiNoiseMap::GainRange_t gain(HGCalSiNoiseMap::AUTO);
   int aimMIPtoADC(10);
   std::string doseMapURL("SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.7.20.txt");
-  uint32_t doseMapAlgo(0);
   std::vector<double> ileakParam={0.993,-42.668};
   double encCommonNoiseSub(1.0);
   double fluenceSF(1.0);
@@ -67,7 +66,7 @@ void HGCTestRadiationMap::analyze( const edm::Event &iEvent, const edm::EventSet
 
     //start alternative noise maps
     HGCalSiNoiseMap sectorEqMap;
-    sectorEqMap.setUseCached(true);
+    uint32_t doseMapAlgo(0);
     sectorEqMap.setDoseMap(doseMapURL,doseMapAlgo);
     sectorEqMap.setIleakParam(ileakParam);
     sectorEqMap.setENCCommonNoiseSubScale(encCommonNoiseSub);
@@ -76,7 +75,7 @@ void HGCTestRadiationMap::analyze( const edm::Event &iEvent, const edm::EventSet
     sectorEqMap.setCceParam(cceParsFine,cceParsThin,cceParsThick);
 
     HGCalSiNoiseMap noSectorEqMap;
-    noSectorEqMap.setUseCached(false);
+    doseMapAlgo |= (1 << HGCalSiNoiseMap::CACHEDOP);
     noSectorEqMap.setDoseMap(doseMapURL,doseMapAlgo);
     noSectorEqMap.setIleakParam(ileakParam);
     noSectorEqMap.setENCCommonNoiseSubScale(encCommonNoiseSub);

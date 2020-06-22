@@ -8,8 +8,8 @@ process.load('Configuration.StandardSequences.MagneticField_cff')
 process.load('Configuration.EventContent.EventContent_cff')
 process.load("FWCore.MessageService.MessageLogger_cfi")
 process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
-process.load('Configuration.Geometry.GeometryExtended2026D46Reco_cff')
-process.load('Configuration.Geometry.GeometryExtended2026D46_cff')
+process.load('Configuration.Geometry.GeometryExtended2026D49Reco_cff')
+process.load('Configuration.Geometry.GeometryExtended2026D49_cff')
 from Configuration.AlCa.GlobalTag import GlobalTag
 process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:phase2_realistic', '')
 process.MessageLogger.cerr.threshold = ''

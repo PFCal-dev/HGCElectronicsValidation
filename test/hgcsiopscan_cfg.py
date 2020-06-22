@@ -5,11 +5,12 @@ process = cms.Process("ANALYSIS")
 #parse command line arguments
 from FWCore.ParameterSet.VarParsing import VarParsing
 options = VarParsing ('standard')
-options.register('geometry', 'Extended2026D46', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'geometry to use')
+options.register('geometry', 'Extended2026D49', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'geometry to use')
 options.register("doseMap", "",  VarParsing.multiplicity.singleton, VarParsing.varType.string)
 options.register("scenario", "startup_600V",  VarParsing.multiplicity.singleton, VarParsing.varType.string)
 options.register("uvmapfile", "UserCode/HGCElectronicsValidation/data/geomnew_corrected_360.txt",  VarParsing.multiplicity.singleton, VarParsing.varType.string)
 options.register("savePadInfo", False,  VarParsing.multiplicity.singleton, VarParsing.varType.bool)
+options.register("wafersFromCMSSW", False,  VarParsing.multiplicity.singleton, VarParsing.varType.bool)
 options.parseArguments()
 
 #set geometry/global tag
@@ -103,6 +104,7 @@ from math import sqrt
 #analyzer template
 process.siop_template = cms.EDAnalyzer("HGCSiOperationScan",
                                        uvmapfile    = cms.string(options.uvmapfile),
+                                       setPreassignedWafersFromCMSSW = cms.bool(wafersFromCMSSW),
                                        savePadInfo  = cms.bool( options.savePadInfo ),
                                        doseMap      = cms.string( options.doseMap ),
                                        doseMapAlgo  = cms.uint32(0),

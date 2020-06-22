@@ -39,6 +39,7 @@ using namespace std;
 HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :   
   geoCEE_("HGCalEESensitive"),
   geoCEH_("HGCalHESiliconSensitive"),
+  setPreassignedWafersFromCMSSW_(iConfig.getParameter<bool>("setPreassignedWafersFromCMSSW")),
   siType_(iConfig.getParameter<edm::ParameterSet>("siType")),
   aimMIPtoADC_(iConfig.getParameter<int>("aimMIPtoADC")),  
   encCommonNoiseSub_(iConfig.getParameter<double>("encCommonNoiseSub")),
@@ -295,6 +296,10 @@ void HGCSiOperationScan::analyze(const edm::Event &iEvent, const edm::EventSetup
 
   for(auto &it : hgcGeometries_ )
     {
+
+      //get ddd constants to get cell properties     
+      const HGCalDDDConstants &ddd=it.second->topology().dddConstants();
+
       noiseMaps_[it.first]->setGeometry( it.second );
       const std::vector<DetId> &validDetIds = it.second->getValidDetIds();
       
@@ -317,6 +322,12 @@ void HGCSiOperationScan::analyze(const edm::Event &iEvent, const edm::EventSetup
         layerCellXYColl_[layKey][waferUV].push_back( std::pair<double,double>(pt.x(),pt.y()) );
         layerCellROCColl_[layKey][waferUV].push_back( d2roc.getROCNumber(detId) );
                
+        //override default assignment with the one from CMSSW
+        if(setPreassignedWafersFromCMSSW_){
+          int waferTypeL = ddd.waferType(detId);
+          waferPreChoice_[layKey][waferUV] = waferTypeL;
+        }
+
         layerOp_[layKey][waferUV].push_back(
                                             noiseMaps_[it.first]->getSiCellOpCharacteristics(cellCap,cellVol,mipEqfC,cceParam,
                                                                                              subdet,layer,radius,

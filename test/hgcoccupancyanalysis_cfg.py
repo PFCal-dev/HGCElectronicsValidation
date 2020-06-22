@@ -6,7 +6,7 @@ process = cms.Process("ANALYSIS")
 from FWCore.ParameterSet.VarParsing import VarParsing
 options = VarParsing ('standard')
 options.register('input', '/eos/cms/store/cmst3/user/psilva/CMSSW_10_6_0/TTJets/PU0', VarParsing.multiplicity.singleton, VarParsing.varType.string, "input directory")
-options.register('geometry', 'Extended2026D46', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'geometry to use')
+options.register('geometry', 'Extended2026D49', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'geometry to use')
 options.parseArguments()
 
 #set geometry/global tag
