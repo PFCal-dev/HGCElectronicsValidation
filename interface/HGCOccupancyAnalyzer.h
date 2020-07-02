@@ -51,6 +51,7 @@
 #include "TProfile.h"
 #include "TH2F.h"
 
+#include <unordered_map>
 
 
 /**
@@ -73,12 +74,10 @@ class HGCOccupancyAnalyzer : public edm::EDAnalyzer
   /**
      @short analyze a digi collection
    */
-  void analyzeDigis(std::string ,edm::Handle<HGCalDigiCollection> &);
+  void analyzeDigis(int ,edm::Handle<HGCalDigiCollection> &, const HGCalGeometry *);
 
   //histograms for the wafers
-  typedef std::tuple<std::string,int,int,int> WaferEquivalentId_t;
-  std::map<WaferEquivalentId_t,WaferOccupancyHisto *> waferHistos_;
-  std::map<WaferEquivalentId_t,std::pair<int,int> > uvEqMap_;
+  std::map<WaferOccupancyHisto::WaferKey_t,WaferOccupancyHisto *> waferHistos_;
 
   //generator level information
   edm::EDGetTokenT<std::vector<PileupSummaryInfo> > puToken_;
@@ -86,10 +85,7 @@ class HGCOccupancyAnalyzer : public edm::EDAnalyzer
 
   //geometry and digis to analyze
   std::string geoCEE_,geoCEH_;
-  std::map<std::string,const HGCalGeometry *> hgcGeometries_;
-  edm::EDGetTokenT<HGCalDigiCollection> digisCEE_,digisCEH_;  
-
-  std::map<std::pair<std::string,int>, std::vector<TH1F *> > hottestWaferH_;
+  edm::EDGetTokenT<HGCalDigiCollection> digisCEE_,digisCEH_; 
 
   std::vector<int> tdcHits_, toaHits_,adcHits_;
   TH1F *cellCount_;
@@ -97,6 +93,11 @@ class HGCOccupancyAnalyzer : public edm::EDAnalyzer
   TH2F *adcHitsVsPU_;
 
   int nevts_;
+  double adcThrMIP_,adcThrMIPbxm1_;
+
+  //
+  std::string doseMap_;
+  std::map<int,HGCalSiNoiseMap *> noiseMaps_;
 };
  
 

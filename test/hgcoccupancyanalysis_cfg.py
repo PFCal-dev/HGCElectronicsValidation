@@ -5,8 +5,26 @@ process = cms.Process("ANALYSIS")
 #parse command line arguments
 from FWCore.ParameterSet.VarParsing import VarParsing
 options = VarParsing ('standard')
-options.register('input', '/eos/cms/store/cmst3/user/psilva/CMSSW_10_6_0/TTJets/PU0', VarParsing.multiplicity.singleton, VarParsing.varType.string, "input directory")
-options.register('geometry', 'Extended2026D49', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'geometry to use')
+options.register('input', 
+                 '/eos/cms/store/cmst3/group/hgcal/CMG_studies/Production/ttbar_D49_1120pre1_PU200_eolupdate_20200629/GSD', 
+                 VarParsing.multiplicity.singleton, 
+                 VarParsing.varType.string, 
+                 "input directory")
+options.register('adcThrMIP',
+                 0.5, 
+                 VarParsing.multiplicity.singleton, 
+                 VarParsing.varType.float, 
+                 "threshold (in-time)")
+options.register('adcThrMIPbxm1',
+                 2.5, 
+                 VarParsing.multiplicity.singleton, 
+                 VarParsing.varType.float, 
+                 "threshold (BX-1)")
+options.register('geometry', 
+                 'Extended2026D49', 
+                 VarParsing.multiplicity.singleton, 
+                 VarParsing.varType.string, 
+                 'geometry to use')
 options.parseArguments()
 
 #set geometry/global tag
@@ -34,7 +52,15 @@ process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(options.maxE
 
 
 #analyzer
-process.ana = cms.EDAnalyzer("HGCOccupancyAnalyzer")
+from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import HGCAL_ileakParam_toUse,HGCAL_cceParams_toUse
+process.ana = cms.EDAnalyzer("HGCOccupancyAnalyzer",
+                             adcThrMIP       = cms.double(options.adcThrMIP),
+                             adcThrMIPbxm1   = cms.double(options.adcThrMIPbxm1),
+                             doseMap         = cms.string('SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.7.20.txt'),
+                             scaleByDoseAlgo = cms.uint32(0),
+                             ileakParam      = HGCAL_ileakParam_toUse,
+                             cceParams       = HGCAL_cceParams_toUse
+                        )
 
 process.TFileService = cms.Service("TFileService",
                                    fileName = cms.string(options.output)

@@ -19,93 +19,121 @@
 class WaferOccupancyHisto
 {
 public:
-  
+
+  typedef std::tuple<int,int,int,int> WaferKey_t;    
   typedef std::pair<int,int> UVKey_t;
-  
+
   /**
      @short CTOR
   */
- WaferOccupancyHisto(std::string subdet, int layer,int u,int v,int ncells,edm::Service<TFileService> *fs) : ncells_(ncells), nEvents_(0)
+ WaferOccupancyHisto(WaferKey_t key) : ncells_(0), 
+    nEvents_(0), 
+    waferType_(-1),
+    isInit_(false)
     { 
-      myUV_=UVKey_t(u,v);
-      addWaferEquivalent(u,v);
 
-      TString id(Form("%s_lay%d_%d_%d",subdet.c_str(),layer,u,v));
-      TFileDirectory subDir = (*fs)->mkdir(id.Data());
-      adcH_ = subDir.make<TH1F>(id+"_adc",";q [ADC];",100,0,100);
-      adcH_->Sumw2();      
-      adcfullH_ = subDir.make<TH1F>(id+"_adcfull",";q [ADC];",100,0,500);
-      adcfullH_->Sumw2();      
-      countH_ = subDir.make<TH1F>(id+"_counts",";Counts above threshold;",ncells+1,0,ncells+1);
-      countH_->Sumw2();
-      maxCountH_ = subDir.make<TH1F>(id+"_maxcounts",";Counts above threshold;",ncells+1,0,ncells+1);
-      maxCountH_->Sumw2();
-      //genmatchCountH_ = subDir.make<TH1F>(id+"_genmatchcounts",";Counts above threshold;",ncells+1,0,ncells+1);
-      //genmatchCountH_->Sumw2();
-      toaCountsH_ = subDir.make<TH1F>(id+"_toacounts",";Cells in TOA;",ncells+1,0,ncells+1);
-      toaCountsH_->Sumw2();
-      tdcCountsH_ = subDir.make<TH1F>(id+"_tdccounts",";Cells in TDC;",ncells+1,0,ncells+1);
-      tdcCountsH_->Sumw2();
-      busyCountsH_ = subDir.make<TH1F>(id+"_busycounts",";Busy cells;",ncells+1,0,ncells+1);
-      busyCountsH_->Sumw2();
+      int subDet=std::get<0>(key);
+      int layer=std::get<1>(key);
+      int u=std::get<2>(key);
+      int v=std::get<3>(key);      
+      myID_ = Form("%d_lay%d_%d_%d",subDet,layer,u,v);
     }
-  
+
   /**
-     @short adds another wafer equivalent which will be integrated by this class
+     increments pad counts
    */
-  inline void addWaferEquivalent(int u, int v) 
-  { 
-    UVKey_t key(u,v);
-    countMap_[key]=0;
+  void addPad(int waferType) { 
+    waferType_=waferType; 
+    ncells_++; 
   }
 
   /**
+     @short book all histograms
+   */
+  void bookHistos(edm::Service<TFileService> *fs) {
+
+    if(isInit_ || fs==NULL) return;
+
+    TFileDirectory mySubDir=(*fs)->mkdir(myID_.Data());
+
+    TH1F *info = mySubDir.make<TH1F>(myID_+"_info","",2,0,2);
+    info->SetBinContent(1,waferType_);
+    info->SetBinContent(2,ncells_);
+    
+    //book histos for BX-1 and in-time bunch
+    for(int i=-1; i<=0; i++){
+      TString pfix(i==0 ? "" : "_bxm1");
+      histos_["adc"+pfix] = mySubDir.make<TH1F>(myID_+"_adc"+pfix,";q [ADC];",100,0,100);
+      histos_["adcfull"+pfix] = mySubDir.make<TH1F>(myID_+"_adcfull"+pfix,";q [ADC];",100,0,500);
+      
+      adcCounts_[pfix]=0;
+      histos_["counts"+pfix]    = mySubDir.make<TH1F>(myID_+"_counts"+pfix,";Counts above threshold;",ncells_+1,0,ncells_+1);
+
+      toaCounts_[pfix]=0;
+      histos_["toacounts"+pfix]  = mySubDir.make<TH1F>(myID_+"_toacounts"+pfix,";Cells in TOA;",ncells_+1,0,ncells_+1);
+
+      tdcCounts_[pfix]=0;
+      histos_["tdccounts"+pfix]  = mySubDir.make<TH1F>(myID_+"_tdccounts"+pfix,";Cells in TDC;",ncells_+1,0,ncells_+1);
+
+      busyCounts_[pfix]=0;
+      histos_["busycounts"+pfix] = mySubDir.make<TH1F>(myID_+"_busycounts"+pfix,";Busy cells;",ncells_+1,0,ncells_+1);
+    }
+    
+    for(auto h : histos_) h.second->Sumw2();
+    
+    isInit_=true;
+  }
+  
+  /**
      @short accumulate counts for a new hit
   */
-  inline void count(int u, int v,float adc,bool isTOA,bool isTDC, bool isBusy)
+  inline void count(uint32_t adc,bool isTOA,bool isTDC, bool isBusy, uint32_t thr, TString pfix="")
   {
+    if(!isInit_) return;
+
     if(!isTDC){
-      adcH_->Fill(adc);
-      adcfullH_->Fill(adc);
+      histos_["adc"+pfix]->Fill(adc);
+      histos_["adcfull"+pfix]->Fill(adc);
     }
 
-    UVKey_t key(u,v);
-    countMap_[key] += 1;
-    if(isTOA)  toaCounts_[key]  += 1;
-    if(isTDC)  tdcCounts_[key]  += 1;
-    if(isBusy) busyCounts_[key] += 1;
+    if(!isBusy) {
+      
+      //pads with valid energy measurement
+      if( (!isTDC && adc>thr) || isTDC ) {
+        
+        adcCounts_[pfix]++;
+        
+        //+valid toa
+        if(isTOA) toaCounts_[pfix]++;
+
+        //+TDC
+        if(isTDC && isTOA) tdcCounts_[pfix]++;
+      }
+
+    }
+    else {
+
+      busyCounts_[pfix]++;
+
+    }
   }
 
   /**
      @short to be called once all hits have been counted
   */
-  inline void analyze(std::set<UVKey_t> & genMatchedUVs)
+  inline void analyze()
   {
+    if(!isInit_) return;
+
     nEvents_++;
     
-    int maxCounts(-1);
-    hotWaferKey_=UVKey_t(0,0);
-    for(std::map<UVKey_t,int>::iterator it = countMap_.begin();
-        it != countMap_.end();
-        it++) {
-
-      int cts(it->second);
-
-      countH_->Fill(cts);
-      toaCountsH_->Fill(toaCounts_[it->first]);
-      tdcCountsH_->Fill(tdcCounts_[it->first]);
-      busyCountsH_->Fill(busyCounts_[it->first]);
-
-      if(genMatchedUVs.find(it->first)!=genMatchedUVs.end()) {
-        genmatchCountH_->Fill(cts);
-      }
-
-      if(cts<maxCounts) continue;
-      hotWaferKey_=it->first;
-      maxCounts=cts;
-    }
-
-    maxCountH_->Fill(maxCounts);
+    for(int i=-1; i<=0; i++){
+      TString pfix(i==0 ? "" : "_bxm1");
+      histos_["counts"+pfix]->Fill(adcCounts_[pfix]);
+      histos_["toacounts"+pfix]->Fill(toaCounts_[pfix]);
+      histos_["tdccounts"+pfix]->Fill(tdcCounts_[pfix]);
+      histos_["busycounts"+pfix]->Fill(busyCounts_[pfix]);
+    }    
   }
 
   /**
@@ -113,108 +141,32 @@ public:
    */
   inline void resetCounters()
   {
-    for(std::map<UVKey_t,int>::iterator it = countMap_.begin();
-        it != countMap_.end();
-        it++) {
-      countMap_[it->first]=0;
-      toaCounts_[it->first]=0;
-      tdcCounts_[it->first]=0;
-      busyCounts_[it->first]=0;
+    if(!isInit_) return;
+
+    for(int i=-1; i<=0; i++){
+      TString pfix(i==0 ? "" : "_bxm1");
+      adcCounts_[pfix]=0;
+      toaCounts_[pfix]=0;
+      tdcCounts_[pfix]=0;
+      busyCounts_[pfix]=0;
     }
   }
 
-  /**
-     checks if this wafer key is matched
-   */
-  inline bool isUVEquivalent(UVKey_t waferKey) 
-  {
-    return (countMap_.find(waferKey)!=countMap_.end());
-  }
 
   /**
-     @short return true if UV is a neighboring cell
-   */
-  inline bool isNeighbor(UVKey_t waferKey)
-  {
-    int deltau(waferKey.first-myUV_.first);
-    int deltav(waferKey.second-myUV_.second);
-    return isNeighbor(deltau,deltav);
-  }
-
-  inline bool isNeighbor(int deltau,int deltav) 
-  {
-    return ( (deltau==1 && deltav==1) || (deltau==0 && deltav==1) || (deltau==-1 && deltav==0)
-             || (deltau==-1 && deltav==-1) || (deltau==0 && deltav==-1) || (deltau==1 && deltav==0) );
-  }  
-
-  /**
-     @short returns neighboring counts if found, otherwise -1 is returned
-  */
-  inline int getNeighborCounts(UVKey_t waferKey) {
-    int counts(-1);
-    for(std::map<UVKey_t,int>::iterator it=countMap_.begin();
-        it!=countMap_.end();
-        it++){
-      int deltau(it->first.first-waferKey.first);
-      int deltav(it->first.second-waferKey.second);
-      if(!isNeighbor(deltau,deltav)) continue;
-      counts=it->second;
-    }
-    return counts;
-  }
-
-
-
-  /**
-     @short normalize according to the number of events analyzed and number of equivalent wafers
-     the factor of two is added as there are two endcaps
+     @short normalize according to the number of events analyzed
    */
   inline void endJob() 
   {
-    if(nEvents_==0) return;
-    int nWaferEq(weight());
-    if(nWaferEq==0) return;
+    if(!isInit_ || nEvents_==0) return;
 
     //scale by the number of wafer equivalent
-    float norm(nEvents_*nWaferEq);
-    countH_->Scale(1./norm);
-    toaCountsH_->Scale(1./norm);
-    tdcCountsH_->Scale(1./norm);
-    busyCountsH_->Scale(1./norm);
-
-    //scale only by the number of events and 2 endcaps
-    norm=float(nEvents_);
-    maxCountH_->Scale(1./norm);
-    adcH_->Scale(1./norm);
-    adcfullH_->Scale(1./norm);
+    float norm(nEvents_);    
+    for(auto h : histos_) h.second->Scale(1./norm);
   }
-
-  /**
-     @short number of wafer equivalents
-   */
-  inline size_t weight() 
-  {
-    return countMap_.size();
-  }
-
-  /**
-     @short returns a reference to the count map
-   */
-  inline const std::map<UVKey_t,int> &getCountMap() { return countMap_; }
-
-  /**
-     @short returns hot wafer key data
-   */
-  inline const UVKey_t getHotWaferUV() { return hotWaferKey_; }
-  inline const int getHotWaferCounts() { return countMap_[hotWaferKey_]; }
-
-  /**
-     @short returns cell data
-   */
-  inline const UVKey_t getWaferEquivalentUV() { return myUV_; }
-  inline const int getWaferEquivalentCounts() { return countMap_[myUV_]; }
 
   inline int getCells() { return ncells_; }
+  inline int getCounts(TString k="") { return adcCounts_[k]; }
 
   /**
      @short DTOR
@@ -223,13 +175,12 @@ public:
 
  
  private:
-  int ncells_;
-  TH1F *adcH_,*countH_,*maxCountH_,*genmatchCountH_;
-  TH1F *adcfullH_,*toaCountsH_,*tdcCountsH_,*busyCountsH_;
 
-  int nEvents_;
-  std::map<UVKey_t,int> countMap_,toaCounts_,tdcCounts_,busyCounts_;
-  UVKey_t myUV_,hotWaferKey_;
+  TString myID_;
+  int ncells_,nEvents_,waferType_;
+  bool isInit_;
+  std::map<TString, TH1F *> histos_;
+  std::map<TString,int> adcCounts_,toaCounts_,tdcCounts_,busyCounts_;
 };
 
 #endif
