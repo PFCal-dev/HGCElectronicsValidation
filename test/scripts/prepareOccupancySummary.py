@@ -3,27 +3,25 @@ import os
 import optparse
 import re
 import pickle
-from sensorEquivalentMap import *
+import pandas as pd
+import sys
+import numpy as np
 
-PLOTTITLES={
-    'maxcounts'      : 'Hottest wafer equivalent occupancy',
-    'busycounts'     : 'Busy cells',
-    'toacounts'      : 'TOA gain regime',
-    'tdccounts'      : 'TDC in progress',
-    'hottestwafer0'  : 'Hottest wafer',
-    'hottestwafer1'  : '1^{st} hottest wafer neighbor',
-    'hottestwafer2'  : '2^{nd} hottest wafer neighbor',
-    'hottestwafer3'  : '3^{rd} hottest wafer neighbor',
-    'hottestwafer4'  : '4^{th} hottest wafer neighbor',
-    'hottestwafer5'  : '5^{th} hottest wafer neighbor',
-    'hottestwafer6'  : '6^{th} hottest wafer neighbor',
-    'adc'            : 'Energy (ADC)',
-    'adcfull'        : 'Energy (ADC)',
-    'counts'         : 'Occupancy',
-    'genmatchcounts' : 'Occupancy (best gen match)'
-}
+DATACOLS=['waferType','npads',
+          'counts', 'toacounts','busycounts','tdccounts',
+          'counts_bxm1','toacounts_bxm1','tdccounts_bxm1','busycounts_bxm1']
+GEOMCOLS=['waferX','waferY','waferShape','waferRot','rho','phi']
 
-garbageList=[]
+def parseWaferGeometry(geomFile='data/geomnew_corrected_withmult_F_rotations_v11.1.txt'):
+
+    """reads the ascii geometry file and converts it to a DataFrame with the geometry information"""
+
+    df = pd.read_csv(geomFile, names=['layer','waferShape','waferThickness','waferX','waferY','waferRot','waferU','waferV'],skiprows=11,delim_whitespace=True)
+    df=df[['layer','waferU','waferV','waferX','waferY','waferShape','waferRot']]
+    df['rho']=np.sqrt(df['waferX']**2+df['waferY']**2)
+    df['phi']=np.arctan2(df['waferY'],df['waferX'])*180./np.pi;
+    return df
+
 
 def fixExtremities(h,addOverflow=True,addUnderflow=True,norm=True):
 
@@ -49,13 +47,38 @@ def fixExtremities(h,addOverflow=True,addUnderflow=True,norm=True):
         if n>0:
             h.Scale(1./n)
 
+def getQuantiles(p,q=[0.1,0.5,0.9]):
 
-def getPlotsIn(url,dirName,title,pfix):
+    """computes the quantiles for a plot"""
 
-    """reads all the plots in a given analysis sub-directory"""
+    nq=len(q)
+    qval=np.array([0.]*nq)
+    if p.Integral()>0:
+        prob=np.array(q)
+        p.GetQuantiles(nq,qval,prob)
 
-    layerPlots={}
-    waferPlots={}
+    #subtract the 1/2 the bin width (0.5)
+    return [max(qval[k]-0.5,0.) for k in range(nq)]
+
+def convertHistosToNumpy(plotColl):
+    
+    """converts a TH1 to a numpy array"""
+
+    histos=[]
+    for h in plotColl:
+        y=np.array([h.GetBinContent(xbin+1) for xbin in range(h.GetNbinsX())])
+        norm=h.Integral()
+        if norm>0 : y /= norm
+        histos.append(y)
+
+    return histos
+
+
+def analyzeOccupancyPlots(url,modulePos,dirName='ana'):
+
+    """reads the occupancy plots in a given analysis sub-directory and summarizes the quantiles"""
+
+    occData=[]
 
     inF=ROOT.TFile.Open(url)
     d=inF.Get(dirName)
@@ -64,297 +87,68 @@ def getPlotsIn(url,dirName,title,pfix):
     for k in d.GetListOfKeys():
 
         sd=k.ReadObj()
+        if not sd.InheritsFrom('TDirectory') : continue
         sdname=k.GetName()
-        
+
         #parse sub-det, layer + u, v from name
-        subdet=sdname.split('_')[0]
-        vals = [subdet]+[int(d) for d in re.findall(r'-?\d+', sdname)]
-
-
-        if sd.InheritsFrom('TH1') :
-            layerKey=tuple(vals[0:2])
-            pname=sdname.split('_')[-1]           
-            if pname !='counts' and pname !='adc' : continue
-            if not layerKey in layerPlots: layerPlots[layerKey]={}
-            layerPlots[layerKey][pname]=sd.Clone(hname+pfix)
-            fixExtremities(layerPlots[layerKey][pname])
-            layerPlots[layerKey][pname].SetDirectory(0)
-            layerPlots[layerKey][pname].SetTitle(title)
-            layerPlots[layerKey][pname].SetLineWidth(2)
-
-        else:            
-            waferKey=tuple(vals[0:4])
-            waferPlots[waferKey]={}
-            for kk in sd.GetListOfKeys():
-                hname=kk.GetName()
-                pname=hname.replace(sdname+'_','')
-                if 'genmatch' in pname: continue
-                waferPlots[waferKey][pname]=kk.ReadObj().Clone(hname+pfix)
-                fixExtremities(waferPlots[waferKey][pname])
-                waferPlots[waferKey][pname].SetDirectory(0)
-                waferPlots[waferKey][pname].SetTitle(title)
-                waferPlots[waferKey][pname].SetLineWidth(2)
+        subdet,layer,u,v=[int(d) for d in re.findall(r'-?\d+', sdname)]
+        if subdet==1:
+            layer=layer+28
             
-    return (layerPlots,waferPlots)
+        #find module info (and discard if not available)
+        mask=(modulePos.layer==layer) & (modulePos.waferU==u) & (modulePos.waferV==v)
+        try:
+            moduleGeom=modulePos.loc[mask].iloc[0]
+        except:
+            continue
 
-def getQuantiles(plotColl,q=[0.1,0.5,0.9]):
+        #build a summary based on quantiles
+        qSummary=[layer,u,v]
+        qSummary += [moduleGeom[x] for x in GEOMCOLS]
+        for c in DATACOLS:
+            if c=='waferType':
+                qSummary += [int(sd.Get(sdname+'_info').GetBinContent(1))]
+            elif c=='npads':
+                qSummary += [int(sd.Get(sdname+'_info').GetBinContent(2))]
+            else:
+                h=sd.Get(sdname+'_'+c)
+                fixExtremities(h)
+                qSummary += getQuantiles(h,q=[0.1,0.5,0.9])
 
-    """computes the quantiles for every plot in the collection passed"""
+        occData.append( qSummary )
 
-    momentSummary=[]
-    for i in range(len(plotColl)):
-        momentSummary.append({})
-        for p in plotColl[i]:
-            qval=np.array([0.]*len(q))
-            if plotColl[i][p].Integral()>0:
-                prob=np.array(q)
-                plotColl[i][p].GetQuantiles(len(q),qval,prob)
-            momentSummary[i][p]=[qval[k] for k in range(len(q))]
-
-    return momentSummary
-
-def showPlotCollSummary(plotColl,extraText,pname,fitPeak=False,plotCDF=False):
-
-    """dump a canvas with this plot collection"""
-
-    nPlots=len(plotColl[0])
-    pnames=plotColl[0].keys()
-
-    c=ROOT.TCanvas('c','c',600,600)
-    c.SetTopMargin(0.06)
-    c.SetLeftMargin(0.12)
-    c.SetRightMargin(0.03)
-    c.SetBottomMargin(0.1)
-    c.SetLogy()
-    c.SetGridy()
-    garbageList.append(c)
-
-    langau=None
-    if fitPeak:
-        langau=ROOT.TF1('langau','gaus(0)+landau(3)',0,5)
-        langau.SetParLimits(0,0.,20.)
-        langau.FixParameter(1,0.)
-        langau.SetParLimits(2,0.2,1.)
-        langau.SetParLimits(3,0.,20.)
-        langau.SetParLimits(4,0.2,1.5)
-        langau.SetParLimits(5,0.5,2.)
-
-    colors=[ROOT.kBlack, ROOT.kMagenta, ROOT.kMagenta+2, ROOT.kMagenta-9,ROOT.kRed+1,ROOT.kAzure+7, ROOT.kBlue-7]    
-    histos=[]
-    for idx in range(nPlots):
-
-        plot=pnames[idx]
-        plotTitle=PLOTTITLES[plot]
-                    
-        drawOpt='hist' 
-        fitParams=[]
-        leg=ROOT.TLegend(0.6,0.86,0.9,0.68)
-        leg.SetBorderSize(0)
-        leg.SetTextFont(42)
-        leg.SetTextSize(0.04)
-        leg.SetFillStyle(0)
-        for i in range(len(plotColl)):
-            histos.append( plotColl[i][plot] )
-            histos[-1].Draw(drawOpt)
-            histos[-1].SetLineColor(colors[i])
-            histos[-1].GetXaxis().SetLabelSize(0.045)
-            histos[-1].GetXaxis().SetTitleSize(0.045)
-            histos[-1].GetYaxis().SetLabelSize(0.045)
-            histos[-1].GetYaxis().SetTitleSize(0.045)
-            histos[-1].GetYaxis().SetTitleOffset(1.1)
-            histos[-1].GetYaxis().SetTitle('PDF or CDF' if plotCDF else 'CDF')
-            histos[-1].GetYaxis().SetRangeUser(1e-4,1)            
-
-            legTitle=histos[-1].GetTitle()
-
-            #hack to find threshold
-            if plot=='adc'  and len(plotColl)==1:
-                nbinsx=histos[-1].GetNbinsX()
-                for xbin in range(1,nbinsx+1):
-                    if histos[-1].GetBinContent(xbin)==0 : continue
-                    ootThrBin=histos[-1].GetXaxis().FindBin( histos[-1].GetXaxis().GetBinLowEdge(xbin)*2*2.5 )
-                    ootFrac = histos[-1].Integral(ootThrBin,nbinsx+1)
-                    ootFrac /=histos[-1].Integral(0,nbinsx+1)
-                    legTitle='#splitline{%s}{f(>2.5MIP)=%3.3f}'%(legTitle,ootFrac)
-                    break
-
-            leg.AddEntry(histos[-1],legTitle,'l')
-
-            if fitPeak and plot=='adc':
-                histos[-1].Fit(langau,'MLRQ+','same',0.5,2)    
-                fitParams.append([langau.GetParameter(ipar) for ipar in [4,5,2]])    
-
-            if plotCDF:
-                histos[-1].SetLineWidth(3)
-                histos.append( plotColl[i][plot].GetCumulative(False) )
-                histos[-1].SetLineColor(colors[i])
-                histos[-1].SetLineStyle(2)
-                histos[-1].Draw('histsame')
-
-            drawOpt='histsame'
-
-        leg.Draw()
-
-        #print fit parameters
-        if fitPeak and plot=='adc':
-            fittex=ROOT.TLatex()
-            fittex.SetTextFont(42)
-            fittex.SetTextSize(0.04)
-            fittex.SetNDC()
-            fittex.SetTextAlign(ROOT.kHAlignRight+ROOT.kVAlignCenter)
-            for ipar,ilabel in [(0,'MPV'),(1,'#sigma'),(2,'#sigma_{noise}')]:                
-                label='%s=%s'%(ilabel,'/'.join(['%3.2f'%fres[ipar] for fres in fitParams]))
-                fittex.DrawLatex(0.95,0.8-ipar*0.05, label)
-
-        tex=ROOT.TLatex()
-        tex.SetTextFont(42)
-        tex.SetTextSize(0.05)
-        tex.SetNDC()
-        tex.DrawLatex(0.12,0.96,'#bf{CMS} #it{simulation preliminary}')
-        tex.SetTextSize(0.035)
-        tex.SetTextAlign(ROOT.kHAlignRight+ROOT.kVAlignCenter)
-        for i in range(len(extraText)): 
-            tex.DrawLatex(0.95,0.65-i*0.045,extraText[i])
-
-        titletex=ROOT.TLatex()
-        titletex.SetTextFont(62)
-        titletex.SetTextSize(0.045)
-        titletex.SetNDC()
-        titletex.SetTextAlign(ROOT.kHAlignRight+ROOT.kVAlignCenter)
-        titletex.DrawLatex(0.95,0.9,plotTitle)
-
-        c.Modified()
-        c.Update()
-        for ext in ['png','pdf']:
-            c.SaveAs('%s_%s.%s'%(pname,plot,ext))
-
+    return occData
 
 def main():
 
-    #parse inputs
-    #configuration
-    usage = 'usage: %prog [options]'
-    parser = optparse.OptionParser(usage)  
-    parser.add_option('-o', '--out',            dest='output',        help='output directory [%default]',                 default='occ_plots', type='string')
-    parser.add_option(      '--noSummary',      dest='noSummary',     help='skip creation of pck file [%default]',        default=False, action='store_true')    
-    parser.add_option(      '--waferPlots',     dest='waferPlots',    help='show these wafer plots [%default]',             default=None, type='string')
-    parser.add_option(      '--onlyLayers',     dest='onlyLayers',    help='show these layers (subdet:lay CSV list) [%default]',             default='CEE:5,CEE:15,CEH:2', type='string')
-    parser.add_option(      '--noGlobalPlots',  dest='noGlobalPlots', help='disable global plots [%default]',             default=False, action='store_true')
-    parser.add_option(      '--noCountHistosSummary',  dest='noCountHistosSummary', help='disable saving the count histos [%default]',             
-                            default=False, action='store_true')
-    parser.add_option(      '--fitPeak',        dest='fitPeak',       help='enable gauss+noise fit to peak [%default]',  default=False, action='store_true')
-    (opt, args) = parser.parse_args()
-
-    #decode wafer plot list string 
-    if opt.waferPlots:
-        opt.waferPlots=[[int(y) for y in x.split(',')] for x in opt.waferPlots.split(':')]
-        print opt.waferPlots
-
-    #decode layer list string
-    if opt.onlyLayers:
-        opt.onlyLayers=[x.split(':') for x in opt.onlyLayers.split(',')]
-        for i in range(len(opt.onlyLayers)):
-            opt.onlyLayers[i][1]=int(opt.onlyLayers[i][1])
-        print opt.onlyLayers
-
-    #prepare output/root style
-    ROOT.gStyle.SetOptStat(0)
-    ROOT.gStyle.SetOptTitle(0)
-    ROOT.gROOT.SetBatch(True)
-    os.system('mkdir -p '+opt.output)
-
-    #get the sensor position map
+    #get the sensor position map/wafer geometry etc
     cmssw=os.environ['CMSSW_BASE']
-    sensorPos=parseWaferPositionsMap(url='%s/src/UserCode/HGCElectronicsValidation/data/wafer_pos.dat'%cmssw)
+    modulePos = parseWaferGeometry(geomFile='%s/src/UserCode/HGCElectronicsValidation/data/geomnew_corrected_360.txt'%cmssw)
 
-    #define inputs
-    procList=[ x.split(':') for x in args ]    
-
-    #get the plots
-    global_plots=[]
-    plots=[]
-    for i in range(len(args)):
-        title,url,dirName=procList[i]
-        layerPlots,waferPlots=getPlotsIn(url=url,dirName=dirName,title=title,pfix='_%d'%i)
-        global_plots.append(layerPlots)
-        plots.append(waferPlots)
-
-    #compute the quantiles for the global plots
-    globalQuantilesSummary={}
-    for layerKey in global_plots[0]:
-        plotColl=[ x[layerKey] for x in global_plots]
-        globalQuantilesSummary[layerKey]=getQuantiles(plotColl=plotColl,q=[0.1,0.5,0.9])
-
-        #plot if required
-        if opt.noGlobalPlots : continue
-        pname='summary_sd%d_lay%d'%layerKey
-        extraText=['%s layer %d'%layerKey[0:2]]
-        showPlotCollSummary(plotColl=plotColl,
-                            extraText=extraText,
-                            pname=os.path.join(opt.output,pname))
-        
-    #compute the quantiles for the wafer plots
-    quantilesSummary={}
-    for waferKey in plots[0]:
-        if not waferKey in sensorPos : continue
-
-        ncells,waferType,r,z,eta,phi,xpos,ypos=sensorPos[waferKey]
-        plotColl=[ x[waferKey] for x in plots]
-
-        quantilesSummary[waferKey]=getQuantiles(plotColl=plotColl,q=[0.1,0.5,0.9])
-        
-        if opt.onlyLayers:
-            if not [waferKey[0],waferKey[1]] in opt.onlyLayers: 
-                continue
-
-        #skip if wafer plots were not required
-        if not opt.waferPlots: continue
-        waferUV=[waferKey[2],waferKey[3]]
-        if not waferUV in opt.waferPlots: continue
+    #summarize the occupancy for all wafers based on the CMSSW simulation
+    url=sys.argv[1]
+    occData=analyzeOccupancyPlots(url=url,modulePos=modulePos)        
+    columns=['layer','waferU','waferV']
+    columns+=GEOMCOLS
+    for c in DATACOLS:
+        if 'counts' in c :
+            columns += [c+'_q10',c+'_q50',c+'_q90']
+        else :
+            columns +=[c]
+    result=pd.DataFrame(data=np.array(occData), columns=columns)
+    for c in columns:
+        if c!='waferShape':
+            result[c]=pd.to_numeric(result[c])
             
-        pname='%s_lay%d_%d_%d'%waferKey
-        pname=pname.replace('-','m')
-        extraText=[
-            '%s layer %d'%waferKey[0:2],
-            '(u,v)=(%s,%s) %d pads'%(waferKey[2],waferKey[3],ncells),
-            'R=%3.2f z=%3.2f'%(r,z),
-            '#eta=%3.2f #phi=%3.2f'%(eta,phi)
-        ]
-        showPlotCollSummary(plotColl=plotColl,
-                            extraText=extraText,
-                            pname=os.path.join(opt.output,pname),
-                            fitPeak=opt.fitPeak,
-                            plotCDF=True)
 
-    #save summary
-    if not opt.noSummary:
-        with open(os.path.join(opt.output,'summary.pck'),'w') as cache:
-            pickle.dump(quantilesSummary,cache,pickle.HIGHEST_PROTOCOL)
-            pickle.dump(globalQuantilesSummary,cache,pickle.HIGHEST_PROTOCOL)
-            pickle.dump(sensorPos,cache,pickle.HIGHEST_PROTOCOL)
-            
-    #count histograms (for P. Bloch's FIFO studies)
-    if not opt.noCountHistosSummary:
-        countHistos={}
-        maxCountHistos={}
-        firstKey=plots[0]
-        for waferKey in waferPlots:
-            h=waferPlots[waferKey]['counts']
-            y=np.array([h.GetBinContent(xbin+1) for xbin in range(h.GetNbinsX())])
-            norm=h.Integral()
-            if norm>0 : y /= norm
-            countHistos[waferKey]=y
+    result.to_hdf(url.replace('.root','.h5'), 
+                  key='data', 
+                  mode='w')
 
-            hmax=waferPlots[waferKey]['maxcounts']
-            ymax=np.array([hmax.GetBinContent(xbin+1) for xbin in range(hmax.GetNbinsX())])
-            norm=hmax.Integral()
-            if norm>0: ymax /=norm
-            maxCountHistos[waferKey]=ymax
-
-        with open(os.path.join(opt.output,'counts.pck'),'w') as cache:
-            pickle.dump(countHistos,cache,pickle.HIGHEST_PROTOCOL)
-            pickle.dump(maxCountHistos,cache,pickle.HIGHEST_PROTOCOL)
-
+    print 'Summary with shape',result.shape
+    print 'and columns',result.columns
+    print result.head()
+    print(result.dtypes)
 
 if __name__ == "__main__":
     main()
