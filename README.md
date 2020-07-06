@@ -80,28 +80,10 @@ cmsRun test/hgcoccupancyanalysis_cfg.py input=input_dir
 The histograms can be digested into a summary of occupancies etc. by running the following script
 
 ```
-python test/scripts/prepareOccupancySummary.py \
-       --waferPlots -2,0:-3,0:-4,0:-5,0:-6,0:-7,0:-8,0:-9,0:-10,0:-11,0:-12,0 \
-       V11:NuGun_Extended2026D46_aged.root:ana \
-       -o /eos/user/p/psilva/www/HGCal/Electronics/Occupancies_9Sep/NuGun_Extended2026D46_aged 
+python test/scripts/prepareOccupancySummary.py occupancies.root
 ```
 
-The option `waferPlots` will dump the plots for the wafers in the (u,v) positions specified,
-`-o` specifies the output and the arguments are `:`-concatenated strings with the following tokens
-title:root_file:directory_in_file_to_read_plots_from.
-
-After having produced the summary of the occupancies one can compare different results by using
-
-```
-python test/scripts/drawOccupancySummary.py \
-       -o /eos/user/p/psilva/www/HGCal/Electronics/Occupancies_9Sep \
-       "V10":/eos/user/p/psilva/www/HGCal/Electronics/Occupancies_9Sep/NuGun_Extended2026D41_aged/summary.pck:0 \
-       "V11":/eos/user/p/psilva/www/HGCal/Electronics/Occupancies_9Sep/NuGun_Extended2026D46_aged/summary.pck:0 
-```
-
-As before '-o' specifies the output directory and the arguments are a list of `:`-concatenated strings
-with the following tokens: title:summary_pickle_file:index_in_file.
-The index_in_file corresponds to the order in which a given set of plots has been processed when running the `prepareOccupancySummary.py` script.
+After having produced the summary of the occupancies one can compare different results by using the jupyter notebook
 
 
 ## Generator-level jet profiles

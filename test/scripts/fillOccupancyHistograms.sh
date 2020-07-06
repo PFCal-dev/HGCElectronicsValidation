@@ -22,3 +22,5 @@ cmsRun $cmssw/src/UserCode/HGCElectronicsValidation/test/hgcoccupancyanalysis_cf
 mkdir -p $outdir
 finalname=${name}_thr${adcThrMIP/./p}_thrbxm1${adcThrMIPbxm1/./p}
 mv -v plots*.root ${outdir}/${finalname}.root
+
+python $cmssw/src/UserCode/HGCElectronicsValidation/test/scripts/prepareOccupancySummary.py ${outdir}/${finalname}.root
