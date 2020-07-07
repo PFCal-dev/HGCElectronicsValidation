@@ -2,16 +2,9 @@
 
 A set of analyzers/analysis scripts to help with the validation of the electronics simulation in CMSSW.
 These tools are used to debug the development on the main cmssw repository.
-The current installation instructions are below
+On top of your current CMSSW work area do
 
 ```
-work_branch=rad_noise_update
-cmssw_rel=CMSSW_11_1_0_pre3
-cmsrel ${cmssw_rel}
-cd ${cmssw_rel}/src
-cmsenv
-git cms-init
-git cms-merge-topic PFCal-dev:${work_branch}
 git clone https://github.com/PFCal-dev/HGCElectronicsValidation.git UserCode/HGCElectronicsValidation
 scram b -j 8
 ```
