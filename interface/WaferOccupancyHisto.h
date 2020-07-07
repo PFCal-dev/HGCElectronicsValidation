@@ -69,6 +69,9 @@ public:
       adcCounts_[pfix]=0;
       histos_["counts"+pfix]    = mySubDir.make<TH1F>(myID_+"_counts"+pfix,";Counts above threshold;",ncells_+1,0,ncells_+1);
 
+      adcCountsZS_[pfix]=0;
+      histos_["countszs"+pfix]    = mySubDir.make<TH1F>(myID_+"_countszs"+pfix,";Counts above threshold;",ncells_+1,0,ncells_+1);
+
       toaCounts_[pfix]=0;
       histos_["toacounts"+pfix]  = mySubDir.make<TH1F>(myID_+"_toacounts"+pfix,";Cells in TOA;",ncells_+1,0,ncells_+1);
 
@@ -87,7 +90,7 @@ public:
   /**
      @short accumulate counts for a new hit
   */
-  inline void count(uint32_t adc,bool isTOA,bool isTDC, bool isBusy, uint32_t thr, TString pfix="")
+  inline void count(uint32_t adc,bool isTOA,bool isTDC, bool isBusy, uint32_t thr, bool passZS, TString pfix="")
   {
     if(!isInit_) return;
 
@@ -102,6 +105,8 @@ public:
       if( (!isTDC && adc>thr) || isTDC ) {
         
         adcCounts_[pfix]++;
+
+        if(passZS || isTDC) adcCountsZS_[pfix]++;
         
         //+valid toa
         if(isTOA) toaCounts_[pfix]++;
@@ -130,6 +135,7 @@ public:
     for(int i=-1; i<=0; i++){
       TString pfix(i==0 ? "" : "_bxm1");
       histos_["counts"+pfix]->Fill(adcCounts_[pfix]);
+      histos_["countszs"+pfix]->Fill(adcCountsZS_[pfix]);
       histos_["toacounts"+pfix]->Fill(toaCounts_[pfix]);
       histos_["tdccounts"+pfix]->Fill(tdcCounts_[pfix]);
       histos_["busycounts"+pfix]->Fill(busyCounts_[pfix]);
@@ -146,6 +152,7 @@ public:
     for(int i=-1; i<=0; i++){
       TString pfix(i==0 ? "" : "_bxm1");
       adcCounts_[pfix]=0;
+      adcCountsZS_[pfix]=0;
       toaCounts_[pfix]=0;
       tdcCounts_[pfix]=0;
       busyCounts_[pfix]=0;
@@ -166,7 +173,7 @@ public:
   }
 
   inline int getCells() { return ncells_; }
-  inline int getCounts(TString k="") { return adcCounts_[k]; }
+  inline int getCounts(TString k="",bool isZS=false) { return isZS ?  adcCountsZS_[k] : adcCounts_[k]; }
 
   /**
      @short DTOR
@@ -180,7 +187,7 @@ public:
   int ncells_,nEvents_,waferType_;
   bool isInit_;
   std::map<TString, TH1F *> histos_;
-  std::map<TString,int> adcCounts_,toaCounts_,tdcCounts_,busyCounts_;
+  std::map<TString,int> adcCounts_,adcCountsZS_,toaCounts_,tdcCounts_,busyCounts_;
 };
 
 #endif

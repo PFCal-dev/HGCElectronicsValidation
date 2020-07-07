@@ -209,21 +209,30 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
       HGCalSiNoiseMap::SiCellOpCharacteristics siop=noiseMaps_[subdet]->getSiCellOpCharacteristics(detId);
       int mipADC=siop.mipADC;
       
-      //count in-time BX
+      //in-time BX info
       uint32_t rawData(hit.sample(itSample).data() );
       bool isTOA( hit.sample(itSample).getToAValid() );
       bool isTDC( hit.sample(itSample).mode() );
       bool isBusy( isTDC && rawData==0 );
       uint32_t thr( std::floor(mipADC*adcThrMIP_) );
-      waferHistos_[key]->count(rawData, isTOA, isTDC, isBusy, thr);
-      
-      //check if the BX-1 is to be kept
+
+      //BX-1 info
       uint32_t rawDatabxm1(hit.sample(itSample-1).data() );
       bool isTOAbxm1( hit.sample(itSample-1).getToAValid() );
       bool isTDCbxm1( hit.sample(itSample-1).mode() );
       bool isBusybxm1( isTDCbxm1 && rawDatabxm1==0 );
       uint32_t thrbxm1( std::floor(mipADC*adcThrMIPbxm1_) );
-      waferHistos_[key]->count(rawDatabxm1, isTOAbxm1, isTDCbxm1, isBusybxm1, thrbxm1, "_bxm1");
+
+      //ZX algo
+      bool passZS(true);
+      uint32_t bshift(8);
+      if(siop.core.gain==HGCalSiNoiseMap::q80fC)   bshift=8;
+      if(siop.core.gain==HGCalSiNoiseMap::q160fC)  bshift=4;
+      if(siop.core.gain==HGCalSiNoiseMap::q320fC)  bshift=8;
+      passZS=( (rawDatabxm1>>bshift) < rawData );
+    
+      waferHistos_[key]->count(rawData, isTOA, isTDC, isBusy, thr, passZS);
+      waferHistos_[key]->count(rawDatabxm1, isTOAbxm1, isTDCbxm1, isBusybxm1, thrbxm1, true, "_bxm1");
       
       //global counts for the in-time bunch
       size_t layidx(layer-1);
