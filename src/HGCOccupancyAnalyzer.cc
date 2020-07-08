@@ -141,7 +141,7 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
       }
       
       std::cout << "\t" << validDetIds.size() << " valid detIds => " << newWafers << " wafer histos" << endl;
-      
+            
       //init histos (some of them are already done but the call will be ignored)
       for(auto &it : waferHistos_) it.second->bookHistos(&fs);
     }
@@ -188,9 +188,6 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
 {
   //check inputs
   if(!digiColl.isValid() || geom==NULL) return;
-
-  std::cout << subdet << " "  << digiColl->size() << std::endl;
-  
   //analyze hits
   const int itSample(2); //in-time sample
   for(auto &hit : *digiColl)
@@ -228,14 +225,14 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
       //ZX algo
       bool passZS(true);
       uint32_t bshift(4);
-      if(siop.core.gain==HGCalSiNoiseMap::q80fC)   bshift=4;
-      if(siop.core.gain==HGCalSiNoiseMap::q160fC)  bshift=3;
-      if(siop.core.gain==HGCalSiNoiseMap::q320fC)  bshift=4;
+      if(siop.core.gain==HGCalSiNoiseMap::q80fC)   bshift=3;
+      if(siop.core.gain==HGCalSiNoiseMap::q160fC)  bshift=4;
+      if(siop.core.gain==HGCalSiNoiseMap::q320fC)  bshift=3;
       uint32_t zsCorr( (rawDatabxm1>>bshift) );
       passZS=( rawData > zsCorr+thr );
     
-      waferHistos_[key]->count(rawData, isTOA, isTDC, isBusy, thr, passZS);
-      waferHistos_[key]->count(rawDatabxm1, isTOAbxm1, isTDCbxm1, isBusybxm1, thrbxm1, true, "_bxm1");
+      waferHistos_[key]->count(rawData,     rawData-zsCorr, passZS, isTOA,     isTDC,     isBusy,     thr);
+      waferHistos_[key]->count(rawDatabxm1, rawDatabxm1,    true,   isTOAbxm1, isTDCbxm1, isBusybxm1, thrbxm1, "_bxm1");
       
       //global counts for the in-time bunch
       size_t layidx(layer-1);

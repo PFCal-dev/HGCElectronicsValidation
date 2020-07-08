@@ -91,7 +91,7 @@ public:
   /**
      @short accumulate counts for a new hit
   */
-  inline void count(uint32_t adc,bool isTOA,bool isTDC, bool isBusy, uint32_t thr, bool passZS, TString pfix="")
+  inline void count(uint32_t adc,uint32_t adcZS,bool passZS,bool isTOA,bool isTDC, bool isBusy, uint32_t thr, TString pfix="")
   {
     if(!isInit_) return;
 
@@ -99,7 +99,7 @@ public:
       histos_["adc"+pfix]->Fill(adc);
       histos_["adcfull"+pfix]->Fill(adc);
       if(passZS)
-        histos_["adczs"+pfix]->Fill(adc);
+        histos_["adczs"+pfix]->Fill(adcZS);
     }
 
     if(!isBusy) {

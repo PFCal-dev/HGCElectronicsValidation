@@ -6,7 +6,7 @@ process = cms.Process("ANALYSIS")
 from FWCore.ParameterSet.VarParsing import VarParsing
 options = VarParsing ('standard')
 options.register('input', 
-                 '/eos/cms/store/cmst3/group/hgcal/CMG_studies/Production/ttbar_D49_1120pre1_PU200_eolupdate_20200629/GSD', 
+                 '/eos/cms/store/cmst3/group/hgcal/CMG_studies/Production/ttbar_D49_1120pre1_PU200_eolupdate_bis_20200707/GSD', 
                  VarParsing.multiplicity.singleton, 
                  VarParsing.varType.string, 
                  "input directory")
