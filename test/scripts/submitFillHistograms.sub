@@ -1,3 +1,6 @@
+## submit with:
+## cmsenv;  condor_submit   -file submitFillHistograms.sub
+
 executable  = $(cmssw)/src/UserCode/HGCElectronicsValidation/test/scripts/fillOccupancyHistograms.sh
 arguments   = $(cmssw) $(samples_dir)/$(tag) $(maxevents) $(outdir) $(adcThrMIP) $(adcThrMIPbxm1)
 output      = submitFillHistograms_condor.sub.out
@@ -6,11 +9,16 @@ log         = submitFillHistograms_condor.sub.log
 +JobFlavour = "workday"
 
 samples_dir   = /eos/cms/store/cmst3/group/hgcal/CMG_studies/Production
+
 cmssw         = /afs/cern.ch/user/p/psilva/work/HGCal/CMSSW_11_2_0_pre1
+#cmssw         = /afs/cern.ch/user/f/franzoni/work/CMSSW_11_2_0_pre1_bxm1/
+
 maxevents     = -1
 adcThrMIP     = 0.5
 adcThrMIPbxm1 = 2.5
+
 outdir        = /eos/cms/store/cmst3/user/psilva/HGCAL/EOL/
+#outdir   =/eos/home-f/franzoni/www/CMS/HGCSample/SiOptim/2020-07-07-plots
 
 queue tag from (      
       ttbar_D49_1120pre1_PU200_eolupdate_4ab_800V_bis_20200707
