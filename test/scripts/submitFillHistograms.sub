@@ -13,19 +13,15 @@ adcThrMIPbxm1 = 2.5
 outdir        = /eos/cms/store/cmst3/user/psilva/HGCAL/EOL/
 
 queue tag from (      
-      ttbar_D49_1120pre1_PU200_eolupdate_nopu_20200629
-      ttbar_D49_1120pre1_PU200_eolupdate_nopu_nonoise_20200629
-      ttbar_D49_1120pre1_PU200_eolupdate_no_OOT_20200701
-      ttbar_D49_1120pre1_PU200_eolupdate_startup_20200629
-      ttbar_D49_1120pre1_PU200_eolupdate_nopu_20200630
-      ttbar_D49_1120pre1_PU200_eolupdate_noPerGainShape_20200701
-      ttbar_D49_1120pre1_PU200_eolupdate_nopu_nonoise_20200630
-      ttbar_D49_1120pre1_PU200_eolupdate_20200629
-      ttbar_D49_1120pre1_PU200_eolupdate_20200630
-      ttbar_D49_1120pre1_PU200_eolupdate_gf_20200629
-      ttbar_D49_1120pre1_PU200_eolupdate_gf_20200630
-      ttbar_D49_1120pre1_PU200_eolupdate_nooot_nonoise_20200701
-      ttbar_D49_1120pre1_PU200_eolupdate_startup_20200630
+      ttbar_D49_1120pre1_PU200_eolupdate_4ab_800V_bis_20200707
+      ttbar_D49_1120pre1_PU200_eolupdate_bis_20200707
+      ttbar_D49_1120pre1_PU200_eolupdate_startup_bis_20200707
+      ttbar_D49_1120pre1_PU200_eolupdate_nopu_nonoise_bis_20200707
+      ttbar_D49_1120pre1_PU200_eolupdate_nopu_bis_20200707
+      ttbar_D49_1120pre1_PU200_eolupdate_nooot_nonoise_bis_20200707
+      ttbar_D49_1120pre1_PU200_eolupdate_noPerGainShape_bis_20200707
+      ttbar_D49_1120pre1_PU200_eolupdate_noOOT_bis_20200707
+      ttbar_D49_1120pre1_PU200_eolupdate_startup_bis_20200707
       #ttbar_D49_m20_1120pre1_PU200_eolupdate_20200701 ##these two need dedicated releases###
       #ttbar_D49_p20_1120pre1_PU200_eolupdate_20200702 ######################################
 )

@@ -188,6 +188,8 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
 {
   //check inputs
   if(!digiColl.isValid() || geom==NULL) return;
+
+  std::cout << subdet << " "  << digiColl->size() << std::endl;
   
   //analyze hits
   const int itSample(2); //in-time sample
@@ -225,11 +227,12 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
 
       //ZX algo
       bool passZS(true);
-      uint32_t bshift(8);
-      if(siop.core.gain==HGCalSiNoiseMap::q80fC)   bshift=8;
-      if(siop.core.gain==HGCalSiNoiseMap::q160fC)  bshift=4;
-      if(siop.core.gain==HGCalSiNoiseMap::q320fC)  bshift=8;
-      passZS=( (rawDatabxm1>>bshift) < rawData );
+      uint32_t bshift(4);
+      if(siop.core.gain==HGCalSiNoiseMap::q80fC)   bshift=4;
+      if(siop.core.gain==HGCalSiNoiseMap::q160fC)  bshift=3;
+      if(siop.core.gain==HGCalSiNoiseMap::q320fC)  bshift=4;
+      uint32_t zsCorr( (rawDatabxm1>>bshift) );
+      passZS=( rawData > zsCorr+thr );
     
       waferHistos_[key]->count(rawData, isTOA, isTDC, isBusy, thr, passZS);
       waferHistos_[key]->count(rawDatabxm1, isTOAbxm1, isTDCbxm1, isBusybxm1, thrbxm1, true, "_bxm1");

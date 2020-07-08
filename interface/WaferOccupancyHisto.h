@@ -64,6 +64,7 @@ public:
     for(int i=-1; i<=0; i++){
       TString pfix(i==0 ? "" : "_bxm1");
       histos_["adc"+pfix] = mySubDir.make<TH1F>(myID_+"_adc"+pfix,";q [ADC];",100,0,100);
+      histos_["adczs"+pfix] = mySubDir.make<TH1F>(myID_+"_adczs"+pfix,";q [ADC];",100,0,100);
       histos_["adcfull"+pfix] = mySubDir.make<TH1F>(myID_+"_adcfull"+pfix,";q [ADC];",100,0,500);
       
       adcCounts_[pfix]=0;
@@ -97,6 +98,8 @@ public:
     if(!isTDC){
       histos_["adc"+pfix]->Fill(adc);
       histos_["adcfull"+pfix]->Fill(adc);
+      if(passZS)
+        histos_["adczs"+pfix]->Fill(adc);
     }
 
     if(!isBusy) {
