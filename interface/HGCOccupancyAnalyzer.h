@@ -50,6 +50,7 @@
 
 #include "TProfile.h"
 #include "TH2F.h"
+#include "TTree.h"
 
 #include <unordered_map>
 
@@ -94,6 +95,10 @@ class HGCOccupancyAnalyzer : public edm::EDAnalyzer
 
   int nevts_;
   double adcThrMIP_,adcThrMIPbxm1_;
+
+  TTree *data_;
+  int t_section,t_layer,t_waferU,t_waferV,t_waferPreChoice,t_npads;
+  float t_waferNoise,t_waferGain,t_waferThr,t_waferS,t_waferSN;
 
   //
   std::string doseMap_;

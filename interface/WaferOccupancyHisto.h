@@ -3,6 +3,7 @@
 
 #include "FWCore/ServiceRegistry/interface/Service.h"
 #include "CommonTools/UtilAlgos/interface/TFileService.h"
+#include "SimCalorimetry/HGCalSimAlgos/interface/HGCalSiNoiseMap.h"
 
 #include "TH1F.h"
 #include "TString.h"
@@ -26,12 +27,16 @@ public:
   /**
      @short CTOR
   */
- WaferOccupancyHisto(WaferKey_t key) : ncells_(0), 
+ WaferOccupancyHisto(WaferKey_t key) : isInit_(false),
     nEvents_(0), 
-    waferType_(-1),
-    isInit_(false)
+    ncells_(0),
+    waferType_(-1),    
+    avgNoise_(0.),
+    avgGain_(0.),
+    avgThr_(0.),
+    avgS_(0.),
+    avgSN_(0.)
     { 
-
       int subDet=std::get<0>(key);
       int layer=std::get<1>(key);
       int u=std::get<2>(key);
@@ -42,10 +47,35 @@ public:
   /**
      increments pad counts
    */
-  void addPad(int waferType) { 
+  void addPad(int waferType,HGCalSiNoiseMap::SiCellOpCharacteristics &siop) { 
     waferType_=waferType; 
+
+    avgNoise_ += siop.core.noise;
+    avgGain_  += siop.core.gain;
+    avgThr_   += siop.core.thrADC;
+    avgS_     += siop.mipfC;
+    avgSN_    += siop.mipfC/siop.core.noise;
     ncells_++; 
   }
+
+  /**
+     averages the Si Op Charateristics of the pads in the wafer
+   */
+  std::vector<float> getAveragedOpCharacteristics() {
+
+    std::vector<float> avg(5,0.);
+
+    if(ncells_>0){
+      avg[0]=avgNoise_/ncells_;
+      avg[1]=avgGain_/ncells_;
+      avg[2]=avgThr_/ncells_;
+      avg[3]=avgS_/ncells_;
+      avg[4]=avgSN_/ncells_;
+    }
+    
+    return avg;
+  }
+
 
   /**
      @short book all histograms
@@ -55,10 +85,6 @@ public:
     if(isInit_ || fs==NULL) return;
 
     TFileDirectory mySubDir=(*fs)->mkdir(myID_.Data());
-
-    TH1F *info = mySubDir.make<TH1F>(myID_+"_info","",2,0,2);
-    info->SetBinContent(1,waferType_);
-    info->SetBinContent(2,ncells_);
     
     //book histos for BX-1 and in-time bunch
     for(int i=-1; i<=0; i++){
@@ -176,6 +202,7 @@ public:
   }
 
   inline int getCells() { return ncells_; }
+  inline int getWaferType() { return waferType_; }
   inline int getCounts(TString k="",bool isZS=false) { return isZS ?  adcCountsZS_[k] : adcCounts_[k]; }
 
   /**
@@ -187,8 +214,11 @@ public:
  private:
 
   TString myID_;
-  int ncells_,nEvents_,waferType_;
   bool isInit_;
+  int nEvents_;
+  int ncells_,waferType_;
+  float avgNoise_,avgGain_,avgThr_,avgS_,avgSN_;
+
   std::map<TString, TH1F *> histos_;
   std::map<TString,int> adcCounts_,adcCountsZS_,toaCounts_,tdcCounts_,busyCounts_;
 };

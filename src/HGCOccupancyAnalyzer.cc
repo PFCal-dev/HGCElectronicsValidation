@@ -49,6 +49,19 @@ HGCOccupancyAnalyzer::HGCOccupancyAnalyzer( const edm::ParameterSet &iConfig ) :
 
   edm::Service<TFileService> fs;
 
+  data_ = fs->make<TTree>("data","data");
+  data_->Branch("section",        &t_section,        "section/I");
+  data_->Branch("layer",          &t_layer,          "layer/I");
+  data_->Branch("waferU",         &t_waferU,         "waferU/I");
+  data_->Branch("waferV",         &t_waferV,         "waferV/I");
+  data_->Branch("waferPreChoice", &t_waferPreChoice, "waferPreChoice/I");
+  data_->Branch("npads",          &t_npads,          "npads/I");
+  data_->Branch("waferNoise",     &t_waferNoise,     "waferNoise/F");
+  data_->Branch("waferGain",      &t_waferGain,      "waferGain/F");
+  data_->Branch("waferThr",       &t_waferThr,       "waferThr/F");
+  data_->Branch("waferS",         &t_waferS,         "waferS/F");
+  data_->Branch("waferSN",        &t_waferSN,        "waferSN/F");
+
   //some global histograms
   cellCount_=fs->make<TH1F>("cellcount",";Layer;Number of cells/layer",50,0.5,50.5);
   tdcCountProf_=fs->make<TProfile>("tdccount",";Layer;Number of hits/layer",50,0.5,50.5);
@@ -80,7 +93,25 @@ HGCOccupancyAnalyzer::~HGCOccupancyAnalyzer()
 //
 void HGCOccupancyAnalyzer::endJob()
 {
-  for(auto &it : waferHistos_) it.second->endJob();
+  for(auto &it : waferHistos_) {
+    it.second->endJob();
+
+    t_section = std::get<0>(it.first);
+    t_layer   = std::get<1>(it.first);
+    t_waferU  = std::get<2>(it.first);
+    t_waferV  = std::get<3>(it.first);      
+    t_npads   = it.second->getCells();
+    t_waferPreChoice = it.second->getWaferType();
+
+    std::vector<float> siop=it.second->getAveragedOpCharacteristics();
+    t_waferNoise=siop[0];
+    t_waferGain=siop[1];
+    t_waferThr=siop[2];
+    t_waferS=siop[3];
+    t_waferSN=siop[4];
+
+    data_->Fill();
+  }
 }
 
   
@@ -133,7 +164,10 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
           newWafers++;
           waferHistos_[key]=new WaferOccupancyHisto(key);
         }
-        waferHistos_[key]->addPad( ddd.waferType(detId) );
+
+        HGCalSiNoiseMap::SiCellOpCharacteristics siop=noiseMaps_[subdet]->getSiCellOpCharacteristics(detId);
+        std::tuple<int, int, int> wafType = ddd.waferType(detId); //type,partial,orientation
+        waferHistos_[key]->addPad( std::get<0>(wafType), siop );
 
         //global pad counter
         if(subdet==1) layidx+=28;

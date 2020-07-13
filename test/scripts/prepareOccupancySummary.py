@@ -7,8 +7,8 @@ import pandas as pd
 import sys
 import numpy as np
 
-DATACOLS=['waferType','npads',
-          'counts', 'toacounts','busycounts','tdccounts',
+SIOPCOLS=['waferPreChoice','npads','waferSN','waferGain','waferThr']
+DATACOLS=['counts', 'countszs', 'toacounts','busycounts','tdccounts',
           'counts_bxm1','toacounts_bxm1','tdccounts_bxm1','busycounts_bxm1']
 GEOMCOLS=['waferX','waferY','waferShape','waferRot','rho','phi']
 
@@ -57,8 +57,16 @@ def getQuantiles(p,q=[0.1,0.5,0.9]):
         prob=np.array(q)
         p.GetQuantiles(nq,qval,prob)
 
-    #subtract the 1/2 the bin width (0.5)
+    #subtract the 1/2 bin width=0.5
     return [max(qval[k]-0.5,0.) for k in range(nq)]
+
+def getMean(p):
+
+    """computes the quantiles for a plot"""
+
+    #subtract the 1/2 bin width=0.5
+    return [p.GetMean()-0.5,p.GetMeanError()]
+
 
 def convertHistosToNumpy(plotColl):
     
@@ -74,7 +82,7 @@ def convertHistosToNumpy(plotColl):
     return histos
 
 
-def analyzeOccupancyPlots(url,modulePos,dirName='ana'):
+def analyzeOccupancyPlots(url,modulePos,siop,dirName='ana'):
 
     """reads the occupancy plots in a given analysis sub-directory and summarizes the quantiles"""
 
@@ -92,6 +100,12 @@ def analyzeOccupancyPlots(url,modulePos,dirName='ana'):
 
         #parse sub-det, layer + u, v from name
         subdet,layer,u,v=[int(d) for d in re.findall(r'-?\d+', sdname)]
+
+        #get wafer averaged Si operation
+        mask     = (siop.section==subdet) & (siop.layer==layer) & (siop.waferU==u) & (siop.waferV==v)
+        waf_siop = siop.loc[mask].iloc[0]
+
+        #update layer index to be continuous
         if subdet==1:
             layer=layer+28
             
@@ -103,36 +117,46 @@ def analyzeOccupancyPlots(url,modulePos,dirName='ana'):
             continue
 
         #build a summary based on quantiles
-        qSummary=[layer,u,v]
+        qSummary =  [layer,u,v]
         qSummary += [moduleGeom[x] for x in GEOMCOLS]
+        qSummary += [waf_siop[x] for x in SIOPCOLS]
+
         for c in DATACOLS:
-            if c=='waferType':
-                qSummary += [int(sd.Get(sdname+'_info').GetBinContent(1))]
-            elif c=='npads':
-                qSummary += [int(sd.Get(sdname+'_info').GetBinContent(2))]
-            else:
-                h=sd.Get(sdname+'_'+c)
-                fixExtremities(h)
-                qSummary += getQuantiles(h,q=[0.1,0.5,0.9])
+            h=sd.Get(sdname+'_'+c)
+            fixExtremities(h)
+            qSummary += getQuantiles(h,q=[0.1,0.5,0.9])
+            qSummary += getMean(h)
 
         occData.append( qSummary )
 
     return occData
 
+
 def main():
 
     #get the sensor position map/wafer geometry etc
     cmssw=os.environ['CMSSW_BASE']
-    modulePos = parseWaferGeometry(geomFile='%s/src/UserCode/HGCElectronicsValidation/data/geomnew_corrected_360.txt'%cmssw)
+    modulePos = parseWaferGeometry(geomFile='%s/src/UserCode/HGCElectronicsValidation/data/geomnew_corrected_withmult_F_rotations_v11.1.txt'%cmssw)
+
+    url=sys.argv[1]
+
+    #si-operation summary
+    fIn=ROOT.TFile.Open(url)
+    siop=ROOT.RDataFrame(fIn.Get('ana/data'))
+    columns=['section','layer','waferU','waferV','waferPreChoice','npads']
+    columns+=['waferNoise','waferGain','waferThr','waferS','waferSN']
+    siop=siop.AsNumpy()
+    siop=pd.DataFrame(data=siop, columns=columns)
 
     #summarize the occupancy for all wafers based on the CMSSW simulation
-    url=sys.argv[1]
-    occData=analyzeOccupancyPlots(url=url,modulePos=modulePos)        
+    occData=analyzeOccupancyPlots(url=url,modulePos=modulePos,siop=siop)        
     columns=['layer','waferU','waferV']
     columns+=GEOMCOLS
+    columns+=SIOPCOLS
     for c in DATACOLS:
         if 'counts' in c :
             columns += [c+'_q10',c+'_q50',c+'_q90']
+            columns += [c+'_mean',c+'_meanerr']
         else :
             columns +=[c]
     result=pd.DataFrame(data=np.array(occData), columns=columns)
@@ -140,7 +164,6 @@ def main():
         if c!='waferShape':
             result[c]=pd.to_numeric(result[c])
             
-
     result.to_hdf(url.replace('.root','.h5'), 
                   key='data', 
                   mode='w')

@@ -43,7 +43,11 @@ process.MessageLogger.cerr.FwkReport.reportEvery = 500
 
 #source/number events to process
 import os
-fList = ['file:'+os.path.join(options.input,f) for f in os.listdir(options.input) if '.root' in f]
+if os.path.isdir(options.input):
+    fList = ['file:'+os.path.join(options.input,f) for f in os.listdir(options.input) if '.root' in f]
+else:
+    fList = ['file:'+x for x in options.input.split(',')]
+
 process.source = cms.Source("PoolSource",
                             fileNames = cms.untracked.vstring(fList),
                             duplicateCheckMode = cms.untracked.string("noDuplicateCheck")
