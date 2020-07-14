@@ -10,7 +10,7 @@ log         = submitFillHistograms_condor.sub.log
 
 samples_dir   = /eos/cms/store/cmst3/group/hgcal/CMG_studies/Production
 
-cmssw         = /afs/cern.ch/user/p/psilva/work/HGCal/CMSSW_11_2_0_pre1
+cmssw         = /afs/cern.ch/user/p/psilva/work/HGCal/BEstudies/CMSSW_11_2_0_pre2
 #cmssw         = /afs/cern.ch/user/f/franzoni/work/CMSSW_11_2_0_pre1_bxm1/
 
 maxevents     = -1
@@ -20,16 +20,17 @@ adcThrMIPbxm1 = 2.5
 outdir        = /eos/cms/store/cmst3/user/psilva/HGCAL/EOL/
 #outdir   =/eos/home-f/franzoni/www/CMS/HGCSample/SiOptim/2020-07-07-plots
 
-queue tag from (      
-      ttbar_D49_1120pre1_PU200_eolupdate_4ab_800V_bis_20200707
-      ttbar_D49_1120pre1_PU200_eolupdate_bis_20200707
-      ttbar_D49_1120pre1_PU200_eolupdate_startup_bis_20200707
-      ttbar_D49_1120pre1_PU200_eolupdate_nopu_nonoise_bis_20200707
-      ttbar_D49_1120pre1_PU200_eolupdate_nopu_bis_20200707
-      ttbar_D49_1120pre1_PU200_eolupdate_nooot_nonoise_bis_20200707
-      ttbar_D49_1120pre1_PU200_eolupdate_noPerGainShape_bis_20200707
-      ttbar_D49_1120pre1_PU200_eolupdate_noOOT_bis_20200707
-      ttbar_D49_1120pre1_PU200_eolupdate_startup_bis_20200707
-      #ttbar_D49_m20_1120pre1_PU200_eolupdate_20200701 ##these two need dedicated releases###
-      #ttbar_D49_p20_1120pre1_PU200_eolupdate_20200702 ######################################
+queue tag from (  
+ttbar_D49_1120pre1_PU200_eolupdate_1p5ab_ter_20200713
+ttbar_D49_1120pre1_PU200_eolupdate_4ab_800V_ter_20200713
+ttbar_D49_1120pre1_PU200_eolupdate_noOOT_ter_20200713
+ttbar_D49_1120pre1_PU200_eolupdate_noPerGainShape_ter_20200713
+ttbar_D49_1120pre1_PU200_eolupdate_nonoise_ter_20200713
+ttbar_D49_1120pre1_PU200_eolupdate_nooot_nonoise_ter_20200713
+ttbar_D49_1120pre1_PU200_eolupdate_nopu_nonoise_ter_20200713
+ttbar_D49_1120pre1_PU200_eolupdate_nopu_ter_20200713
+ttbar_D49_1120pre1_PU200_eolupdate_startup_ter_20200713
+ttbar_D49_1120pre1_PU200_eolupdate_ter_20200713
+#ttbar_D49_m20_1120pre1_PU200_eolupdate_20200714
+#ttbar_D49_p20_1120pre1_PU200_eolupdate_20200713 
 )

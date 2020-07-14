@@ -78,7 +78,7 @@ class HGCOccupancyAnalyzer : public edm::EDAnalyzer
   void analyzeDigis(int ,edm::Handle<HGCalDigiCollection> &, const HGCalGeometry *);
 
   //histograms for the wafers
-  std::map<WaferOccupancyHisto::WaferKey_t,WaferOccupancyHisto *> waferHistos_;
+  std::map<HGCalWafer::WaferKey_t,HGCalWafer::WaferOccupancyHisto *> waferHistos_;
 
   //generator level information
   edm::EDGetTokenT<std::vector<PileupSummaryInfo> > puToken_;

@@ -8,8 +8,10 @@ import sys
 import numpy as np
 
 SIOPCOLS=['waferPreChoice','npads','waferSN','waferGain','waferThr']
-DATACOLS=['counts', 'countszs', 'toacounts','busycounts','tdccounts',
-          'counts_bxm1','toacounts_bxm1','tdccounts_bxm1','busycounts_bxm1']
+DATACOLS=['counts',     'countslzs',     'countstzs',
+          'toacounts',  'toacountslzs',  'toacountstzs',
+          'countsbxm1', 'countsbxm1lzs', 'countsbxm1tzs',
+          'busycounts']
 GEOMCOLS=['waferX','waferY','waferShape','waferRot','rho','phi']
 
 def parseWaferGeometry(geomFile='data/geomnew_corrected_withmult_F_rotations_v11.1.txt'):

@@ -159,10 +159,10 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
         int layidx(layer);
         std::pair<int,int> waferUV=detId.waferUV();
         
-        WaferOccupancyHisto::WaferKey_t key( subdet, layer, waferUV.first, waferUV.second);
+        HGCalWafer::WaferKey_t key( subdet, layer, waferUV.first, waferUV.second);
         if(waferHistos_.find(key)==waferHistos_.end()) {
           newWafers++;
-          waferHistos_[key]=new WaferOccupancyHisto(key);
+          waferHistos_[key]=new HGCalWafer::WaferOccupancyHisto(key);
         }
 
         HGCalSiNoiseMap::SiCellOpCharacteristics siop=noiseMaps_[subdet]->getSiCellOpCharacteristics(detId);
@@ -236,7 +236,7 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
       //wafer id
       int layer=detId.layer();
       std::pair<int,int> waferUV=detId.waferUV();
-      WaferOccupancyHisto::WaferKey_t key(std::make_tuple(subdet,layer,waferUV.first,waferUV.second));
+      HGCalWafer::WaferKey_t key(std::make_tuple(subdet,layer,waferUV.first,waferUV.second));
 
       //re-compute the thresholds
       HGCalSiNoiseMap::SiCellOpCharacteristics siop=noiseMaps_[subdet]->getSiCellOpCharacteristics(detId);
@@ -251,23 +251,29 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
 
       //BX-1 info
       uint32_t rawDatabxm1(hit.sample(itSample-1).data() );
-      bool isTOAbxm1( hit.sample(itSample-1).getToAValid() );
-      bool isTDCbxm1( hit.sample(itSample-1).mode() );
-      bool isBusybxm1( isTDCbxm1 && rawDatabxm1==0 );
       uint32_t thrbxm1( std::floor(mipADC*adcThrMIPbxm1_) );
 
-      //ZX algo
-      bool passZS(true);
-      uint32_t bshift(4);
-      if(siop.core.gain==HGCalSiNoiseMap::q80fC)   bshift=3;
-      if(siop.core.gain==HGCalSiNoiseMap::q160fC)  bshift=4;
-      if(siop.core.gain==HGCalSiNoiseMap::q320fC)  bshift=3;
-      uint32_t zsCorr( (rawDatabxm1>>bshift) );
-      passZS=( rawData > zsCorr+thr );
+      //ZS algos
+      uint32_t lbshift(4), tbshift(3);  //fixed gain has ~20% leakage
+      if(siop.core.gain==HGCalSiNoiseMap::q80fC)   { lbshift=5; tbshift=4; }
+      if(siop.core.gain==HGCalSiNoiseMap::q160fC)  { lbshift=4; tbshift=3; }
+      if(siop.core.gain==HGCalSiNoiseMap::q320fC)  { lbshift=5; tbshift=4; }
+      uint32_t lzsCorr( (rawDatabxm1>>lbshift) ),tzsCorr( (rawDatabxm1>>tbshift) );
+      bool passLZS=( rawData > lzsCorr+thr );
+      bool passTZS=( rawData > tzsCorr+thr );
     
-      waferHistos_[key]->count(rawData,     rawData-zsCorr, passZS, isTOA,     isTDC,     isBusy,     thr);
-      waferHistos_[key]->count(rawDatabxm1, rawDatabxm1,    true,   isTOAbxm1, isTDCbxm1, isBusybxm1, thrbxm1, "_bxm1");
-      
+      HGCalWafer::HitInfo_t h;
+      h.adc=rawData;
+      h.adcbxm1=rawDatabxm1;
+      h.passThr=(h.adc>thr);
+      h.passLZSThr=passLZS;
+      h.passTZSThr=passTZS;
+      h.passThrBxm1=(h.adcbxm1>thrbxm1);
+      h.isTOA=isTOA;
+      h.isTDC=isTDC;
+      h.isBusy=isBusy;
+      waferHistos_[key]->count(h);
+
       //global counts for the in-time bunch
       size_t layidx(layer-1);
       if(subdet==1) layidx+=28;
