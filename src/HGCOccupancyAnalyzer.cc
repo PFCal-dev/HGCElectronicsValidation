@@ -251,7 +251,7 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
 
       //BX-1 info
       uint32_t rawDatabxm1(hit.sample(itSample-1).data() );
-      uint32_t thrbxm1( std::floor(mipADC*adcThrMIPbxm1_) );
+      bool isTDCbxm1( hit.sample(itSample-1).mode() );
 
       //ZS algos
       uint32_t lbshift(4), tbshift(3);  //fixed gain has ~20% leakage
@@ -259,16 +259,26 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
       if(siop.core.gain==HGCalSiNoiseMap::q160fC)  { lbshift=4; tbshift=3; }
       if(siop.core.gain==HGCalSiNoiseMap::q320fC)  { lbshift=5; tbshift=4; }
       uint32_t lzsCorr( (rawDatabxm1>>lbshift) ),tzsCorr( (rawDatabxm1>>tbshift) );
-      bool passLZS=( rawData > lzsCorr+thr );
-      bool passTZS=( rawData > tzsCorr+thr );
+      bool passLZS=( isTDC || rawData > lzsCorr+thr );
+      bool passTZS=( isTDC || rawData > tzsCorr+thr );
+      
+      //threhsold to keep BX-1 data in the event (if negative use gain-dependent threshsold)
+      double minMIPsInBXm1(adcThrMIPbxm1_);
+      if(adcThrMIPbxm1_<0) {
+        adcThrMIPbxm1_=adcThrMIP_/0.20;
+        if(siop.core.gain==HGCalSiNoiseMap::q80fC)   minMIPsInBXm1=adcThrMIP_/0.066;
+        if(siop.core.gain==HGCalSiNoiseMap::q160fC)  minMIPsInBXm1=adcThrMIP_/0.153;
+        if(siop.core.gain==HGCalSiNoiseMap::q320fC)  minMIPsInBXm1=adcThrMIP_/0.096;
+      }
+      uint32_t thrbxm1( std::floor(mipADC*minMIPsInBXm1) );      
     
       HGCalWafer::HitInfo_t h;
       h.adc=rawData;
       h.adcbxm1=rawDatabxm1;
-      h.passThr=(h.adc>thr);
+      h.passThr=(isTDC || h.adc>thr);
       h.passLZSThr=passLZS;
       h.passTZSThr=passTZS;
-      h.passThrBxm1=(h.adcbxm1>thrbxm1);
+      h.passThrBxm1=(isTDCbxm1 || h.adcbxm1>thrbxm1);
       h.isTOA=isTOA;
       h.isTDC=isTDC;
       h.isBusy=isBusy;

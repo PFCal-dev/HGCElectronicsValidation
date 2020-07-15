@@ -105,13 +105,16 @@ namespace HGCalWafer{
     
       //book histos and counters (nominal threshold, loose and tight ZS)
       busyCounts_=0;
+      histos_["busycounts"] = mySubDir.make<TH1F>(myID_+"_busycounts",";Busy cells;",ncells_+1,0,ncells_+1);    
       for(auto &v : vars_) {
-
+        
         //adc spectra
         histos_["adcext"+v]           = mySubDir.make<TH1F>(myID_+"_adcext"+v, ";q [ADC];",100,0,500);    
         histos_["adc"+v]              = mySubDir.make<TH1F>(myID_+"_adc"+v,";q [ADC];",100,0,100);
         histos_["adcbxm1"+v]          = mySubDir.make<TH1F>(myID_+"_adcbxm1"+v,";q [ADC];",100,0,100);
-        histos2D_["adcbxm1_vs_adc"+v] = mySubDir.make<TH2F>(myID_+"_adcbxm1_vs_adc"+v,";q_{BX-1} [ADC];q_{BX} [ADC];",100,0,100,100,0,100);
+        histos_["rejadc"+v]           = mySubDir.make<TH1F>(myID_+"_rejadc"+v,";q [ADC];",50,0,50);
+        histos_["rejadcbxm1"+v]       = mySubDir.make<TH1F>(myID_+"_rejadcbxm1"+v,";q [ADC];",50,0,50);
+        histos2D_["adcbxm1_vs_adc"+v] = mySubDir.make<TH2F>(myID_+"_adcbxm1_vs_adc"+v,";q_{BX-1} [ADC];q_{BX} [ADC];",50,0,50,50,0,50);
 
         //counters
         adcCounts_[v]=0;
@@ -122,9 +125,8 @@ namespace HGCalWafer{
         histos_["countsbxm1"+v] = mySubDir.make<TH1F>(myID_+"_countsbxm1"+v,";Cells;",ncells_+1,0,ncells_+1);      
         histos_["toacounts"+v]  = mySubDir.make<TH1F>(myID_+"_toacounts"+v,";Cells in TOA;",ncells_+1,0,ncells_+1);
         histos_["tdccounts"+v]  = mySubDir.make<TH1F>(myID_+"_tdccounts"+v,";Cells in TDC;",ncells_+1,0,ncells_+1);
-        histos_["busycounts"+v] = mySubDir.make<TH1F>(myID_+"_busycounts"+v,";Busy cells;",ncells_+1,0,ncells_+1);
       }
-    
+        
       for(auto h : histos_) h.second->Sumw2();
     
       isInit_=true;
@@ -144,9 +146,17 @@ namespace HGCalWafer{
 
       for(auto &v : vars_) {
 
-        if(v==""    && !h.passThr)    continue;
-        if(v=="lzs" && !h.passLZSThr) continue;
-        if(v=="tzs" && !h.passTZSThr) continue;
+        bool passThr(true);
+        if(v==""    && !h.passThr)    passThr=false;
+        if(v=="lzs" && !h.passLZSThr) passThr=false;
+        if(v=="tzs" && !h.passTZSThr) passThr=false;
+
+        //monitor rejected hits
+        if(!passThr){
+          histos_["rejadc"+v]->Fill(h.adc);
+          histos_["rejadcbxm1"+v]->Fill(h.adc);
+          continue;
+        }
 
         //adc spectra
         histos_["adcext"+v]->Fill(h.adc);

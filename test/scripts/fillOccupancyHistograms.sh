@@ -20,7 +20,9 @@ cmsRun $cmssw/src/UserCode/HGCElectronicsValidation/test/hgcoccupancyanalysis_cf
     maxEvents=${maxEvents} 
 
 mkdir -p $outdir
-finalname=${name}_thr${adcThrMIP/./p}_thrbxm1${adcThrMIPbxm1/./p}
+thrbxm1=${adcThrMIPbxm1/./p}
+thrbxm1=${thrbxm1/-/m}
+finalname=${name}_thr${adcThrMIP/./p}_thrbxm1${thrbxm1}
 mv -v plots*.root ${outdir}/${finalname}.root
 
 python $cmssw/src/UserCode/HGCElectronicsValidation/test/scripts/prepareOccupancySummary.py ${outdir}/${finalname}.root
