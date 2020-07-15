@@ -159,10 +159,12 @@ namespace HGCalWafer{
         }
 
         //adc spectra
-        histos_["adcext"+v]->Fill(h.adc);
-        histos_["adc"+v]->Fill(h.adc);
-        histos_["adcbxm1"+v]->Fill(h.adcbxm1);
-        histos2D_["adcbxm1_vs_adc"+v]->Fill(h.adcbxm1,h.adc);
+        if(!h.isTDC) {
+          histos_["adcext"+v]->Fill(h.adc);
+          histos_["adc"+v]->Fill(h.adc);
+          histos_["adcbxm1"+v]->Fill(h.adcbxm1);
+          histos2D_["adcbxm1_vs_adc"+v]->Fill(h.adcbxm1,h.adc);
+        }
 
         //counters
         adcCounts_[v]++;

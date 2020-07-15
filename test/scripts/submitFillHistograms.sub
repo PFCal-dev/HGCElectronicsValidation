@@ -14,7 +14,7 @@ cmssw         = /afs/cern.ch/user/p/psilva/work/HGCal/BEstudies/CMSSW_11_2_0_pre
 #cmssw         = /afs/cern.ch/user/f/franzoni/work/CMSSW_11_2_0_pre1_bxm1/
 
 maxevents     = 5000
-outdir        = /eos/cms/store/cmst3/user/psilva/HGCAL/EOL/
+outdir        = /eos/cms/store/cmst3/user/psilva/HGCAL/EOL/Jul15
 #outdir   =/eos/home-f/franzoni/www/CMS/HGCSample/SiOptim/2020-07-07-plots
 
 #baseline thresholds
