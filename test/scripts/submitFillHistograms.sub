@@ -13,7 +13,7 @@ samples_dir   = /eos/cms/store/cmst3/group/hgcal/CMG_studies/Production
 cmssw         = /afs/cern.ch/user/p/psilva/work/HGCal/BEstudies/CMSSW_11_2_0_pre2
 #cmssw         = /afs/cern.ch/user/f/franzoni/work/CMSSW_11_2_0_pre1_bxm1/
 
-maxevents     = -1
+maxevents     = 5000
 outdir        = /eos/cms/store/cmst3/user/psilva/HGCAL/EOL/
 #outdir   =/eos/home-f/franzoni/www/CMS/HGCSample/SiOptim/2020-07-07-plots
 
@@ -49,7 +49,6 @@ queue tag from (
 #gain-dependent in BX-1
 adcThrMIP     = 0.5
 adcThrMIPbxm1 = -1   
-queue 1
 queue tag from (  
       ttbar_D49_1120pre1_PU200_eolupdate_1p5ab_ter_20200713
       ttbar_D49_1120pre1_PU200_eolupdate_4ab_800V_ter_20200713
