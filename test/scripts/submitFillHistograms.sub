@@ -13,16 +13,15 @@ samples_dir   = /eos/cms/store/cmst3/group/hgcal/CMG_studies/Production
 cmssw         = /afs/cern.ch/user/p/psilva/work/HGCal/BEstudies/CMSSW_11_2_0_pre2
 #cmssw         = /afs/cern.ch/user/f/franzoni/work/CMSSW_11_2_0_pre1_bxm1/
 
-maxevents     = 5000
+#maxevents     = 5000
+maxevents     = -1
 outdir        = /eos/cms/store/cmst3/user/psilva/HGCAL/EOL/Jul15
 #outdir   =/eos/home-f/franzoni/www/CMS/HGCSample/SiOptim/2020-07-07-plots
 
 #baseline thresholds
 adcThrMIP     = 0.5
 adcThrMIPbxm1 = 2.5
-queue tag from (  
-      ttbar_D49_1120pre1_PU200_eolupdate_1p5ab_ter_20200713
-      ttbar_D49_1120pre1_PU200_eolupdate_4ab_800V_ter_20200713
+queue tag from (        
       ttbar_D49_1120pre1_PU200_eolupdate_noOOT_ter_20200713
       ttbar_D49_1120pre1_PU200_eolupdate_noPerGainShape_ter_20200713
       ttbar_D49_1120pre1_PU200_eolupdate_nonoise_ter_20200713
@@ -30,30 +29,32 @@ queue tag from (
       ttbar_D49_1120pre1_PU200_eolupdate_nopu_nonoise_ter_20200713
       ttbar_D49_1120pre1_PU200_eolupdate_nopu_ter_20200713
       ttbar_D49_1120pre1_PU200_eolupdate_startup_ter_20200713
-      ttbar_D49_1120pre1_PU200_eolupdate_ter_20200713
-      #ttbar_D49_m20_1120pre1_PU200_eolupdate_20200714
-      #ttbar_D49_p20_1120pre1_PU200_eolupdate_20200713 
+      ttbar_D49_1120pre1_PU200_eolupdate_1p5ab_ter_20200715
+      ttbar_D49_1120pre1_PU200_eolupdate_4ab_800V_ter_20200715
+      ttbar_D49_1120pre2_PU200_eolupdate_ter_20200713
+      #ttbar_D49_m20_1120pre1_PU200_eolupdate_20200716
+      #ttbar_D49_p20_1120pre1_PU200_eolupdate_20200713
 )
 
 #1 MIP threshold
 adcThrMIP     = 1.0  
 adcThrMIPbxm1 = 5.0
 queue tag from (  
-      ttbar_D49_1120pre1_PU200_eolupdate_1p5ab_ter_20200713
-      ttbar_D49_1120pre1_PU200_eolupdate_4ab_800V_ter_20200713
-      ttbar_D49_1120pre1_PU200_eolupdate_ter_20200713
-      #ttbar_D49_m20_1120pre1_PU200_eolupdate_20200714
-      #ttbar_D49_p20_1120pre1_PU200_eolupdate_20200713 
+      ttbar_D49_1120pre1_PU200_eolupdate_1p5ab_ter_20200715
+      ttbar_D49_1120pre1_PU200_eolupdate_4ab_800V_ter_20200715
+      ttbar_D49_1120pre2_PU200_eolupdate_ter_20200713
+      #ttbar_D49_m20_1120pre1_PU200_eolupdate_20200716
+      #ttbar_D49_p20_1120pre1_PU200_eolupdate_20200713
 )
 
 #gain-dependent in BX-1
 adcThrMIP     = 0.5
 adcThrMIPbxm1 = -1   
 queue tag from (  
-      ttbar_D49_1120pre1_PU200_eolupdate_1p5ab_ter_20200713
-      ttbar_D49_1120pre1_PU200_eolupdate_4ab_800V_ter_20200713
-      ttbar_D49_1120pre1_PU200_eolupdate_ter_20200713
-      #ttbar_D49_m20_1120pre1_PU200_eolupdate_20200714
-      #ttbar_D49_p20_1120pre1_PU200_eolupdate_20200713 
+      ttbar_D49_1120pre1_PU200_eolupdate_1p5ab_ter_20200715
+      ttbar_D49_1120pre1_PU200_eolupdate_4ab_800V_ter_20200715
+      ttbar_D49_1120pre2_PU200_eolupdate_ter_20200713
+      #ttbar_D49_m20_1120pre1_PU200_eolupdate_20200716
+      #ttbar_D49_p20_1120pre1_PU200_eolupdate_20200713
 )
 
