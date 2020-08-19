@@ -25,6 +25,8 @@
 #include <fstream>
 #include <iostream>
 
+#include <cassert>
+
 using namespace std;
 
 
@@ -114,6 +116,82 @@ void HGCOccupancyAnalyzer::endJob()
   }
 }
 
+//
+bool HGCOccupancyAnalyzer::isFirstSextant(std::pair<int,int> &waferUV){
+  // condition to be in the first sextant
+  if (waferUV.second > 0  and (waferUV.first>waferUV.second) ) return true;
+  return false;
+}
+
+//
+bool HGCOccupancyAnalyzer::isFirstThirdtant(std::pair<int,int> &waferUV){
+  if (isFirstSextant(waferUV))          return true;
+
+  std::pair<int,int> tmp_waferUV = waferUV;
+  rotate(tmp_waferUV);
+  // if waver is in 1st sextant after rotating by 60deg => it's in 1st thirdant
+  if (isFirstSextant(tmp_waferUV) )  return true;
+  return false;
+}
+
+//
+void HGCOccupancyAnalyzer::rotate(std::pair<int,int> &waferUV){
+
+  // rotation by 60 degrees (skype on April 27, 2020 - 14:48)
+  // U' = u -v
+  // V' = u
+
+  int u_old = waferUV.first;
+  int v_old = waferUV.second;
+
+  waferUV.first = u_old - v_old;
+  waferUV.second = u_old;
+}
+
+//
+void HGCOccupancyAnalyzer::rotate(int subdet, std::pair<int,int> &waferUV){
+  assert(subdet==0 || subdet==1);
+
+  if      (subdet==0) { // 60 degrees in EE
+    rotate(waferUV);  }
+  else if (subdet==1){ // 120 = x2 60 degrees in HE
+    rotate(waferUV);
+    rotate(waferUV);  }
+  else{
+  }
+
+}
+
+//
+void HGCOccupancyAnalyzer::remapUV(int subdet, std::pair<int,int> &waferUV)
+{
+  assert(subdet==0 || subdet==1);
+
+  if      (subdet==0) {   //EE: rotate to first sextant
+
+    std::cout << "\n\n EE   U: " << waferUV.first
+	      << " V: " << waferUV.second << std::endl;
+    while (! isFirstSextant(waferUV) ) {
+      rotate(subdet,waferUV);
+    std::cout << "\n\n EE up U: " << waferUV.first
+	      << " V: " << waferUV.second << std::endl;
+    }
+  }
+  else if (subdet==1){   //HE: rotate to first third-tant
+    std::cout << "\n\n HE   U: " << waferUV.first
+	      << " V: " << waferUV.second << std::endl;
+    while (! isFirstThirdtant(waferUV) ) {
+      rotate(subdet,waferUV);
+    std::cout << "\n\n HE up U: " << waferUV.first
+	      << " V: " << waferUV.second << std::endl;
+    }
+  }
+
+  else{
+  }
+  
+}
+
   
 //
 void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSetup &iSetup)
@@ -153,12 +231,17 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
             
         HGCSiliconDetId detId(didIt.rawId());
             
-        //use only positive side
-        if(detId.zside()<0) continue;
+        //use only positive side // GF why ??
+        if(detId.zside()<0) continue; // GF address this and un-do
+
         int layer=detId.layer();
         int layidx(layer);
         std::pair<int,int> waferUV=detId.waferUV();
-        
+	// GF re-assign waferUV here - booking
+	std::cout << "waferUV was: " << waferUV.first << " " << waferUV.second;
+	remapUV(subdet, waferUV);
+	std::cout << "\t now is: " << waferUV.first << " " << waferUV.second << std::endl;
+
         HGCalWafer::WaferKey_t key( subdet, layer, waferUV.first, waferUV.second);
         if(waferHistos_.find(key)==waferHistos_.end()) {
           newWafers++;
@@ -221,7 +304,10 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
 void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollection> &digiColl, const HGCalGeometry *geom)
 {
   //check inputs
-  if(!digiColl.isValid() || geom==NULL) return;
+  if(!digiColl.isValid() || geom==NULL)  {
+	std::cout << "HGCOccupancyAnalyzer analyzeDigis: not initialised or no TFileService, returning" << std::endl;
+	return;	}
+
   //analyze hits
   const int itSample(2); //in-time sample
   for(auto &hit : *digiColl)
@@ -231,11 +317,16 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
       //detid inf
       HGCSiliconDetId detId(hit.id());
 
-      if(detId.zside()<0) continue;
+      if(detId.zside()<0) continue; // GF address this and un-do
 
       //wafer id
       int layer=detId.layer();
       std::pair<int,int> waferUV=detId.waferUV();
+      // GF re-assign waferUV here - filling
+
+      // EE up to layer 28, HE beyond that
+      int subdet  = layer<29 ? 0 : 1 ;
+      remapUV(subdet, waferUV);
       HGCalWafer::WaferKey_t key(std::make_tuple(subdet,layer,waferUV.first,waferUV.second));
 
       //re-compute the thresholds
