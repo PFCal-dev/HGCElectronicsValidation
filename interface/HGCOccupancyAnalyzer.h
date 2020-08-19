@@ -108,6 +108,7 @@ class HGCOccupancyAnalyzer : public edm::EDAnalyzer
 
   int nevts_;
   double adcThrMIP_,adcThrMIPbxm1_;
+  bool fold_;
 
   TTree *data_;
   int t_section,t_layer,t_waferU,t_waferV,t_waferPreChoice,t_npads;

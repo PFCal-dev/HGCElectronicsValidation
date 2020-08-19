@@ -46,6 +46,7 @@ HGCOccupancyAnalyzer::HGCOccupancyAnalyzer( const edm::ParameterSet &iConfig ) :
   nevts_(0),
   adcThrMIP_( iConfig.getParameter<double>("adcThrMIP") ),
   adcThrMIPbxm1_(iConfig.getParameter<double>("adcThrMIPbxm1") ),
+  fold_(iConfig.getParameter<bool>("fold") ),
   doseMap_("SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.7.20.txt")
 {  
 
@@ -119,7 +120,7 @@ void HGCOccupancyAnalyzer::endJob()
 //
 bool HGCOccupancyAnalyzer::isFirstSextant(std::pair<int,int> &waferUV){
   // condition to be in the first sextant
-  if (waferUV.second > 0  and (waferUV.first>waferUV.second) ) return true;
+  if (waferUV.second >= 0  and (waferUV.first>waferUV.second) ) return true;
   return false;
 }
 
@@ -168,22 +169,22 @@ void HGCOccupancyAnalyzer::remapUV(int subdet, std::pair<int,int> &waferUV)
   assert(subdet==0 || subdet==1);
 
   if      (subdet==0) {   //EE: rotate to first sextant
-
-    std::cout << "\n\n EE   U: " << waferUV.first
-	      << " V: " << waferUV.second << std::endl;
+    //    std::cout << "\n\n remapUV EE   U: " << waferUV.first  //GFGF
+    //<< " V: " << waferUV.second << std::endl; //GFGF
+    // keep rotaying the wafer till it falls in the desired sextant/thirdtant
     while (! isFirstSextant(waferUV) ) {
       rotate(subdet,waferUV);
-    std::cout << "\n\n EE up U: " << waferUV.first
-	      << " V: " << waferUV.second << std::endl;
+      //std::cout << "            EE up U: " << waferUV.first //GFGF
+      //<< " V: " << waferUV.second << std::endl; //GFGF
     }
   }
   else if (subdet==1){   //HE: rotate to first third-tant
-    std::cout << "\n\n HE   U: " << waferUV.first
-	      << " V: " << waferUV.second << std::endl;
+    //std::cout << "\n\n HE   U: " << waferUV.first   //GFGF
+    //<< " V: " << waferUV.second << std::endl; //GFGF
     while (! isFirstThirdtant(waferUV) ) {
       rotate(subdet,waferUV);
-    std::cout << "\n\n HE up U: " << waferUV.first
-	      << " V: " << waferUV.second << std::endl;
+      //      std::cout << "            HE up U:" << waferUV.first  //GFGF
+      //		<< " V: " << waferUV.second << std::endl; //GFGF
     }
   }
 
@@ -223,6 +224,7 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
     //instantiate occupancy histograms first time around
     if(nevts_==1) {
 
+      if (fold_ )std::cout << "[ HGCOccupancyAnalyzer::analyze ] histos will be folded x3/x6 for EE/HE " << std::endl;
       std::cout << "[ HGCOccupancyAnalyzer::analyze ] starting occupancy histos for " << subdets[subdet] << std::endl;
 
       const auto &validDetIds = geo->getValidDetIds();
@@ -238,9 +240,9 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
         int layidx(layer);
         std::pair<int,int> waferUV=detId.waferUV();
 	// GF re-assign waferUV here - booking
-	std::cout << "waferUV was: " << waferUV.first << " " << waferUV.second;
-	remapUV(subdet, waferUV);
-	std::cout << "\t now is: " << waferUV.first << " " << waferUV.second << std::endl;
+	// std::cout << "BEF remapUV waferUV was: " << waferUV.first << " " << waferUV.second; //GFGF
+	if (fold_) remapUV(subdet, waferUV);
+	// std::cout << "\t now is: " << waferUV.first << " " << waferUV.second << "( subdet: " << subdet << " )" << std::endl; //GFGF
 
         HGCalWafer::WaferKey_t key( subdet, layer, waferUV.first, waferUV.second);
         if(waferHistos_.find(key)==waferHistos_.end()) {
@@ -257,10 +259,13 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
         cellCount_->Fill(layidx);
       }
       
-      std::cout << "\t" << validDetIds.size() << " valid detIds => " << newWafers << " wafer histos" << endl;
-            
       //init histos (some of them are already done but the call will be ignored)
       for(auto &it : waferHistos_) it.second->bookHistos(&fs);
+
+      std::cout << "\t" << validDetIds.size() << " valid detIds => " << newWafers 
+		<< " wafer histos, for subdet: " <<  subdet 
+		<< " . Booking done."<< endl;
+
     }
   
 
@@ -324,9 +329,8 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
       std::pair<int,int> waferUV=detId.waferUV();
       // GF re-assign waferUV here - filling
 
-      // EE up to layer 28, HE beyond that
-      int subdet  = layer<29 ? 0 : 1 ;
-      remapUV(subdet, waferUV);
+      // std::cout << "subdet: " << subdet << " layer: " << layer << std::endl;//GFGF
+      if (fold_) remapUV(subdet, waferUV);
       HGCalWafer::WaferKey_t key(std::make_tuple(subdet,layer,waferUV.first,waferUV.second));
 
       //re-compute the thresholds
