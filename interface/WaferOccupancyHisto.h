@@ -59,6 +59,7 @@ namespace HGCalWafer{
           int u=std::get<2>(key);
           int v=std::get<3>(key);      
           myID_ = Form("%d_lay%d_%d_%d",subDet,layer,u,v);
+	  std::cout << "[WaferOccupancyHisto] created : " << myID_ << std::endl;
         }
 
     /**
@@ -100,8 +101,10 @@ namespace HGCalWafer{
     void bookHistos(edm::Service<TFileService> *fs) {
 
       if(isInit_ || fs==NULL) {
-	std::cout << "WaferOccupancyHisto bookHistos: already initialised or no TFileService, returning" << std::endl;
+	if (fs==NULL) std::cout << "WaferOccupancyHisto bookHistos: no TFileService, returning for:" <<  myID_ << std::endl;
+	if (isInit_)  std::cout << "WaferOccupancyHisto bookHistos: already initialised, returning for:" <<  myID_ << std::endl;
 	return;	}
+	std::cout << "WaferOccupancyHisto bookHistos: 1st call for :" <<  myID_ << std::endl;
 
       // create one directory per wafer
       TFileDirectory mySubDir=(*fs)->mkdir(myID_.Data());

@@ -240,15 +240,22 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
         int layidx(layer);
         std::pair<int,int> waferUV=detId.waferUV();
 	// GF re-assign waferUV here - booking
-	// std::cout << "BEF remapUV waferUV was: " << waferUV.first << " " << waferUV.second; //GFGF
-	if (fold_) remapUV(subdet, waferUV);
-	// std::cout << "\t now is: " << waferUV.first << " " << waferUV.second << "( subdet: " << subdet << " )" << std::endl; //GFGF
-
+//std::cout << "BEF remapUV waferUV was: " << waferUV.first << " " << waferUV.second; //GFGF
+//int a = waferUV.first;
+//int b = waferUV.second;
+//if (fold_) remapUV(subdet, waferUV);
+//std::cout << "\t now is: " << waferUV.first << " " << waferUV.second << "( subdet: " << subdet << " )" << std::endl; //GFGF
+//int c = waferUV.first;
+//int d = waferUV.second;
+//if (a!=c or b!=d) {std::cout << "\t\t => CHANGEd" << std::endl;}
+//
         HGCalWafer::WaferKey_t key( subdet, layer, waferUV.first, waferUV.second);
         if(waferHistos_.find(key)==waferHistos_.end()) {
           newWafers++;
           waferHistos_[key]=new HGCalWafer::WaferOccupancyHisto(key);
-        }
+        } else {
+	  std::cout <<  "already found: " << subdet << layer << waferUV.first << waferUV.second << " thus not again " << std::endl; //GFGF
+	}
 
         HGCalSiNoiseMap::SiCellOpCharacteristics siop=noiseMaps_[subdet]->getSiCellOpCharacteristics(detId);
         std::tuple<int, int, int> wafType = ddd.waferType(detId); //type,partial,orientation
@@ -330,7 +337,7 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
       // GF re-assign waferUV here - filling
 
       // std::cout << "subdet: " << subdet << " layer: " << layer << std::endl;//GFGF
-      if (fold_) remapUV(subdet, waferUV);
+      //if (fold_) remapUV(subdet, waferUV);   //GFGF
       HGCalWafer::WaferKey_t key(std::make_tuple(subdet,layer,waferUV.first,waferUV.second));
 
       //re-compute the thresholds
