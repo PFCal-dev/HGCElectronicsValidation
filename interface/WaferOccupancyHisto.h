@@ -100,7 +100,7 @@ namespace HGCalWafer{
     void bookHistos(edm::Service<TFileService> *fs) {
 
       if(isInit_ || fs==NULL) {
-	std::cout << "WaferOccupancyHisto bookHistos: not initialised or no TFileService, returning" << std::endl;
+	std::cout << "WaferOccupancyHisto bookHistos: already initialised or no TFileService, returning" << std::endl;
 	return;	}
 
       // create one directory per wafer

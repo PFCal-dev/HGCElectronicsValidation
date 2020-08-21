@@ -310,7 +310,7 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
 {
   //check inputs
   if(!digiColl.isValid() || geom==NULL)  {
-	std::cout << "HGCOccupancyAnalyzer analyzeDigis: not initialised or no TFileService, returning" << std::endl;
+	std::cout << "HGCOccupancyAnalyzer analyzeDigis: digicoll not valid or no geom; returning" << std::endl;
 	return;	}
 
   //analyze hits
