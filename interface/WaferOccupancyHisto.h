@@ -104,7 +104,7 @@ namespace HGCalWafer{
 	if (fs==NULL) std::cout << "WaferOccupancyHisto bookHistos: no TFileService, returning for:" <<  myID_ << std::endl;
 	if (isInit_)  std::cout << "WaferOccupancyHisto bookHistos: already initialised, returning for:" <<  myID_ << std::endl;
 	return;	}
-	std::cout << "WaferOccupancyHisto bookHistos: 1st call for :" <<  myID_ << std::endl;
+      // std::cout << "WaferOccupancyHisto bookHistos: 1st call for :" <<  myID_ << std::endl;
 
       // create one directory per wafer
       TFileDirectory mySubDir=(*fs)->mkdir(myID_.Data());

@@ -224,8 +224,12 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
     //instantiate occupancy histograms first time around
     if(nevts_==1) {
 
-      if (fold_ )std::cout << "[ HGCOccupancyAnalyzer::analyze ] histos will be folded x3/x6 for EE/HE " << std::endl;
+      if (fold_ ) std::cout << "[ HGCOccupancyAnalyzer::analyze ] histos will be folded x3/x6 for EE/HE " << std::endl;
+      else        std::cout << "[ HGCOccupancyAnalyzer::analyze ] histos will NOT be folded" << std::endl;
+
       std::cout << "[ HGCOccupancyAnalyzer::analyze ] starting occupancy histos for " << subdets[subdet] << std::endl;
+
+      //      std::cout << "BEF waferHistos_.size() is " << waferHistos_.size() << '\n';
 
       const auto &validDetIds = geo->getValidDetIds();
       int newWafers(0);
@@ -235,7 +239,7 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
             
         //use only positive side // GF why ??
         if(detId.zside()<0) continue; // GF address this and un-do
-
+	
         int layer=detId.layer();
         int layidx(layer);
         std::pair<int,int> waferUV=detId.waferUV();
@@ -243,7 +247,7 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
 //std::cout << "BEF remapUV waferUV was: " << waferUV.first << " " << waferUV.second; //GFGF
 //int a = waferUV.first;
 //int b = waferUV.second;
-//if (fold_) remapUV(subdet, waferUV);
+	if (fold_) remapUV(subdet, waferUV);
 //std::cout << "\t now is: " << waferUV.first << " " << waferUV.second << "( subdet: " << subdet << " )" << std::endl; //GFGF
 //int c = waferUV.first;
 //int d = waferUV.second;
@@ -254,7 +258,7 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
           newWafers++;
           waferHistos_[key]=new HGCalWafer::WaferOccupancyHisto(key);
         } else {
-	  std::cout <<  "already found: " << subdet << layer << waferUV.first << waferUV.second << " thus not again " << std::endl; //GFGF
+	  // std::cout <<  "already found: " << subdet << layer << waferUV.first << waferUV.second << " thus not again " << std::endl; //GFGF
 	}
 
         HGCalSiNoiseMap::SiCellOpCharacteristics siop=noiseMaps_[subdet]->getSiCellOpCharacteristics(detId);
@@ -266,15 +270,19 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
         cellCount_->Fill(layidx);
       }
       
-      //init histos (some of them are already done but the call will be ignored)
+      //std::cout << "BEF-loop-bookHistos" << std::endl;
+      //init histos (when subdet==1, all the subdet==0 histos already done => but the call will be ignored (HACK!!!))
       for(auto &it : waferHistos_) it.second->bookHistos(&fs);
+      //std::cout << "AFT-loop-bookHistos" << std::endl;
 
-      std::cout << "\t" << validDetIds.size() << " valid detIds => " << newWafers 
-		<< " wafer histos, for subdet: " <<  subdet 
-		<< " . Booking done."<< endl;
+//      std::cout << "\t" << validDetIds.size() << " valid detIds => " << newWafers 
+//		<< " wafer histos, for subdet: " <<  subdet 
+//		<< " . Booking done."<< endl;
+//
+//      std::cout << "AFT waferHistos_.size() is " << waferHistos_.size() << '\n';
+//
 
-    }
-  
+    }// if nevents==1
 
     //analyze digi collections
     edm::Handle<HGCalDigiCollection> digisHandle;
@@ -302,7 +310,7 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
       totalADC+=adcHits_[idx];
     }
     adcHitsVsPU_->Fill(npu,totalADC);
-  }  
+  }
    
   //all done, reset counters
   for(auto &it : waferHistos_) {
@@ -337,7 +345,7 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
       // GF re-assign waferUV here - filling
 
       // std::cout << "subdet: " << subdet << " layer: " << layer << std::endl;//GFGF
-      //if (fold_) remapUV(subdet, waferUV);   //GFGF
+      if (fold_) remapUV(subdet, waferUV);   //GFGF
       HGCalWafer::WaferKey_t key(std::make_tuple(subdet,layer,waferUV.first,waferUV.second));
 
       //re-compute the thresholds
