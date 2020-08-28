@@ -169,22 +169,14 @@ void HGCOccupancyAnalyzer::remapUV(int subdet, std::pair<int,int> &waferUV)
   assert(subdet==0 || subdet==1);
 
   if      (subdet==0) {   //EE: rotate to first sextant
-    //    std::cout << "\n\n remapUV EE   U: " << waferUV.first  //GFGF
-    //<< " V: " << waferUV.second << std::endl; //GFGF
-    // keep rotaying the wafer till it falls in the desired sextant/thirdtant
     while (! isFirstSextant(waferUV) ) {
       rotate(subdet,waferUV);
-      //std::cout << "            EE up U: " << waferUV.first //GFGF
-      //<< " V: " << waferUV.second << std::endl; //GFGF
     }
+
   }
   else if (subdet==1){   //HE: rotate to first third-tant
-    //std::cout << "\n\n HE   U: " << waferUV.first   //GFGF
-    //<< " V: " << waferUV.second << std::endl; //GFGF
     while (! isFirstThirdtant(waferUV) ) {
       rotate(subdet,waferUV);
-      //      std::cout << "            HE up U:" << waferUV.first  //GFGF
-      //		<< " V: " << waferUV.second << std::endl; //GFGF
     }
   }
 
@@ -229,8 +221,6 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
 
       std::cout << "[ HGCOccupancyAnalyzer::analyze ] starting occupancy histos for " << subdets[subdet] << std::endl;
 
-      //      std::cout << "BEF waferHistos_.size() is " << waferHistos_.size() << '\n';
-
       const auto &validDetIds = geo->getValidDetIds();
       int newWafers(0);
       for(const auto &didIt : validDetIds) {
@@ -243,22 +233,15 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
         int layer=detId.layer();
         int layidx(layer);
         std::pair<int,int> waferUV=detId.waferUV();
-	// GF re-assign waferUV here - booking
-//std::cout << "BEF remapUV waferUV was: " << waferUV.first << " " << waferUV.second; //GFGF
-//int a = waferUV.first;
-//int b = waferUV.second;
-	if (fold_) remapUV(subdet, waferUV);
-//std::cout << "\t now is: " << waferUV.first << " " << waferUV.second << "( subdet: " << subdet << " )" << std::endl; //GFGF
-//int c = waferUV.first;
-//int d = waferUV.second;
-//if (a!=c or b!=d) {std::cout << "\t\t => CHANGEd" << std::endl;}
-//
+
+	// if (fold_) remapUV(subdet, waferUV);
+
         HGCalWafer::WaferKey_t key( subdet, layer, waferUV.first, waferUV.second);
         if(waferHistos_.find(key)==waferHistos_.end()) {
           newWafers++;
           waferHistos_[key]=new HGCalWafer::WaferOccupancyHisto(key);
         } else {
-	  // std::cout <<  "already found: " << subdet << layer << waferUV.first << waferUV.second << " thus not again " << std::endl; //GFGF
+
 	}
 
         HGCalSiNoiseMap::SiCellOpCharacteristics siop=noiseMaps_[subdet]->getSiCellOpCharacteristics(detId);
@@ -270,17 +253,8 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
         cellCount_->Fill(layidx);
       }
       
-      //std::cout << "BEF-loop-bookHistos" << std::endl;
-      //init histos (when subdet==1, all the subdet==0 histos already done => but the call will be ignored (HACK!!!))
-      for(auto &it : waferHistos_) it.second->bookHistos(&fs);
-      //std::cout << "AFT-loop-bookHistos" << std::endl;
 
-//      std::cout << "\t" << validDetIds.size() << " valid detIds => " << newWafers 
-//		<< " wafer histos, for subdet: " <<  subdet 
-//		<< " . Booking done."<< endl;
-//
-//      std::cout << "AFT waferHistos_.size() is " << waferHistos_.size() << '\n';
-//
+      for(auto &it : waferHistos_) it.second->bookHistos(&fs);
 
     }// if nevents==1
 
@@ -342,10 +316,8 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
       //wafer id
       int layer=detId.layer();
       std::pair<int,int> waferUV=detId.waferUV();
-      // GF re-assign waferUV here - filling
 
-      // std::cout << "subdet: " << subdet << " layer: " << layer << std::endl;//GFGF
-      if (fold_) remapUV(subdet, waferUV);   //GFGF
+      // if (fold_) remapUV(subdet, waferUV);   //GFGF
       HGCalWafer::WaferKey_t key(std::make_tuple(subdet,layer,waferUV.first,waferUV.second));
 
       //re-compute the thresholds
