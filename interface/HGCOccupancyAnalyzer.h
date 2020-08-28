@@ -76,6 +76,19 @@ class HGCOccupancyAnalyzer : public edm::EDAnalyzer
      @short analyze a digi collection
    */
   void analyzeDigis(int ,edm::Handle<HGCalDigiCollection> &, const HGCalGeometry *);
+  //
+  void remanUV(int , std::pair<int,int> &);
+  //
+  bool isFirstSextant(std::pair<int,int> &);
+  bool isFirstThirdtant(std::pair<int,int> &);
+
+  // rotate by 60 or 120 deg, depending on EE/HE
+  void rotate(int , std::pair<int,int> &);
+  // rotate by 60
+  void rotate(std::pair<int,int> &);
+
+  // many-to one map to fold HGCAL in 6/3 depending on wether it's EE/HE
+  void remapUV(int, std::pair<int,int> & );
 
   //histograms for the wafers
   std::map<HGCalWafer::WaferKey_t,HGCalWafer::WaferOccupancyHisto *> waferHistos_;
@@ -86,7 +99,7 @@ class HGCOccupancyAnalyzer : public edm::EDAnalyzer
 
   //geometry and digis to analyze
   std::string geoCEE_,geoCEH_;
-  edm::EDGetTokenT<HGCalDigiCollection> digisCEE_,digisCEH_; 
+  edm::EDGetTokenT<HGCalDigiCollection> digisCEE_,digisCEH_;
 
   std::vector<int> tdcHits_, toaHits_,adcHits_;
   TH1F *cellCount_;
@@ -95,6 +108,7 @@ class HGCOccupancyAnalyzer : public edm::EDAnalyzer
 
   int nevts_;
   double adcThrMIP_,adcThrMIPbxm1_;
+  bool fold_;
 
   TTree *data_;
   int t_section,t_layer,t_waferU,t_waferV,t_waferPreChoice,t_npads;

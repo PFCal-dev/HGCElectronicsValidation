@@ -41,9 +41,9 @@ namespace HGCalWafer{
        @short CTOR
     */
   WaferOccupancyHisto(WaferKey_t key) : isInit_(false),
-      nEvents_(0), 
+      nEvents_(0),
       ncells_(0),
-      waferType_(-1),    
+      waferType_(-1),
       avgNoise_(0.),
       avgGain_(0.),
       avgThr_(0.),
@@ -59,6 +59,7 @@ namespace HGCalWafer{
           int u=std::get<2>(key);
           int v=std::get<3>(key);      
           myID_ = Form("%d_lay%d_%d_%d",subDet,layer,u,v);
+	  std::cout << "[WaferOccupancyHisto] created : " << myID_ << std::endl;
         }
 
     /**
@@ -99,8 +100,13 @@ namespace HGCalWafer{
     */
     void bookHistos(edm::Service<TFileService> *fs) {
 
-      if(isInit_ || fs==NULL) return;
+      if(isInit_ || fs==NULL) {
+	if (fs==NULL) std::cout << "WaferOccupancyHisto bookHistos: no TFileService, returning for:" <<  myID_ << std::endl;
+	if (isInit_)  std::cout << "WaferOccupancyHisto bookHistos: already initialised, returning for:" <<  myID_ << std::endl;
+	return;	}
+      // std::cout << "WaferOccupancyHisto bookHistos: 1st call for :" <<  myID_ << std::endl;
 
+      // create one directory per wafer
       TFileDirectory mySubDir=(*fs)->mkdir(myID_.Data());
     
       //book histos and counters (nominal threshold, loose and tight ZS)
@@ -137,7 +143,9 @@ namespace HGCalWafer{
     */
     inline void count(HitInfo_t &h)
     {
-      if(!isInit_) return;
+      if(!isInit_)  {
+	std::cout << "WaferOccupancyHisto count: not initialised or no TFileService, returning" << std::endl;
+	return;	}
 
       if(h.isBusy) {
         busyCounts_++;

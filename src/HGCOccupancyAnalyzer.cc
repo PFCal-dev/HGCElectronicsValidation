@@ -25,6 +25,8 @@
 #include <fstream>
 #include <iostream>
 
+#include <cassert>
+
 using namespace std;
 
 
@@ -44,6 +46,7 @@ HGCOccupancyAnalyzer::HGCOccupancyAnalyzer( const edm::ParameterSet &iConfig ) :
   nevts_(0),
   adcThrMIP_( iConfig.getParameter<double>("adcThrMIP") ),
   adcThrMIPbxm1_(iConfig.getParameter<double>("adcThrMIPbxm1") ),
+  fold_(iConfig.getParameter<bool>("fold") ),
   doseMap_("SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.7.20.txt")
 {  
 
@@ -114,6 +117,74 @@ void HGCOccupancyAnalyzer::endJob()
   }
 }
 
+//
+bool HGCOccupancyAnalyzer::isFirstSextant(std::pair<int,int> &waferUV){
+  // condition to be in the first sextant
+  if (waferUV.second >= 0  and (waferUV.first>waferUV.second) ) return true;
+  return false;
+}
+
+//
+bool HGCOccupancyAnalyzer::isFirstThirdtant(std::pair<int,int> &waferUV){
+  if (isFirstSextant(waferUV))          return true;
+
+  std::pair<int,int> tmp_waferUV = waferUV;
+  rotate(tmp_waferUV);
+  // if waver is in 1st sextant after rotating by 60deg => it's in 1st thirdant
+  if (isFirstSextant(tmp_waferUV) )  return true;
+  return false;
+}
+
+//
+void HGCOccupancyAnalyzer::rotate(std::pair<int,int> &waferUV){
+
+  // rotation by 60 degrees (skype on April 27, 2020 - 14:48)
+  // U' = u -v
+  // V' = u
+
+  int u_old = waferUV.first;
+  int v_old = waferUV.second;
+
+  waferUV.first = u_old - v_old;
+  waferUV.second = u_old;
+}
+
+//
+void HGCOccupancyAnalyzer::rotate(int subdet, std::pair<int,int> &waferUV){
+  assert(subdet==0 || subdet==1);
+
+  if      (subdet==0) { // 60 degrees in EE
+    rotate(waferUV);  }
+  else if (subdet==1){ // 120 = x2 60 degrees in HE
+    rotate(waferUV);
+    rotate(waferUV);  }
+  else{
+  }
+
+}
+
+//
+void HGCOccupancyAnalyzer::remapUV(int subdet, std::pair<int,int> &waferUV)
+{
+  assert(subdet==0 || subdet==1);
+
+  if      (subdet==0) {   //EE: rotate to first sextant
+    while (! isFirstSextant(waferUV) ) {
+      rotate(subdet,waferUV);
+    }
+
+  }
+  else if (subdet==1){   //HE: rotate to first third-tant
+    while (! isFirstThirdtant(waferUV) ) {
+      rotate(subdet,waferUV);
+    }
+  }
+
+  else{
+  }
+  
+}
+
   
 //
 void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSetup &iSetup)
@@ -145,6 +216,9 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
     //instantiate occupancy histograms first time around
     if(nevts_==1) {
 
+      if (fold_ ) std::cout << "[ HGCOccupancyAnalyzer::analyze ] histos will be folded x3/x6 for EE/HE " << std::endl;
+      else        std::cout << "[ HGCOccupancyAnalyzer::analyze ] histos will NOT be folded" << std::endl;
+
       std::cout << "[ HGCOccupancyAnalyzer::analyze ] starting occupancy histos for " << subdets[subdet] << std::endl;
 
       const auto &validDetIds = geo->getValidDetIds();
@@ -153,17 +227,22 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
             
         HGCSiliconDetId detId(didIt.rawId());
             
-        //use only positive side
-        if(detId.zside()<0) continue;
+        //use only positive side // GF why ??
+        if(detId.zside()<0) continue; // GF address this and un-do
+	
         int layer=detId.layer();
         int layidx(layer);
         std::pair<int,int> waferUV=detId.waferUV();
-        
+
+	// if (fold_) remapUV(subdet, waferUV);
+
         HGCalWafer::WaferKey_t key( subdet, layer, waferUV.first, waferUV.second);
         if(waferHistos_.find(key)==waferHistos_.end()) {
           newWafers++;
           waferHistos_[key]=new HGCalWafer::WaferOccupancyHisto(key);
-        }
+        } else {
+
+	}
 
         HGCalSiNoiseMap::SiCellOpCharacteristics siop=noiseMaps_[subdet]->getSiCellOpCharacteristics(detId);
         std::tuple<int, int, int> wafType = ddd.waferType(detId); //type,partial,orientation
@@ -174,12 +253,10 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
         cellCount_->Fill(layidx);
       }
       
-      std::cout << "\t" << validDetIds.size() << " valid detIds => " << newWafers << " wafer histos" << endl;
-            
-      //init histos (some of them are already done but the call will be ignored)
+
       for(auto &it : waferHistos_) it.second->bookHistos(&fs);
-    }
-  
+
+    }// if nevents==1
 
     //analyze digi collections
     edm::Handle<HGCalDigiCollection> digisHandle;
@@ -207,7 +284,7 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
       totalADC+=adcHits_[idx];
     }
     adcHitsVsPU_->Fill(npu,totalADC);
-  }  
+  }
    
   //all done, reset counters
   for(auto &it : waferHistos_) {
@@ -221,7 +298,10 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
 void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollection> &digiColl, const HGCalGeometry *geom)
 {
   //check inputs
-  if(!digiColl.isValid() || geom==NULL) return;
+  if(!digiColl.isValid() || geom==NULL)  {
+	std::cout << "HGCOccupancyAnalyzer analyzeDigis: digicoll not valid or no geom; returning" << std::endl;
+	return;	}
+
   //analyze hits
   const int itSample(2); //in-time sample
   for(auto &hit : *digiColl)
@@ -231,11 +311,13 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
       //detid inf
       HGCSiliconDetId detId(hit.id());
 
-      if(detId.zside()<0) continue;
+      if(detId.zside()<0) continue; // GF address this and un-do
 
       //wafer id
       int layer=detId.layer();
       std::pair<int,int> waferUV=detId.waferUV();
+
+      // if (fold_) remapUV(subdet, waferUV);   //GFGF
       HGCalWafer::WaferKey_t key(std::make_tuple(subdet,layer,waferUV.first,waferUV.second));
 
       //re-compute the thresholds
