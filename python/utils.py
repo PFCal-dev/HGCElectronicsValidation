@@ -173,17 +173,31 @@ def keys_to_df_raw(lol):
     uu = pd.DataFrame(lol, columns=['det','lay_txt','U','V'])
     return uu[:-6]
 
+# GF GF this needs work
+def make_txt_key(det,lay,U,V):
+    ''' 0_lay1_-11_-6 '''
+    return str(det)+'_lay'+str(lay)+'_'+str(U)+'_'+str(V)
+
+
 def keys_to_df(keyList):
     vv = keys_to_df_raw( split_key(keyList) )
+
+    # force the indices to be integers (natively they're object type)
     vv = vv.astype({'U': 'int32'})
     vv = vv.astype({'V': 'int32'})
     vv = vv.astype({'det': 'int32'})
 
-    #vv.convert_dtypes()
     # create a numeric column for layer, which is natively a string like 'lay22'
     vv['lay'] = vv['lay_txt'].str.replace('lay','')
 
-    vv['U_rot'] = vv.apply( lambda row: rotate(row['det'],row['U'],row['V'])[0], axis=1)
-    vv['V_rot'] = vv.apply( lambda row: rotate(row['det'],row['U'],row['V'])[1], axis=1)
+    # add the remapped UV, which will be used for grouping
+    vv['U_rot'] = vv.apply( lambda row: remapUV(row['det'],row['U'],row['V'])[0], axis=1)
+    vv['V_rot'] = vv.apply( lambda row: remapUV(row['det'],row['U'],row['V'])[1], axis=1)
+
+    vv['txt_key'] = vv.apply( lambda row: make_txt_key(row['det'],row['lay'],row['U'],row['V'])[1], axis=1)
 
     return vv
+
+def print_groups(keys_df_groups):
+    for key, item in keys_df_groups:
+        print(keys_df_groups.get_group(key), "\n\n")
