@@ -70,34 +70,6 @@ def run_demo(outFile,
         hist_3.Write()
 
 
-#from io import StringIO 
-#import sys
-#
-#class Capturing(list):
-#    def __enter__(self):
-#        self._stdout = sys.stdout
-#        sys.stdout = self._stringio = StringIO()
-#        return self
-#    def __exit__(self, *args):
-#        self.extend(self._stringio.getvalue().splitlines())
-#        del self._stringio    # free up some memory
-#        sys.stdout = self._stdoutx
-
-
-#from cStringIO import StringIO
-#import sys
-#
-#class Capturing(list):
-#    def __enter__(self):
-#        self._stdout = sys.stdout
-#        sys.stdout = self._stringio = StringIO()
-#        return self
-#    def __exit__(self, *args):
-#        self.extend(self._stringio.getvalue().splitlines())
-#        del self._stringio    # free up some memory
-#        sys.stdout = self._stdout
-#
-
 #
 def rot(waferU, waferV):
     ''' rotate a (U,V) 
@@ -179,3 +151,17 @@ def remapUV(subdet, waferU, waferV):
         pass
 
     return waferU,waferV
+
+
+
+def split_key(ll):
+    return map(lambda s: s.split('_'), ll)
+
+
+import pandas as pd
+def keys_to_df(lol):
+    uu = pd.DataFrame(lol, columns=['det','lay','U','V'])
+    return uu[:-6]
+
+def create_keys_df(keyList):
+    return keys_to_df( split_key(keyList) )
