@@ -45,12 +45,15 @@ class HistogramFile(object):
 # this below is a lottle demo, lots of crap / needs to be exported and organised
 hisN='ana/0_lay1_-11_-6/0_lay1_-11_-6_busycounts'
 hisNtwo='ana/0_lay1_-11_-5/0_lay1_-11_-5_busycounts'
-def run_demo(outFile, inFileName = '/data/franzoni/ttbar_D49_1120pre1_PU200_eolupdate_qua_20200723_thr0p5_thrbxm12p5_flfalse.root'):
+def run_demo(outFile, 
+             # inFileName = '/data/franzoni/ttbar_D49_1120pre1_PU200_eolupdate_qua_20200723_thr0p5_thrbxm12p5_flfalse.root'
+             inFileName = '/eos/home-f/franzoni/www/CMS/HGCSample/SiOptim/2020-08-21-nofold/ttbar_D49_1120pre1_PU200_eolupdate_qua_20200723_thr0p5_thrbxm12p5_flfalse.root'
+         ):
     with HistogramFile( inFileName ) as f:
         hist_1 = f.get_histogram(hisN)
         hist_2 = f.get_histogram(hisNtwo)
-        print(hist_1.GetName())
-        print(hist_1.GetEntries())
+        # print(hist_1.GetName())
+        # print(hist_1.GetEntries())
         # how to write a hitogram to ad different file than it's been red from
         outFile.cd()
         outFile.mkdir('ana/0_lay1_-11_-6/')
@@ -81,18 +84,19 @@ def run_demo(outFile, inFileName = '/data/franzoni/ttbar_D49_1120pre1_PU200_eolu
 #        sys.stdout = self._stdoutx
 
 
-from cStringIO import StringIO
-import sys
-
-class Capturing(list):
-    def __enter__(self):
-        self._stdout = sys.stdout
-        sys.stdout = self._stringio = StringIO()
-        return self
-    def __exit__(self, *args):
-        self.extend(self._stringio.getvalue().splitlines())
-        del self._stringio    # free up some memory
-        sys.stdout = self._stdout
+#from cStringIO import StringIO
+#import sys
+#
+#class Capturing(list):
+#    def __enter__(self):
+#        self._stdout = sys.stdout
+#        sys.stdout = self._stringio = StringIO()
+#        return self
+#    def __exit__(self, *args):
+#        self.extend(self._stringio.getvalue().splitlines())
+#        del self._stringio    # free up some memory
+#        sys.stdout = self._stdout
+#
 
 #
 def rot(waferU, waferV):
@@ -154,3 +158,24 @@ def isFirstThirdtant(waferU, waferV):
 
     return False
 
+
+#
+def remapUV(subdet, waferU, waferV):
+    '''
+    rotate an UV pair far enogh
+    to map it into the first sextant/thirdtant (in EE/EH, resp.)
+    '''
+    assert subdet in [0,1]
+
+    if      subdet==0:    # EE: rotate to first sextant
+        while not isFirstSextant(waferU, waferV):
+            waferU,waferV = rotate(subdet,waferU,waferV)
+    
+    elif subdet==1:     # //HE: rotate to first third-tant
+        while not isFirstThirdtant(waferU, waferV):
+            waferU,waferV = rotate(subdet,waferU,waferV)
+
+    else:
+        pass
+
+    return waferU,waferV
