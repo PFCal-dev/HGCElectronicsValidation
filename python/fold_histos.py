@@ -25,17 +25,13 @@ print "\nKeys in file:", len(keyList)
 
 
 # print "\nKeys in file:", split_key(keyList)
-keys_df = create_keys_df(keyList)
+keys_df = keys_to_df(keyList)
 
-print "\ndf head:", keys_df.head()
-print()
-print "\ndf tail:", keys_df.tail()
+print "\ndf head:\n", keys_df.head()
+print "\ndf tail:\n", keys_df.tail()
+print('\n\n Keys in file:', len(keyList), keys_df.shape)
 
-# print "\n0 Keys in file:", keyList[0]
-# print "\n110 Keys in file:", keyList[110]
-# print "\n-1 Keys in file:", keyList[-1]
-
-
+print('\n\n types',keys_df.dtypes)
 
 outFile = ROOT.TFile.Open(outFileName, 'recreate')
 run_demo( outFile )

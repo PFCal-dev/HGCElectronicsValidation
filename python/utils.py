@@ -88,6 +88,9 @@ def rot(waferU, waferV):
     return waferU,waferV
 
 #
+def rotat(subdet, waferU, waferV):
+    return rotate(subdet, waferU, waferV)[0]
+        
 def rotate(subdet, waferU, waferV):
     ''' 
     chose wether to rotate 
@@ -155,13 +158,37 @@ def remapUV(subdet, waferU, waferV):
 
 
 def split_key(ll):
+    '''
+    split the root txt keys into indices
+    '''
     return map(lambda s: s.split('_'), ll)
 
 
 import pandas as pd
-def keys_to_df(lol):
-    uu = pd.DataFrame(lol, columns=['det','lay','U','V'])
+def keys_to_df_raw(lol):
+    '''
+    turn list of list into a df, each row is unique ID of a wafer
+    remove the last 6 raws which are garbage
+    '''
+    uu = pd.DataFrame(lol, columns=['det','lay_txt','U','V'])
     return uu[:-6]
 
-def create_keys_df(keyList):
-    return keys_to_df( split_key(keyList) )
+def keys_to_df(keyList):
+    vv = keys_to_df_raw( split_key(keyList) )
+    vv = vv.astype({'U': 'int32'})
+    vv = vv.astype({'V': 'int32'})
+    vv = vv.astype({'det': 'int32'})
+
+    #vv.convert_dtypes()
+    # create a numeric column for layer, which is natively a string like 'lay22'
+    vv['lay'] = vv['lay_txt'].str.replace('lay','')
+
+    vv['U_rot'] = vv.apply( lambda row: rotate(0,row['U'],row['V'])[0], axis=1)
+    vv['V_rot'] = vv.apply( lambda row: rotate(0,row['U'],row['V'])[1], axis=1)
+    # vv['U_rot'] = vv.apply( lambda row: rotat(row['det'],row['U'],row['V']), axis=1)
+#    vv['U_rot'] = vv.apply( lambda row: rotate(row['det'],row['U'],row['V'])[0], axis=1)
+
+    # vv['V_rot'] = vv.apply( lambda row: rotate(row['subdet'],row['waferU'],row['waferV'])[0]  )
+    #vv['U_rot'] = vv.apply( lambda row: 1, axis=1)
+    #vv['V_rot'] = vv.apply( lambda row: 2, axis=1)
+    return vv
