@@ -133,6 +133,14 @@ def isFirstThirdtant(waferU, waferV):
 
     return False
 
+#
+def isFirstSexORThirdTant(subdet,U,V):
+    if   subdet==0:
+        return isFirstSextant(U,V)
+    elif subdet==1:
+        return isFirstThirdtant(U,V)
+    else:
+        pass
 
 #
 def remapUV(subdet, waferU, waferV):
@@ -189,15 +197,22 @@ def keys_to_df(keyList):
 
     # create a numeric column for layer, which is natively a string like 'lay22'
     vv['lay'] = vv['lay_txt'].str.replace('lay','')
-
+    vv = vv.astype({'lay': 'int32'})
+    
     # add the remapped UV, which will be used for grouping
     vv['U_rot'] = vv.apply( lambda row: remapUV(row['det'],row['U'],row['V'])[0], axis=1)
     vv['V_rot'] = vv.apply( lambda row: remapUV(row['det'],row['U'],row['V'])[1], axis=1)
 
-    vv['txt_key'] = vv.apply( lambda row: make_txt_key(row['det'],row['lay'],row['U'],row['V'])[1], axis=1)
+    vv['txt_key'] = vv.apply( lambda row: make_txt_key(row['det'],row['lay'],row['U'],row['V']), axis=1)
+
+    # mark the wafers which are already inside the folding region
+    vv['first'] = vv.apply( lambda row: isFirstSexORThirdTant(row['det'],row['U'],row['V']), axis=1)
 
     return vv
 
 def print_groups(keys_df_groups):
+    '''
+    print all groups identified by previous groupby
+    '''
     for key, item in keys_df_groups:
         print(keys_df_groups.get_group(key), "\n\n")

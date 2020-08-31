@@ -3,6 +3,9 @@ import sys
 
 from utils import *
 
+# run a test:
+# cd   /afs/cern.ch/user/f/franzoni/work/CMSSW_11_2_0_pre3_afterTalk2/src/UserCode/HGCElectronicsValidation/python; esr ; python fold_histos.py /eos/home-f/franzoni/www/CMS/HGCSample/SiOptim/2020-08-21-nofold/ttbar_D49_1120pre1_PU200_eolupdate_qua_20200723_thr0p5_thrbxm12p5_flfalse.root  rrrr.root
+
 
 if len( sys . argv ) != 3:
     print('USAGE : %s <input file > <output file >'%( sys . argv [0]))
@@ -15,7 +18,7 @@ print (" Reading from ", inFileName , "and writing to", outFileName)
 
 
 # works
-inFile = ROOT . TFile . Open ( inFileName ," READ ")
+inFile = ROOT . TFile . Open ( inFileName ," READ")
 inFile.cd("ana;1")
 
 
@@ -43,21 +46,37 @@ keys_df_groups = keys_df.groupby( ['det','lay','U_rot','V_rot'] )
 
 # get all key sets defining one group
 # print(keys_df_groups.groups)
-print( keys_df_groups.get_group( (0, '11', 6, 0) ))
-print( type(keys_df_groups.get_group( (0, '11', 6, 0) ) ) )
+print( keys_df_groups.get_group( (0, 11, 6, 0) ))
+print( type(keys_df_groups.get_group( (0, 11, 6, 0) ) ) )
 
-print( keys_df_groups.get_group( (1, '5', 8, 7)  ))
-print( keys_df_groups.get_group( (1, '5', 8, 7)  )['U'])
+print( keys_df_groups.get_group( (1, 5, 8, 7)  ))
+print()
+print( keys_df_groups.get_group( (1, 5, 8, 7)  )['txt_key'])
+print( type(keys_df_groups.get_group( (1,5, 8, 7)  )['txt_key']) )
 
-# k,i = keys_df_groups.get_group(0)
-# print(keys_df_groups.get_group(k))
-# print( type(keys_df_groups.get_group(k)) )
+#keys_df_groups_kk = keys_df_groups.keys
+print( len(keys_df_groups.keys)  )
+
+print()
+print()
+
+counter=0
+for name, group in keys_df_groups:
+    if counter==3:
+        break
+    counter+=1
+    print(name)
+    print(group)
+    print("\n")
+
 
 
 
 outFile = ROOT.TFile.Open(outFileName, 'recreate')
 run_demo( outFile )
 outFile.Close()
+
+# logical plan
 
 # get all directories present in ana
 
