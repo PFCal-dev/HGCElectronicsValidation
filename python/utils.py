@@ -183,12 +183,7 @@ def keys_to_df(keyList):
     # create a numeric column for layer, which is natively a string like 'lay22'
     vv['lay'] = vv['lay_txt'].str.replace('lay','')
 
-    vv['U_rot'] = vv.apply( lambda row: rotate(0,row['U'],row['V'])[0], axis=1)
-    vv['V_rot'] = vv.apply( lambda row: rotate(0,row['U'],row['V'])[1], axis=1)
-    # vv['U_rot'] = vv.apply( lambda row: rotat(row['det'],row['U'],row['V']), axis=1)
-#    vv['U_rot'] = vv.apply( lambda row: rotate(row['det'],row['U'],row['V'])[0], axis=1)
+    vv['U_rot'] = vv.apply( lambda row: rotate(row['det'],row['U'],row['V'])[0], axis=1)
+    vv['V_rot'] = vv.apply( lambda row: rotate(row['det'],row['U'],row['V'])[1], axis=1)
 
-    # vv['V_rot'] = vv.apply( lambda row: rotate(row['subdet'],row['waferU'],row['waferV'])[0]  )
-    #vv['U_rot'] = vv.apply( lambda row: 1, axis=1)
-    #vv['V_rot'] = vv.apply( lambda row: 2, axis=1)
     return vv
