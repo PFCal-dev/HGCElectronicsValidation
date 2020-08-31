@@ -11,6 +11,37 @@ def GetKeyNames( self, dir = "" ):
 TFile.GetKeyNames = GetKeyNames
 
 
+
+class Hitos(object):
+    '''
+    holds hisotograms of a director and 
+    carries out basic operations
+    '''
+    def __init__(self, key):
+        self.name = key
+        
+    def set_infile_name(self,n):
+        self.filename = n
+        print('Hitos: filename set to %s'%self.filename)
+
+    def get_histos(self):
+        histos = {}
+        histo_names = ['busycounts','adc']
+        with HistogramFile( self.filename ) as f:
+            for histo_name in  histo_names:
+                nn = 'ana/' + self.name +'/' + self.name + '_' + histo_name
+                print('looking for histo named: %s'%nn)
+                print('**')
+                print(self.name)
+                print('-')
+                print(nn)
+                print('**')
+                one_histo = f.get_histogram( nn )
+                # one_histo = f.get_histogram( 'ana/0_lay1_2_0/0_lay1_2_0_busycounts' )
+                print('histo found is: %s with entries %d'%(one_histo.GetName(), one_histo.GetEntries()))
+                # put it in dict
+
+
 class HistogramFile(object):
     '''
     basic interface to a root file

@@ -2,6 +2,8 @@ import ROOT
 import sys
 
 from utils import *
+from histo_classes import *
+
 
 # run a test:
 # cd   /afs/cern.ch/user/f/franzoni/work/CMSSW_11_2_0_pre3_afterTalk2/src/UserCode/HGCElectronicsValidation/python; esr ; python fold_histos.py /eos/home-f/franzoni/www/CMS/HGCSample/SiOptim/2020-08-21-nofold/ttbar_D49_1120pre1_PU200_eolupdate_qua_20200723_thr0p5_thrbxm12p5_flfalse.root  rrrr.root
@@ -71,9 +73,15 @@ for name, group in keys_df_groups:
         break
     counter+=1
 
-    print(name)
+    first_key = group.loc[group['first']==True]['txt_key']
+    print('key values are: %s - %s'%(name, first_key)) # GF first key needs work
     print(group)
     print("\n")
+
+    print()
+    first_histos = Hitos(first_key)
+    first_histos.set_infile_name(inFileName)
+    first_histos.get_histos()
 
 
 

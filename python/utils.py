@@ -3,9 +3,11 @@ from   ROOT import TFile
 from   ROOT import gDirectory
 import sys
 
-
+# this include can go away once we'llre move run_demo
+from histo_classes import *
 
 # this below is a lottle demo, lots of crap / needs to be exported and organised
+#      ana/0_lay1_2_0/0_lay1_2_0_busycounts
 hisN='ana/0_lay1_-11_-6/0_lay1_-11_-6_busycounts'
 hisNtwo='ana/0_lay1_-11_-5/0_lay1_-11_-5_busycounts'
 def run_demo(outFile, 
