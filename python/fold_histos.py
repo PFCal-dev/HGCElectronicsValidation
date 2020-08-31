@@ -60,20 +60,23 @@ print( len(keys_df_groups.keys)  )
 print()
 print()
 
+outFile = ROOT.TFile.Open(outFileName, 'recreate')
+run_demo( outFile )
+
+
+
 counter=0
 for name, group in keys_df_groups:
     if counter==3:
         break
     counter+=1
+
     print(name)
     print(group)
     print("\n")
 
 
 
-
-outFile = ROOT.TFile.Open(outFileName, 'recreate')
-run_demo( outFile )
 outFile.Close()
 
 # logical plan
