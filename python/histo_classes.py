@@ -21,6 +21,7 @@ class Histos(object):
         self.name        = key
         self.histos      = {}
         self.histo_types = ['busycounts','adc']
+        self.out_file    = None
 
     def set_infile_name(self,n):
         self.filename = n
@@ -28,7 +29,7 @@ class Histos(object):
 
 
     def get_histos(self):
-        print('Histo class named: %s'%self.name)
+        print('Histo class named: %s - loading histos '%self.name)
         # some root magic to make sure that cloning persists the histos in the dictionary
         # https://root-forum.cern.ch/t/pyroot-typecast-histograms-stored-in-dict/24744/11
         ROOT.TH1.AddDirectory(0) 
@@ -40,6 +41,21 @@ class Histos(object):
                 one_histo = f.get_histogram( nn )
                 # put it in dict
                 self.histos[histo_type] = one_histo.Clone()
+
+    def write_histos(self):
+        print('Histo class named: %s - writing histos '%self.name)
+        # TAKE CARE OF UI for filename
+        xx = '/afs/cern.ch/user/f/franzoni/work/CMSSW_11_2_0_pre3_afterTalk2/src/UserCode/HGCElectronicsValidation/python/out.root'
+        # fill a dictionary with histogram objects, then re-close the input file
+        with HistogramFile( xx, rw='recreate' ) as f:
+            dir = 'ana/' + self.name +'/'
+            print('write_histos: about to loop')
+            for histo_type in  self.histo_types:
+                # nn = 'ana/' + self.name +'/' + self.name + '_' + histo_type
+                f.write_histogram( dir, self.histos[histo_type] )
+
+
+
 
     def check_histos(self):
         print('++ check_histos for object %s showing the dic'%self.name)
@@ -67,12 +83,13 @@ class HistogramFile(object):
     '''
     basic interface to a root file
     '''
-    def __init__(self, filename):
+    def __init__(self, filename, rw='read'):
         self.filename = filename
+        self.rw       = rw
 
     def __enter__(self):
         '''http://effbot.org/zone/python-with-statement.htm'''
-        self.file = ROOT.TFile.Open(self.filename, 'read')
+        self.file = ROOT.TFile.Open(self.filename, self.rw)
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
@@ -87,3 +104,14 @@ class HistogramFile(object):
             return hist
         else:
             raise RuntimeError('Unable to retrieve histogram named {0} from {1}'.format(name, self.filename))
+
+    def write_histogram(self, dir, histo):
+        """write the histogram identified by name to the file.
+        """
+        self.file.cd()
+        # self.file.mkdir('ana/0_lay1_-11_-6/')
+        self.file.mkdir(dir)
+        TFdir = self.file.GetDirectory(dir);
+        # GFGF this needs work
+        histo.SetDirectory(TFdir)
+        histo.Write()

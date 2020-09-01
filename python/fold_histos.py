@@ -63,7 +63,7 @@ print()
 print()
 
 outFile = ROOT.TFile.Open(outFileName, 'recreate')
-run_demo( outFile )
+# run_demo( outFile )
 
 
 
@@ -83,6 +83,7 @@ for name, group in keys_df_groups:
     first_histo.get_histos()
 
     print('++ main nun histos: %d'%len(first_histo.histos))
+    # loop over (the other) members of the group
     for key in first_histo.histos:
         print('==> LOOP MAIN check_histos histo found called: %s with entries %d'%(first_histo.histos[key].GetName(), first_histo.histos[key].GetEntries()))
     # first_histo.check_histos()
@@ -96,6 +97,7 @@ for name, group in keys_df_groups:
         other_histo.get_histos()
         first_histo.add_histo(other_histo)
 
+    first_histo.write_histos()
 
 outFile.Close()
 
