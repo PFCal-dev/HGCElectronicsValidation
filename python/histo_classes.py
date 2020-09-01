@@ -18,8 +18,9 @@ class Histos(object):
     carries out basic operations
     '''
     def __init__(self, key):
-        self.name   = key
-        self.histos = {}
+        self.name        = key
+        self.histos      = {}
+        self.histo_types = ['busycounts','adc']
 
     def set_infile_name(self,n):
         self.filename = n
@@ -28,26 +29,37 @@ class Histos(object):
 
     def get_histos(self):
         print('Histo class named: %s'%self.name)
-        histo_names = ['busycounts','adc']
         # some root magic to make sure that cloning persists the histos in the dictionary
         # https://root-forum.cern.ch/t/pyroot-typecast-histograms-stored-in-dict/24744/11
         ROOT.TH1.AddDirectory(0) 
 
+        # fill a dictionary with histogram objects, then re-close the input file
         with HistogramFile( self.filename ) as f:
-            for histo_name in  histo_names:
-                nn = 'ana/' + self.name +'/' + self.name + '_' + histo_name
+            for histo_type in  self.histo_types:
+                nn = 'ana/' + self.name +'/' + self.name + '_' + histo_type
                 one_histo = f.get_histogram( nn )
                 # put it in dict
-                self.histos[histo_name] = one_histo.Clone()
+                self.histos[histo_type] = one_histo.Clone()
 
     def check_histos(self):
         print('++ check_histos for object %s showing the dic'%self.name)
         print(self.histos)
         for key in self.histos:
             print('==> check_histos: LOOP LOOP check_histos histo found called: %s with entries %d'%(self.histos[key].GetName(), self.histos[key].GetEntries()))
-        print('==> check_histos: OUT OUT check_histos histo found called: %s with entries %d'%(self.histos['adc'].GetName(), self.histos['adc'].GetEntries()))
+        #print('==> check_histos: OUT OUT check_histos histo found called: %s with entries %d'%(self.histos['adc'].GetName(), self.histos['adc'].GetEntries()))
 
+    #def histo_types():
+    #    return self.histo_types
 
+    def add_histo(self, other):
+        print('accessing other %s from self %s'%(other.name,self.name) )
+        # for histo_type in  other.histo_types:
+        #    print('==> add_histo: from other %s histo found called: %s with entries %d'%(other.name,other.histos[histo_type].GetName(), other.histos[histo_type].GetEntries()))
+
+        for histo_type in self.histo_types:
+            print('==> add_histo BEF: I am class %s, histo called %s with entries %d'%(self.name,self.histos[histo_type].GetName(), self.histos[histo_type].GetEntries()))
+            self.histos[histo_type].Add(other.histos[histo_type])
+            print('==> add_histo AFT: I am class %s, histo called %s with entries %d'%(self.name,self.histos[histo_type].GetName(), self.histos[histo_type].GetEntries()))
 
 
 

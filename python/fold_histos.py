@@ -71,23 +71,30 @@ counter=0
 
 # loop over groups of wavers; members of a group will be folded together
 for name, group in keys_df_groups:
+    print('\n\n\n\n')
     if counter==3:
         break
     counter+=1
     
     first_key = group.loc[group['first']==True]['txt_key'].to_numpy()[0]   # extract the actul element
-
     print()
-    first_histos = Histos(first_key)
-    first_histos.set_infile_name(inFileName)
-    first_histos.get_histos()
+    first_histo = Histos(first_key)
+    first_histo.set_infile_name(inFileName)
+    first_histo.get_histos()
 
-    print('++ main nun histos: %d'%len(first_histos.histos))
-    for key in first_histos.histos:
-        print('==> LOOP MAIN check_histos histo found called: %s with entries %d'%(first_histos.histos[key].GetName(), first_histos.histos[key].GetEntries()))
+    print('++ main nun histos: %d'%len(first_histo.histos))
+    for key in first_histo.histos:
+        print('==> LOOP MAIN check_histos histo found called: %s with entries %d'%(first_histo.histos[key].GetName(), first_histo.histos[key].GetEntries()))
+    # first_histo.check_histos()
 
-
-    first_histos.check_histos()
+    # loop on other members of the group and Add() their histogram
+    # to the instances of the first (representative) wafer
+    for other_key in group.loc[group['first']==False]['txt_key']:
+        print('other_key is: %s'%other_key)
+        other_histo = Histos(other_key)
+        other_histo.set_infile_name(inFileName)
+        other_histo.get_histos()
+        first_histo.add_histo(other_histo)
 
 
 outFile.Close()
