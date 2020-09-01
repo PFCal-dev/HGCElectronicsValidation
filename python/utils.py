@@ -146,7 +146,7 @@ def keys_to_df_raw(lol):
     uu = pd.DataFrame(lol, columns=['det','lay_txt','U','V'])
     return uu[:-6]
 
-# GF GF this needs work
+#
 def make_txt_key(det,lay,U,V):
     ''' 0_lay1_-11_-6 '''
     return str(det)+'_lay'+str(lay)+'_'+str(U)+'_'+str(V)

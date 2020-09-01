@@ -74,31 +74,18 @@ for name, group in keys_df_groups:
     if counter==3:
         break
     counter+=1
+    
+    first_key = group.loc[group['first']==True]['txt_key'].to_numpy()[0]   # extract the actul element
 
-    first_key = group.loc[group['first']==True]['txt_key'].to_numpy()[0]
-    # first_key = ( group.loc[group['first']==True] ).at[0,'txt_key']
-#    print('------|||')
-#    print( type(group) )
-#    print()
-#    print( type(group.loc[group['first']==True])  )
-#    print( group.loc[group['first']==True] )
-#    print( group.loc[group['first']==True]['txt_key'].to_numpy()[0] )
-#    print('------|||')
-#    print('name is:') # GF first key needs work
-#    print(name) # GF first key needs work
-#    print('key value is: %s'%(first_key)) # GF first key needs work
-#    print(group)
-#    print("\n")
-#
     print()
     first_histos = Histos(first_key)
     first_histos.set_infile_name(inFileName)
     first_histos.get_histos()
 
     print('++ main nun histos: %d'%len(first_histos.histos))
-#    print('++ main histo found called: %s with entries %d'%(first_histos.histos['adc'].GetName(), first_histos.histos['adc'].GetEntries()))
-#     print('++ main histo found called: %s with entries %d'%(first_histos.histos['busycounts'].GetName(), first_histos.histos['busycounts'].GetEntries()))
-    print('++ main nun histos: %d'%len(first_histos.histos))
+    for key in first_histos.histos:
+        print('==> LOOP MAIN check_histos histo found called: %s with entries %d'%(first_histos.histos[key].GetName(), first_histos.histos[key].GetEntries()))
+
 
     first_histos.check_histos()
 
@@ -117,3 +104,4 @@ outFile.Close()
 # find way of adding histograms of two wafers
 
 # write everytying out
+1

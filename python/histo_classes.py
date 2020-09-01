@@ -20,10 +20,11 @@ class Histos(object):
     def __init__(self, key):
         self.name   = key
         self.histos = {}
-        
+
     def set_infile_name(self,n):
         self.filename = n
         print('\n\nHitos: filename set to %s'%self.filename)
+
 
     def get_histos(self):
         print('Histo class named: %s'%self.name)
@@ -31,26 +32,24 @@ class Histos(object):
         # some root magic to make sure that cloning persists the histos in the dictionary
         # https://root-forum.cern.ch/t/pyroot-typecast-histograms-stored-in-dict/24744/11
         ROOT.TH1.AddDirectory(0) 
+
         with HistogramFile( self.filename ) as f:
             for histo_name in  histo_names:
                 nn = 'ana/' + self.name +'/' + self.name + '_' + histo_name
-                print('** st')
-                print('looking for histo named: %s'%nn)
-                # print(nn)
                 one_histo = f.get_histogram( nn )
-                # one_histo = f.get_histogram( 'ana/0_lay1_2_0/0_lay1_2_0_busycounts' )
-                print('histo found called: %s with entries %d'%(one_histo.GetName(), one_histo.GetEntries()))
                 # put it in dict
                 self.histos[histo_name] = one_histo.Clone()
-                print('==> RIGHT AFTER histo found called: %s with entries %d and key %s'%(self.histos[histo_name].GetName(), self.histos[histo_name].GetEntries(), histo_name) )
-                print('en **')
 
     def check_histos(self):
-        print('check_histos showing the dic')
+        print('++ check_histos for object %s showing the dic'%self.name)
         print(self.histos)
         for key in self.histos:
-            print('==> LOOP LOOP check_histos histo found called: %s with entries %d'%(self.histos[key].GetName(), self.histos[key].GetEntries()))
-        print('==> OUT OUT check_histos histo found called: %s with entries %d'%(self.histos['adc'].GetName(), self.histos['adc'].GetEntries()))
+            print('==> check_histos: LOOP LOOP check_histos histo found called: %s with entries %d'%(self.histos[key].GetName(), self.histos[key].GetEntries()))
+        print('==> check_histos: OUT OUT check_histos histo found called: %s with entries %d'%(self.histos['adc'].GetName(), self.histos['adc'].GetEntries()))
+
+
+
+
 
 class HistogramFile(object):
     '''
