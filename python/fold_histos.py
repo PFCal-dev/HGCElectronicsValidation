@@ -68,21 +68,39 @@ run_demo( outFile )
 
 
 counter=0
+
+# loop over groups of wavers; members of a group will be folded together
 for name, group in keys_df_groups:
     if counter==3:
         break
     counter+=1
 
-    first_key = group.loc[group['first']==True]['txt_key']
-    print('key values are: %s - %s'%(name, first_key)) # GF first key needs work
-    print(group)
-    print("\n")
-
+    first_key = group.loc[group['first']==True]['txt_key'].to_numpy()[0]
+    # first_key = ( group.loc[group['first']==True] ).at[0,'txt_key']
+#    print('------|||')
+#    print( type(group) )
+#    print()
+#    print( type(group.loc[group['first']==True])  )
+#    print( group.loc[group['first']==True] )
+#    print( group.loc[group['first']==True]['txt_key'].to_numpy()[0] )
+#    print('------|||')
+#    print('name is:') # GF first key needs work
+#    print(name) # GF first key needs work
+#    print('key value is: %s'%(first_key)) # GF first key needs work
+#    print(group)
+#    print("\n")
+#
     print()
-    first_histos = Hitos(first_key)
+    first_histos = Histos(first_key)
     first_histos.set_infile_name(inFileName)
     first_histos.get_histos()
 
+    print('++ main nun histos: %d'%len(first_histos.histos))
+#    print('++ main histo found called: %s with entries %d'%(first_histos.histos['adc'].GetName(), first_histos.histos['adc'].GetEntries()))
+#     print('++ main histo found called: %s with entries %d'%(first_histos.histos['busycounts'].GetName(), first_histos.histos['busycounts'].GetEntries()))
+    print('++ main nun histos: %d'%len(first_histos.histos))
+
+    first_histos.check_histos()
 
 
 outFile.Close()
