@@ -111,7 +111,8 @@ class HistogramFile(object):
         self.file.cd()
         # self.file.mkdir('ana/0_lay1_-11_-6/')
         self.file.mkdir(dir)
-        TFdir = self.file.GetDirectory(dir);
-        # GFGF this needs work
-        histo.SetDirectory(TFdir)
+        self.file.cd(dir)
+        # TFdir = self.file.GetDirectory(dir)
+        # print('write_histogram TFdir is: %s'%TFdir)
+        # histo.SetDirectory(TFdir)
         histo.Write()
