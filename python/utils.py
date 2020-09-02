@@ -10,15 +10,11 @@ from histo_classes import *
 #      ana/0_lay1_2_0/0_lay1_2_0_busycounts
 hisN='ana/0_lay1_-11_-6/0_lay1_-11_-6_busycounts'
 hisNtwo='ana/0_lay1_-11_-5/0_lay1_-11_-5_busycounts'
-def run_demo(outFile, 
-             # inFileName = '/data/franzoni/ttbar_D49_1120pre1_PU200_eolupdate_qua_20200723_thr0p5_thrbxm12p5_flfalse.root'
-             inFileName = '/eos/home-f/franzoni/www/CMS/HGCSample/SiOptim/2020-08-21-nofold/ttbar_D49_1120pre1_PU200_eolupdate_qua_20200723_thr0p5_thrbxm12p5_flfalse.root'
-         ):
+def run_demo(outFile,
+             inFileName = '/eos/home-f/franzoni/www/CMS/HGCSample/SiOptim/2020-08-21-nofold/ttbar_D49_1120pre1_PU200_eolupdate_qua_20200723_thr0p5_thrbxm12p5_flfalse.root'):
     with HistogramFile( inFileName ) as f:
         hist_1 = f.get_histogram(hisN)
         hist_2 = f.get_histogram(hisNtwo)
-        # print(hist_1.GetName())
-        # print(hist_1.GetEntries())
         # how to write a hitogram to ad different file than it's been red from
         outFile.cd()
         outFile.mkdir('ana/0_lay1_-11_-6/')
@@ -33,6 +29,7 @@ def run_demo(outFile,
         outFile.mkdir('ana/SUM/')
         outFile.cd('ana/SUM/')
         hist_3.Write()
+
 
 
 #
@@ -52,10 +49,12 @@ def rot(waferU, waferV):
     
     return waferU,waferV
 
+
 #
 def rotat(subdet, waferU, waferV):
     return rotate(subdet, waferU, waferV)[0]
         
+
 def rotate(subdet, waferU, waferV):
     ''' 
     chose wether to rotate 
@@ -92,11 +91,13 @@ def isFirstThirdtant(waferU, waferV):
         return True
 
     waferU, waferV  = rot(waferU, waferV)
-    # if wafer is in 1st sextant after rotating by 60deg => it's in 1st thirdant
+    # if wafer is in 1st sextant after rotating by 60deg 
+    # => it's in 1st thirdant
     if isFirstSextant(waferU, waferV):
         return True
 
     return False
+
 
 #
 def isFirstSexORThirdTant(subdet,U,V):
@@ -106,6 +107,7 @@ def isFirstSexORThirdTant(subdet,U,V):
         return isFirstThirdtant(U,V)
     else:
         pass
+
 
 #
 def remapUV(subdet, waferU, waferV):
@@ -135,6 +137,8 @@ def split_key(ll):
     split the root txt keys into indices
     '''
     return map(lambda s: s.split('_'), ll)
+
+
 
 
 import pandas as pd

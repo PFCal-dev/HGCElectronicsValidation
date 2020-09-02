@@ -61,12 +61,10 @@ class Histos(object):
 
 
     def write_histos(self):
-        # print('Histo class named: %s - writing histos '%self.name)
         dir = 'ana/' + self.name +'/'
         # it would be better not to open and close the outout file 
         # for every sensor group... next project ;)
         with HistogramFile( self.out_file, rw='recreate' ) as f:
-            # print('write_histos: about to loop')
             for histo_type in  self.histo_types:
                 f.write_histogram( dir, self.histos[histo_type] )
 
@@ -78,7 +76,8 @@ class Histos(object):
         print('++ check_histos for object %s showing the dic'%self.name)
         print(self.histos)
         for key in self.histos:
-            print('==> check_histos: LOOP LOOP check_histos histo found called: %s with entries %d'%(self.histos[key].GetName(), self.histos[key].GetEntries()))
+            print('==> check_histos: LOOP LOOP check_histos histo found called: %s with entries %d'\\
+                  %(self.histos[key].GetName(), self.histos[key].GetEntries()))
 
 
     def add_histo(self, other):
@@ -129,7 +128,7 @@ class HistogramFile(object):
         """
         Return the histogram identified by name from the file.
         """
-        # The TFile::Get() method returns a pointer to an object stored in a ROOT file.
+
         hist = self.file.Get(name)
         if hist:
             return hist

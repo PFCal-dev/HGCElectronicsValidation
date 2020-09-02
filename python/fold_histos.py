@@ -66,11 +66,6 @@ for name, group in keys_df_groups:
     first_histo.set_infile_name(inFileName)
     first_histo.get_histos()
 
-    # print('++ main nun histos: %d'%len(first_histo.histos))
-    # for key in first_histo.histos:
-    #    print('==> LOOP MAIN check_histos histo found called: %s with entries %d'%(first_histo.histos[key].GetName(), first_histo.histos[key].GetEntries()))
-    # first_histo.check_histos()
-
     # loop on other members of the group and Add() their histogram
     # to the instances of the first (representative) wafer
     # loop over (the other) members of the group, which will be added to the first
@@ -87,9 +82,10 @@ for name, group in keys_df_groups:
 
     first_histo.write_histos()
 
-# outFile.Close()
 
-# logical plan
+
+
+####################### logical plan
 
 # get all directories present in ana
 
