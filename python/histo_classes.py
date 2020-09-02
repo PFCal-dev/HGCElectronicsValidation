@@ -29,6 +29,12 @@ class Histos(object):
         self.out_file    = out_file
         self.consolidate_filename()
 
+
+    def set_histo_types(self,ll):
+        assert type(ll)  == list
+        self.histo_types = ll 
+
+
     def consolidate_filename(self):
         '''
         if filename not specified in constructor

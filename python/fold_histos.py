@@ -69,6 +69,8 @@ for name, group in keys_df_groups:
 
     first_key = first_key_df[0]
     first_histo = Histos(first_key, inFileName, outFileName)
+    # add more types if you wish
+    first_histo.set_histo_types(['busycounts','adc','counts','countsbxm1'])
     first_histo.set_infile_name(inFileName)
     first_histo.get_histos()
 
