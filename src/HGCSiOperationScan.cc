@@ -211,6 +211,12 @@ void HGCSiOperationScan::endJob()
       std::vector< std::pair<double,double> > cellXYs(layerCellXYColl_[layKey][waferKey]);
       std::vector< int> cellROCs(layerCellROCColl_[layKey][waferKey]);
 
+      if(cellUVs.size()==0) {
+        std::cout << "Missing (u,v)=(" << waferKey.first << "," << waferKey.second << ") " 
+                  << " " << subdet << " " << layKey.second << std::endl;
+        continue;
+      }
+      
       //fill wafer header
       t_section        = sdcode;
       t_layer          = layKey.second;
@@ -257,10 +263,16 @@ void HGCSiOperationScan::endJob()
       t_minf     = TMath::MinElement<float>(t_npads,t_padf);
       t_medf     = TMath::Median<float>    (t_npads,t_padf);
       t_maxf     = TMath::MaxElement<float>(t_npads,t_padf);
-      std::sort(t_padsn,t_padsn+t_npads);
+
       t_minsn    = TMath::MinElement<float>(t_npads,t_padsn);
+     
+      //for the 10% quantile we need to order the pads
+      //use another vector in order not to mess up with the one which is going to be stored
+      std::vector<float> ordered_t_padsn(t_padsn,t_padsn+t_npads);
+      std::sort(ordered_t_padsn.begin(),ordered_t_padsn.begin()+t_npads);      
       size_t iq    = TMath::Floor(0.1*t_npads);
-      t_q10sn    = t_padsn[iq];
+      t_q10sn    = ordered_t_padsn[iq];
+
       t_medsn    = TMath::Median<float>(t_npads,t_padsn);
       t_meds     = TMath::Median<float>(t_npads,t_pads);
       t_medn     = TMath::Median<float>(t_npads,t_padn);        
