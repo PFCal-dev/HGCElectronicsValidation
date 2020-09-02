@@ -78,7 +78,8 @@ for name, group in keys_df_groups:
     
     first_key = group.loc[group['first']==True]['txt_key'].to_numpy()[0]   # extract the actul element
     print()
-    first_histo = Histos(first_key)
+    # first_histo = Histos(first_key, inFileName, 'puppa.root')
+    first_histo = Histos(first_key, inFileName, )
     first_histo.set_infile_name(inFileName)
     first_histo.get_histos()
 
@@ -92,8 +93,9 @@ for name, group in keys_df_groups:
     # to the instances of the first (representative) wafer
     for other_key in group.loc[group['first']==False]['txt_key']:
         print('other_key is: %s'%other_key)
-        other_histo = Histos(other_key)
-        other_histo.set_infile_name(inFileName)
+        # other_histo = Histos(other_key, inFileName, 'puppa.root')
+        other_histo = Histos(other_key, inFileName, )
+        # other_histo.set_infile_name(inFileName)
         other_histo.get_histos()
         first_histo.add_histo(other_histo)
 
