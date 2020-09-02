@@ -9,99 +9,85 @@ from histo_classes import *
 # cd   /afs/cern.ch/user/f/franzoni/work/CMSSW_11_2_0_pre3_afterTalk2/src/UserCode/HGCElectronicsValidation/python; esr ; python fold_histos.py /eos/home-f/franzoni/www/CMS/HGCSample/SiOptim/2020-08-21-nofold/ttbar_D49_1120pre1_PU200_eolupdate_qua_20200723_thr0p5_thrbxm12p5_flfalse.root  rrrr.root
 
 
-if len( sys . argv ) != 3:
-    print('USAGE : %s <input file > <output file >'%( sys . argv [0]))
+if len( sys . argv ) < 2:
+    print('USAGE : %s <input file > [ <output file > ]'%( sys . argv [0]))
     sys . exit (1)
 
 inFileName  = sys . argv [1]
-outFileName = sys . argv [2]
-print (" Reading from ", inFileName , "and writing to", outFileName)
-
+if len (sys . argv) == 2:
+    outFileName = None
+else:
+    outFileName = sys . argv [2]
+print (" Reading from: %s\n writing to: %s"%(inFileName, outFileName))
 
 
 # works
 inFile = ROOT . TFile . Open ( inFileName ," READ")
 inFile.cd("ana;1")
-
-
 # magic to get all directories
 keyList = inFile.GetKeyNames("ana")
-print "\nKeys in file:", len(keyList)
-print("\nexample of one key:", keyList[0])
-print("example of one key:", keyList[-1],'\n')
 
 
-# print "\nKeys in file:", split_key(keyList)
+# cast the text keys into a dataframe, with additional columns for later operations
 keys_df = keys_to_df(keyList)
 
-print "\ndf head:\n", keys_df.head()
-print "\ndf tail:\n", keys_df.tail()
+# print "\ndf head:\n", keys_df.head()
+# print "\ndf tail:\n", keys_df.tail()
 print('\n\n Keys in file:', len(keyList), keys_df.shape)
 
-# print('\n\n types',keys_df.dtypes)
-
-print('\n\n Making groups: \n\n')
+# a group is formed by all wafers which will be folded together,
+# with one representative element which is the only one in the first sextant (EE) / thirdtant (HE)
+print('\n\n Making groups which will be folded together:... ')
 keys_df_groups = keys_df.groupby( ['det','lay','U_rot','V_rot'] )
-
-# see the groups
-# print_groups(keys_df_groups)
-
-# get all key sets defining one group
-# print(keys_df_groups.groups)
-print( keys_df_groups.get_group( (0, 11, 6, 0) ))
-print( type(keys_df_groups.get_group( (0, 11, 6, 0) ) ) )
-
-print( keys_df_groups.get_group( (1, 5, 8, 7)  ))
-print()
-print( keys_df_groups.get_group( (1, 5, 8, 7)  )['txt_key'])
-print( type(keys_df_groups.get_group( (1,5, 8, 7)  )['txt_key']) )
-
-#keys_df_groups_kk = keys_df_groups.keys
-print( len(keys_df_groups.keys)  )
-
-print()
-print()
-
-outFile = ROOT.TFile.Open(outFileName, 'recreate')
-# run_demo( outFile )
+num_groups = len(keys_df_groups)
+print('  ... %d  groups formed\n\n'%num_groups)
 
 
-
-counter=0
-
+counter=-1
 # loop over groups of wavers; members of a group will be folded together
 for name, group in keys_df_groups:
-    print('\n\n\n\n')
-    if counter==3:
-        break
+
     counter+=1
-    
-    first_key = group.loc[group['first']==True]['txt_key'].to_numpy()[0]   # extract the actul element
-    print()
-    # first_histo = Histos(first_key, inFileName, 'puppa.root')
-    first_histo = Histos(first_key, inFileName, )
+    if counter%100 ==0:
+        print('\n %d groups foled out of %d'%(counter,num_groups))
+
+    if group.size == 0:
+        print('group: %s has 0 size... strange; continuing'%name)
+        continue
+
+    # first is the wafer within the group (located in the first sextant/thirdtant ) over which the other will be Add()-ed
+    first_key_df = group.loc[group['first']==True]['txt_key'].to_numpy()  # extract the actul element
+    if first_key_df.size ==0:
+        print('group: %s has 0 elements within 1st sextant/third-tant... strange; continuing'%name)
+        continue
+
+    first_key = first_key_df[0]
+    first_histo = Histos(first_key, inFileName, outFileName)
     first_histo.set_infile_name(inFileName)
     first_histo.get_histos()
 
-    print('++ main nun histos: %d'%len(first_histo.histos))
-    # loop over (the other) members of the group
-    for key in first_histo.histos:
-        print('==> LOOP MAIN check_histos histo found called: %s with entries %d'%(first_histo.histos[key].GetName(), first_histo.histos[key].GetEntries()))
+    # print('++ main nun histos: %d'%len(first_histo.histos))
+    # for key in first_histo.histos:
+    #    print('==> LOOP MAIN check_histos histo found called: %s with entries %d'%(first_histo.histos[key].GetName(), first_histo.histos[key].GetEntries()))
     # first_histo.check_histos()
 
     # loop on other members of the group and Add() their histogram
     # to the instances of the first (representative) wafer
-    for other_key in group.loc[group['first']==False]['txt_key']:
-        print('other_key is: %s'%other_key)
-        # other_histo = Histos(other_key, inFileName, 'puppa.root')
+    # loop over (the other) members of the group, which will be added to the first
+    other_histos_df = group.loc[group['first']==False]['txt_key']
+    if other_histos_df.size ==0:
+        print('group: %s has 0 elements outside 1st sextant/third-tant... strange; continuing'%name)
+        continue
+
+    for other_key in other_histos_df:
+        # print('other_key is: %s'%other_key)
         other_histo = Histos(other_key, inFileName, )
-        # other_histo.set_infile_name(inFileName)
         other_histo.get_histos()
         first_histo.add_histo(other_histo)
 
     first_histo.write_histos()
 
-outFile.Close()
+# outFile.Close()
 
 # logical plan
 
@@ -112,7 +98,6 @@ outFile.Close()
 ## meeds a tough class handling all this
 # find a way of loading all histograms within one folder/WAFER into a class
 
-# find way of adding histograms of two wafers
+# find way of adding hroups = len(keys_df_groups.keys)istograms of two wafers
 
 # write everytying out
-1

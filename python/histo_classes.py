@@ -38,20 +38,15 @@ class Histos(object):
             tmp1 = self.in_file.split('/')[-1].split('.')
             tmp2 = tmp1[0:-1] + ['folded'] + tmp1[-1:]
             tmp3 = './' + '.'.join(tmp2)
-            print('*composing the folded name: *')
-            print(tmp1)
-            print(tmp2)
-            print(tmp3)
-            print('*--------> DONE composing the folded name: *')
             self.out_file = tmp3
 
     def set_infile_name(self,n):
         self.in_file = n
-        print('\n\nHitos: in_file set to %s'%self.in_file)
+        # print('\n\nHitos: in_file set to %s'%self.in_file)
 
 
     def get_histos(self):
-        print('Histo class named: %s - loading histos '%self.name)
+        # print('Histo class named: %s - loading histos '%self.name)
         # some root magic to make sure that cloning persists the histos in the dictionary
         # https://root-forum.cern.ch/t/pyroot-typecast-histograms-stored-in-dict/24744/11
         ROOT.TH1.AddDirectory(0) 
@@ -66,12 +61,10 @@ class Histos(object):
 
 
     def write_histos(self):
-        print('Histo class named: %s - writing histos '%self.name)
-        # TAKE CARE OF UI for filename
-        # xx = '/afs/cern.ch/user/f/franzoni/work/CMSSW_11_2_0_pre3_afterTalk2/src/UserCode/HGCElectronicsValidation/python/out.root'
+        # print('Histo class named: %s - writing histos '%self.name)
         dir = 'ana/' + self.name +'/'
-        # it would be better not to open and close the outout file for every sensor group... next project ;)
-        print('^^^^^ %s'%self.out_file)
+        # it would be better not to open and close the outout file 
+        # for every sensor group... next project ;)
         with HistogramFile( self.out_file, rw='recreate' ) as f:
             # print('write_histos: about to loop')
             for histo_type in  self.histo_types:
@@ -94,12 +87,17 @@ class Histos(object):
         and add its histograms to those of the current object
         type-by-type
         '''
-        print('accessing other %s from self %s'%(other.name,self.name) )
+        # print('accessing other %s from self %s'%(other.name,self.name) )
 
         for histo_type in self.histo_types:
-            print('==> add_histo BEF: I am class %s, histo called %s with entries %d'%(self.name,self.histos[histo_type].GetName(), self.histos[histo_type].GetEntries()))
+
+            one_bins   = self.histos[histo_type].GetNbinsX()
+            other_bins = other.histos[histo_type].GetNbinsX()
+            if (one_bins != other_bins):
+                continue # we don't worry about the partials which have different number of bins
+
             self.histos[histo_type].Add(other.histos[histo_type])
-            print('==> add_histo AFT: I am class %s, histo called %s with entries %d'%(self.name,self.histos[histo_type].GetName(), self.histos[histo_type].GetEntries()))
+
 
 
 
