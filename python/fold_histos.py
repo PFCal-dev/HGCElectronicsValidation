@@ -51,14 +51,19 @@ for name, group in keys_df_groups:
     if counter%100 ==0:
         print('\n %d groups foled out of %d'%(counter,num_groups))
 
+        #    if counter < 1100 or counter > 1120:
+        # continue
+
     if group.size == 0:
         print('group: %s has 0 size... strange; continuing'%name)
         continue
 
-    # first is the wafer within the group (located in the first sextant/thirdtant ) over which the other will be Add()-ed
+    # first is the wafer within the group (located in the first sextant/thirdtant ) 
+    # over which the other will be Add()-ed
     first_key_df = group.loc[group['first']==True]['txt_key'].to_numpy()  # extract the actul element
     if first_key_df.size ==0:
-        print('group: %s has 0 elements within 1st sextant/third-tant... strange; continuing'%name)
+        print('\tfound one group %s with 0 wafer within 1st sextant/third-tant... strange; continuing'%str(name))
+
         continue
 
     first_key = first_key_df[0]
@@ -81,7 +86,7 @@ for name, group in keys_df_groups:
         first_histo.add_histo(other_histo)
 
     first_histo.write_histos()
-
+     # print('BACK to MAIN - after calling write_histos')
 
 
 

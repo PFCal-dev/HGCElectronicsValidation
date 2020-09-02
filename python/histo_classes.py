@@ -61,12 +61,16 @@ class Histos(object):
 
 
     def write_histos(self):
+        # print('\n\nentering TOP')
         dir = 'ana/' + self.name +'/'
         # it would be better not to open and close the outout file 
         # for every sensor group... next project ;)
-        with HistogramFile( self.out_file, rw='recreate' ) as f:
+        # print('BEF looping TOP')
+        with HistogramFile( self.out_file, rw='update' ) as f:
             for histo_type in  self.histo_types:
+                # print('\t TOP loop with: %s'%histo_type)
                 f.write_histogram( dir, self.histos[histo_type] )
+                # print('\t TOP after write_histogram -  with: %s'%histo_type)
 
     
     def check_histos(self):
@@ -76,8 +80,7 @@ class Histos(object):
         print('++ check_histos for object %s showing the dic'%self.name)
         print(self.histos)
         for key in self.histos:
-            print('==> check_histos: LOOP LOOP check_histos histo found called: %s with entries %d'\\
-                  %(self.histos[key].GetName(), self.histos[key].GetEntries()))
+            print('==> check_histos: LOOP LOOP check_histos histo found called: %s with entries %d'%(self.histos[key].GetName(), self.histos[key].GetEntries()))
 
 
     def add_histo(self, other):
@@ -121,6 +124,8 @@ class HistogramFile(object):
 
 
     def __exit__(self, exception_type, exception_value, traceback):
+        # if (self.rw in ['recreate','RECREATE','write',] ):
+            # self.file.Write()
         self.file.Close()
 
 
@@ -140,8 +145,14 @@ class HistogramFile(object):
         """
         write the histogram identified by name to the file.
         """
-        assert self.rw in ['recreate','RECREATE']
+        assert self.rw in ['update']#'recreate','RECREATE','write',]
+        # print('entering INNER')
         self.file.cd()
         self.file.mkdir(dir)
+        # print('AFT mkdir INNER')
         self.file.cd(dir)
+        # print('AFT cd INNER')
         histo.Write()
+        # self.file.Write()
+        # print('AFT write INNER')
+        
