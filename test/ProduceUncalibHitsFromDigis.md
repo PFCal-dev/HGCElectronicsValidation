@@ -1,6 +1,10 @@
 ## Deconvoluting radiation effects and gain setting at ROC level
 
-The following gathers some instructions to deconvolute the radiation effects simulated at DIGI level.
+The following intructions gather info and code snippets to handle the radiation-induced effects taken into account by the HGCAL digitisation in producing DIGI collections,
+in order to produce derived collections siuch as ```recHits``` or ```trigger primitives```.
+One can find in [this talk](https://indico.cern.ch/event/933714/contributions/3924245/) a comprehensive description of the model used to emulate the electronics;
+in a nutshell, these instructions give giudance on how to get hold of the radiation scenario used in the DIGI step, and how to use it to present the amplitudes in units of MIP, taking consistenly into account the electronics gain.
+
 It can be used to recompute the MIP from a digi correcting for the loss of charge collection efficiency and for the choice of the gain in the ROC.
 The examples below are given for CE-E only.
 
