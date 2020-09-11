@@ -7,6 +7,10 @@ outdir=${4}
 fold=${5}
 adcThrMIP=${6}
 adcThrMIPbxm1=${7}
+geom=Extended2026D49
+if [ ! -z "${8}" ]; then
+    geom=${8}
+fi
 
 name=`basename ${input}`
 
@@ -19,7 +23,8 @@ cmsRun $cmssw/src/UserCode/HGCElectronicsValidation/test/hgcoccupancyanalysis_cf
     output=plots.root \
     fold=${fold} \
     adcThrMIP=${adcThrMIP} adcThrMIPbxm1=${adcThrMIPbxm1} \
-    maxEvents=${maxEvents} 
+    maxEvents=${maxEvents} \
+    geometry=${geom}
 
 mkdir -p $outdir
 thrbxm1=${adcThrMIPbxm1/./p}

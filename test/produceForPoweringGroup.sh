@@ -4,8 +4,8 @@ scenarios=(
     3iab_120-600V_200-300-600V
     #3iab_120-600V_200-300-800V
     #3iab_120-800V_200-300-800V
-    4iab_120-600V_200-300-600V
-    #4iab_120-600V_200-300-800V
+    #4iab_120-600V_200-300-600V
+    4iab_120-600V_200-300-800V
     #4iab_120-800V_200-300-800V
 )
 
@@ -14,7 +14,8 @@ Extended2026D49
 Extended2026D62
 )
 
-uvmap=geomnew_corrected_withmult_F_rotations_v11.1.txt
+#uvmap=geomnew_corrected_withmult_F_rotations_v11.1.txt
+uvmap=geomnew_corrected.txt
 #uvmap=ld2hd_geomnew_corrected_360.txt
 #uvmap=geomnew_corrected_360.txt
 

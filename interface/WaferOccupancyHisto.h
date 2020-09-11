@@ -72,7 +72,10 @@ namespace HGCalWafer{
       avgGain_  += siop.core.gain;
       avgThr_   += siop.core.thrADC;
       avgS_     += siop.mipfC;
-      avgSN_    += siop.mipfC/siop.core.noise;
+      if(siop.core.noise>0)
+        avgSN_    += siop.mipfC/siop.core.noise;
+      else
+        avgSN_  += 0.;
       ncells_++; 
     }
 
