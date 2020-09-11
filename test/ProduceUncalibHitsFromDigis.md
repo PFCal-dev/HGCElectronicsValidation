@@ -1,4 +1,4 @@
-## Deconvoluting radiation effects
+## Deconvoluting radiation effects and gain setting at ROC level
 
 The following gathers some instructions to deconvolute the radiation effects simulated at DIGI level.
 It can be used to recompute the MIP from a digi correcting for the loss of charge collection efficiency and for the choice of the gain in the ROC.
