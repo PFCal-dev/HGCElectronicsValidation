@@ -70,7 +70,8 @@ for(auto &hit : *digiColl)
       double rawADC( double(hit.sample(itSample).data()) );
 
 
-      //get the MIP position of this detId
+      //get the operation characterisics of this detId
+      //and the nubmer of ADC counts corresponding to a MIP
       HGCalSiNoiseMap::SiCellOpCharacteristics siop=rad_map->getSiCellOpCharacteristics(detId);
       double mipADC=double(siop.mipADC);
 
