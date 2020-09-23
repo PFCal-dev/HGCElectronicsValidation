@@ -8,18 +8,22 @@ import sys
 import numpy as np
 
 SIOPCOLS=['waferPreChoice','npads','waferSN','waferGain','waferThr']
-DATACOLS=['counts',     'countslzs',     'countstzs',
-          'toacounts',  'toacountslzs',  'toacountstzs',
-          'countsbxm1', 'countsbxm1lzs', 'countsbxm1tzs',
+DATACOLS=['counts',     'countslzs',     'countsmzs',    'countstzs',
+          'toacounts',  'toacountslzs',  'toacountsmzs', 'toacountstzs',
+          'countsbxm1', 'countsbxm1lzs', 'countsbxm1mzs', 'countsbxm1tzs', 
+          'countsbxm1tight',    'countsbxm1notight',
+          'countsbxm1tightlzs', 'countsbxm1notightlzs',
+          'countsbxm1tightmzs', 'countsbxm1notightmzs',
+          'countsbxm1tighttzs', 'countsbxm1notighttzs',
           'busycounts']
-GEOMCOLS=['waferX','waferY','waferShape','waferRot','rho','phi']
+GEOMCOLS=['waferX','waferY','waferShape','waferRot','rho','phi','waferThickness']
 
 def parseWaferGeometry(geomFile='data/geomnew_corrected_withmult_F_rotations_v11.1.txt'):
 
     """reads the ascii geometry file and converts it to a DataFrame with the geometry information"""
 
     df = pd.read_csv(geomFile, names=['layer','waferShape','waferThickness','waferX','waferY','waferRot','waferU','waferV'],skiprows=11,delim_whitespace=True)
-    df=df[['layer','waferU','waferV','waferX','waferY','waferShape','waferRot']]
+    df=df[['layer','waferThickness','waferU','waferV','waferX','waferY','waferShape','waferRot']]
     df['rho']=np.sqrt(df['waferX']**2+df['waferY']**2)
     df['phi']=np.arctan2(df['waferY'],df['waferX'])*180./np.pi;
     return df
@@ -138,7 +142,7 @@ def main():
 
     #get the sensor position map/wafer geometry etc
     cmssw=os.environ['CMSSW_BASE']
-    modulePos = parseWaferGeometry(geomFile='%s/src/UserCode/HGCElectronicsValidation/data/geomnew_corrected_withmult_F_rotations_v11.1.txt'%cmssw)
+    modulePos = parseWaferGeometry(geomFile='%s/src/UserCode/HGCElectronicsValidation/data/geomnew_corrected.txt'%cmssw)
 
     url=sys.argv[1]
 
@@ -165,7 +169,14 @@ def main():
     for c in columns:
         if c!='waferShape':
             result[c]=pd.to_numeric(result[c])
-            
+
+    result.rename(columns={'waferPreChoice':'waferPreChoiceCMSSW',
+                           'waferThickness':'waferPreChoice'},
+                  inplace=True)
+
+    result.replace({'waferPreChoice':{120:0,200:1,300:2}},
+                   inplace=True)
+
     result.to_hdf(url.replace('.root','.h5'), 
                   key='data', 
                   mode='w')

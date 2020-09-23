@@ -11,6 +11,10 @@ geom=Extended2026D49
 if [ ! -z "${8}" ]; then
     geom=${8}
 fi
+scaleByDoseFactor=1.0
+if [ ! -z "${9}" ]; then
+    scaleByDoseFactor=${9}
+fi
 
 name=`basename ${input}`
 
@@ -24,7 +28,8 @@ cmsRun $cmssw/src/UserCode/HGCElectronicsValidation/test/hgcoccupancyanalysis_cf
     fold=${fold} \
     adcThrMIP=${adcThrMIP} adcThrMIPbxm1=${adcThrMIPbxm1} \
     maxEvents=${maxEvents} \
-    geometry=${geom}
+    geometry=${geom} \
+    scaleByDoseFactor=${scaleByDoseFactor}
 
 mkdir -p $outdir
 thrbxm1=${adcThrMIPbxm1/./p}

@@ -22,7 +22,7 @@ namespace HGCalWafer{
   struct HitInfo_t {
     uint32_t adc,adcbxm1;
     bool isTOA,isTDC,isBusy;
-    bool passThr,passLZSThr,passTZSThr,passThrBxm1;
+    bool passThr,passLZSThr,passMZSThr,passTZSThr,passThrBxm1,passTightThrBxm1;
   };
   
 
@@ -50,9 +50,10 @@ namespace HGCalWafer{
       avgS_(0.),
       avgSN_(0.)
         { 
-          vars_.push_back("");     //nominal threshold
-          vars_.push_back("lzs");  //loose zero suppression
-          vars_.push_back("tzs");  //tight zero suppression
+          vars_.push_back("");            //nominal threshold
+          vars_.push_back("lzs");         //loose zero suppression
+          vars_.push_back("mzs");         //loose zero suppression
+          vars_.push_back("tzs");         //tight zero suppression
 
           int subDet=std::get<0>(key);
           int layer=std::get<1>(key);
@@ -118,22 +119,27 @@ namespace HGCalWafer{
       for(auto &v : vars_) {
         
         //adc spectra
-        histos_["adcext"+v]           = mySubDir.make<TH1F>(myID_+"_adcext"+v, ";q [ADC];",100,0,500);    
-        histos_["adc"+v]              = mySubDir.make<TH1F>(myID_+"_adc"+v,";q [ADC];",100,0,100);
-        histos_["adcbxm1"+v]          = mySubDir.make<TH1F>(myID_+"_adcbxm1"+v,";q [ADC];",100,0,100);
-        histos_["rejadc"+v]           = mySubDir.make<TH1F>(myID_+"_rejadc"+v,";q [ADC];",50,0,50);
-        histos_["rejadcbxm1"+v]       = mySubDir.make<TH1F>(myID_+"_rejadcbxm1"+v,";q [ADC];",50,0,50);
-        histos2D_["adcbxm1_vs_adc"+v] = mySubDir.make<TH2F>(myID_+"_adcbxm1_vs_adc"+v,";q_{BX-1} [ADC];q_{BX} [ADC];",50,0,50,50,0,50);
+        histos_["adcext"+v]              = mySubDir.make<TH1F>(myID_+"_adcext"+v, ";q [ADC];",100,0,500);    
+        histos_["adcexttoa"+v]           = mySubDir.make<TH1F>(myID_+"_adcexttoa"+v, ";q [ADC];",100,0,500);    
+        histos_["adc"+v]                 = mySubDir.make<TH1F>(myID_+"_adc"+v,";q [ADC];",100,0,100);
+        histos_["adcbxm1"+v]             = mySubDir.make<TH1F>(myID_+"_adcbxm1"+v,";q [ADC];",100,0,100);
+        histos_["rejadc"+v]              = mySubDir.make<TH1F>(myID_+"_rejadc"+v,";q [ADC];",50,0,50);
+        histos_["rejadcbxm1"+v]          = mySubDir.make<TH1F>(myID_+"_rejadcbxm1"+v,";q [ADC];",50,0,50);
+        histos2D_["adcbxm1_vs_adc"+v]    = mySubDir.make<TH2F>(myID_+"_adcbxm1_vs_adc"+v,";q_{BX-1} [ADC];q_{BX} [ADC];",50,0,50,50,0,50);
 
         //counters
         adcCounts_[v]=0;
         adcCounts_[v+"bxm1"]=0;
+        adcCounts_[v+"bxm1tight"]=0;
+        adcCounts_[v+"bxm1notight"]=0;
         toaCounts_[v]=0;
         tdcCounts_[v]=0;
-        histos_["counts"+v]     = mySubDir.make<TH1F>(myID_+"_counts"+v,";Cells;",ncells_+1,0,ncells_+1);      
-        histos_["countsbxm1"+v] = mySubDir.make<TH1F>(myID_+"_countsbxm1"+v,";Cells;",ncells_+1,0,ncells_+1);      
-        histos_["toacounts"+v]  = mySubDir.make<TH1F>(myID_+"_toacounts"+v,";Cells in TOA;",ncells_+1,0,ncells_+1);
-        histos_["tdccounts"+v]  = mySubDir.make<TH1F>(myID_+"_tdccounts"+v,";Cells in TDC;",ncells_+1,0,ncells_+1);
+        histos_["counts"+v]          = mySubDir.make<TH1F>(myID_+"_counts"+v,";Cells;",ncells_+1,0,ncells_+1);      
+        histos_["countsbxm1"+v]      = mySubDir.make<TH1F>(myID_+"_countsbxm1"+v,";Cells;",ncells_+1,0,ncells_+1);      
+        histos_["countsbxm1notight"+v] = mySubDir.make<TH1F>(myID_+"_countsbxm1notight"+v,";Cells;",ncells_+1,0,ncells_+1);      
+        histos_["countsbxm1tight"+v]   = mySubDir.make<TH1F>(myID_+"_countsbxm1tight"+v,";Cells;",ncells_+1,0,ncells_+1);      
+        histos_["toacounts"+v]       = mySubDir.make<TH1F>(myID_+"_toacounts"+v,";Cells in TOA;",ncells_+1,0,ncells_+1);
+        histos_["tdccounts"+v]       = mySubDir.make<TH1F>(myID_+"_tdccounts"+v,";Cells in TDC;",ncells_+1,0,ncells_+1);
       }
         
       for(auto h : histos_) h.second->Sumw2();
@@ -157,31 +163,49 @@ namespace HGCalWafer{
 
       for(auto &v : vars_) {
 
+        //in-time bunch threshold
         bool passThr(true);
-        if(v==""    && !h.passThr)    passThr=false;
-        if(v=="lzs" && !h.passLZSThr) passThr=false;
-        if(v=="tzs" && !h.passTZSThr) passThr=false;
+        if(v==""             && !h.passThr)    passThr=false;
+        if(v.Contains("lzs") && !h.passLZSThr) passThr=false;
+        if(v.Contains("mzs") && !h.passMZSThr) passThr=false;
+        if(v.Contains("tzs") && !h.passTZSThr) passThr=false;
 
         //monitor rejected hits
+        uint32_t adc(h.adc);
         if(!passThr){
-          histos_["rejadc"+v]->Fill(h.adc);
-          histos_["rejadcbxm1"+v]->Fill(h.adc);
+          histos_["rejadc"+v]->Fill(adc);
+          histos_["rejadcbxm1"+v]->Fill(h.adcbxm1);
           continue;
         }
 
         //adc spectra
         if(!h.isTDC) {
-          histos_["adcext"+v]->Fill(h.adc);
-          histos_["adc"+v]->Fill(h.adc);
+          histos_["adcext"+v]->Fill(adc);
+          if(h.isTOA) histos_["adcexttoa"+v]->Fill(adc);
+          histos_["adc"+v]->Fill(adc);
           histos_["adcbxm1"+v]->Fill(h.adcbxm1);
-          histos2D_["adcbxm1_vs_adc"+v]->Fill(h.adcbxm1,h.adc);
+          histos2D_["adcbxm1_vs_adc"+v]->Fill(h.adcbxm1,adc);
         }
 
         //counters
         adcCounts_[v]++;
-        if(h.passThrBxm1) adcCounts_[v+"bxm1"]++;
+
         if(h.isTOA) toaCounts_[v]++;
         if(h.isTDC) tdcCounts_[v]++;
+
+        //energy threshold for bx-1
+        if(h.passThrBxm1) {
+          adcCounts_[v+"bxm1"]++;
+        }
+        
+        //toa-based threshold for bx-1
+        if(h.passTightThrBxm1) {
+          adcCounts_[v+"bxm1tight"]++;
+
+        }
+        else {
+          adcCounts_[v+"bxm1notight"]++;
+        }
       }
     }
 
@@ -198,6 +222,8 @@ namespace HGCalWafer{
       for(auto &v : vars_) {
         histos_["counts"+v]->Fill(adcCounts_[v]);
         histos_["countsbxm1"+v]->Fill(adcCounts_[v+"bxm1"]);
+        histos_["countsbxm1tight"+v]->Fill(adcCounts_[v+"bxm1tight"]);
+        histos_["countsbxm1notight"+v]->Fill(adcCounts_[v+"bxm1notight"]);
         histos_["toacounts"+v]->Fill(toaCounts_[v]);
         histos_["tdccounts"+v]->Fill(tdcCounts_[v]);
       }    
@@ -213,6 +239,8 @@ namespace HGCalWafer{
       for(auto &v : vars_) {
         adcCounts_[v]=0;
         adcCounts_[v+"bxm1"]=0;
+        adcCounts_[v+"bxm1tight"]=0;
+        adcCounts_[v+"bxm1notight"]=0;
         toaCounts_[v]=0;
         tdcCounts_[v]=0;
       }

@@ -53,17 +53,17 @@ HGCOccupancyAnalyzer::HGCOccupancyAnalyzer( const edm::ParameterSet &iConfig ) :
   edm::Service<TFileService> fs;
 
   data_ = fs->make<TTree>("data","data");
-  data_->Branch("section",        &t_section,        "section/I");
-  data_->Branch("layer",          &t_layer,          "layer/I");
-  data_->Branch("waferU",         &t_waferU,         "waferU/I");
-  data_->Branch("waferV",         &t_waferV,         "waferV/I");
-  data_->Branch("waferPreChoice", &t_waferPreChoice, "waferPreChoice/I");
-  data_->Branch("npads",          &t_npads,          "npads/I");
-  data_->Branch("waferNoise",     &t_waferNoise,     "waferNoise/F");
-  data_->Branch("waferGain",      &t_waferGain,      "waferGain/F");
-  data_->Branch("waferThr",       &t_waferThr,       "waferThr/F");
-  data_->Branch("waferS",         &t_waferS,         "waferS/F");
-  data_->Branch("waferSN",        &t_waferSN,        "waferSN/F");
+  data_->Branch("section",             &t_section,             "section/I");
+  data_->Branch("layer",               &t_layer,               "layer/I");
+  data_->Branch("waferU",              &t_waferU,              "waferU/I");
+  data_->Branch("waferV",              &t_waferV,              "waferV/I");
+  data_->Branch("waferPreChoice",      &t_waferPreChoice,      "waferPreChoice/I");
+  data_->Branch("npads",               &t_npads,               "npads/I");
+  data_->Branch("waferNoise",          &t_waferNoise,          "waferNoise/F");
+  data_->Branch("waferGain",           &t_waferGain,           "waferGain/F");
+  data_->Branch("waferThr",            &t_waferThr,            "waferThr/F");
+  data_->Branch("waferS",              &t_waferS,              "waferS/F");
+  data_->Branch("waferSN",             &t_waferSN,             "waferSN/F");
 
   //some global histograms
   cellCount_=fs->make<TH1F>("cellcount",";Layer;Number of cells/layer",50,0.5,50.5);
@@ -80,6 +80,7 @@ HGCOccupancyAnalyzer::HGCOccupancyAnalyzer( const edm::ParameterSet &iConfig ) :
     noiseMaps_[subdet]=new HGCalSiNoiseMap;
     noiseMaps_[subdet]->setDoseMap(iConfig.getParameter<std::string>("doseMap"),
                                    iConfig.getParameter<uint32_t>("scaleByDoseAlgo"));
+    noiseMaps_[subdet]->setFluenceScaleFactor(iConfig.getParameter<double>("scaleByDoseFactor"));
     noiseMaps_[subdet]->setIleakParam(iConfig.getParameter<edm::ParameterSet>("ileakParam").template getParameter<std::vector<double>>("ileakParam"));
     noiseMaps_[subdet]->setCceParam(iConfig.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamFine"),
                                     iConfig.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamThin"),
@@ -105,7 +106,7 @@ void HGCOccupancyAnalyzer::endJob()
     t_waferV  = std::get<3>(it.first);      
     t_npads   = it.second->getCells();
     t_waferPreChoice = it.second->getWaferType();
-
+    
     std::vector<float> siop=it.second->getAveragedOpCharacteristics();
     t_waferNoise=siop[0];
     t_waferGain=siop[1];
@@ -330,10 +331,12 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
       bool isTDC( hit.sample(itSample).mode() );
       bool isBusy( isTDC && rawData==0 );
       uint32_t thr( std::floor(mipADC*adcThrMIP_) );
+      bool passThr(isTDC || rawData>thr);
 
       //BX-1 info
       uint32_t rawDatabxm1(hit.sample(itSample-1).data() );
       bool isTDCbxm1( hit.sample(itSample-1).mode() );
+      //bool isTOAbxm1( hit.sample(itSample-1).getToAValid() );
 
       //ZS algos
       uint32_t lbshift(4), tbshift(3);  //fixed gain has ~20% leakage
@@ -341,26 +344,35 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
       if(siop.core.gain==HGCalSiNoiseMap::q160fC)  { lbshift=4; tbshift=3; }
       if(siop.core.gain==HGCalSiNoiseMap::q320fC)  { lbshift=5; tbshift=4; }
       uint32_t lzsCorr( (rawDatabxm1>>lbshift) ),tzsCorr( (rawDatabxm1>>tbshift) );
+      uint32_t mzsCorr( (rawDatabxm1>>lbshift) + (rawDatabxm1>>(lbshift+1)) + (rawDatabxm1>>(lbshift+2)) ); 
       bool passLZS=( isTDC || rawData > lzsCorr+thr );
+      bool passMZS=( isTDC || rawData > mzsCorr+thr );
       bool passTZS=( isTDC || rawData > tzsCorr+thr );
       
-      //threhsold to keep BX-1 data in the event (if negative use gain-dependent threshsold)
-      double minMIPsInBXm1(adcThrMIPbxm1_);
+      //fixed threhsold to keep BX-1 data in the event (if negative use the same as BX)
+      //in both cases correct by leakage expected from gain choice
+      float leak(0.20);
+      if(siop.core.gain==HGCalSiNoiseMap::q80fC)   leak=0.066;
+      if(siop.core.gain==HGCalSiNoiseMap::q160fC)  leak=0.153;
+      if(siop.core.gain==HGCalSiNoiseMap::q320fC)  leak=0.096;
+      uint32_t thrbxm1( std::floor(adcThrMIPbxm1_*mipADC/leak) );
       if(adcThrMIPbxm1_<0) {
-        adcThrMIPbxm1_=adcThrMIP_/0.20;
-        if(siop.core.gain==HGCalSiNoiseMap::q80fC)   minMIPsInBXm1=adcThrMIP_/0.066;
-        if(siop.core.gain==HGCalSiNoiseMap::q160fC)  minMIPsInBXm1=adcThrMIP_/0.153;
-        if(siop.core.gain==HGCalSiNoiseMap::q320fC)  minMIPsInBXm1=adcThrMIP_/0.096;
+        thrbxm1=std::floor(adcThrMIP_*mipADC/leak);
       }
-      uint32_t thrbxm1( std::floor(mipADC*minMIPsInBXm1) );      
-    
+      bool passThrBxm1(isTDCbxm1 || rawDatabxm1>thrbxm1);
+
+      //alternative BX-1: if  after leakage <2 MIP send 1 bit, otherwise send full word
+      bool passTightThrBxm1(rawDatabxm1 > std::floor(2.0*mipADC/leak));
+
       HGCalWafer::HitInfo_t h;
       h.adc=rawData;
       h.adcbxm1=rawDatabxm1;
-      h.passThr=(isTDC || h.adc>thr);
+      h.passThr=passThr;
       h.passLZSThr=passLZS;
-      h.passTZSThr=passTZS;
-      h.passThrBxm1=(isTDCbxm1 || h.adcbxm1>thrbxm1);
+      h.passMZSThr=passMZS;
+      h.passTZSThr=passTZS;      
+      h.passThrBxm1=passThrBxm1;
+      h.passTightThrBxm1=passTightThrBxm1;
       h.isTOA=isTOA;
       h.isTDC=isTDC;
       h.isBusy=isBusy;

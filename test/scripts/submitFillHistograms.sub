@@ -2,7 +2,7 @@
 ## cmsenv;  condor_submit   -file submitFillHistograms.sub
 
 executable  = $(cmssw)/src/UserCode/HGCElectronicsValidation/test/scripts/fillOccupancyHistograms.sh
-arguments   = $(cmssw) $(samples_dir)/$(tag) $(maxevents) $(outdir) $(adcThrMIP) $(adcThrMIPbxm1)
+arguments   = $(cmssw) $(samples_dir)/$(tag) $(maxevents) $(outdir) $(adcThrMIP) $(adcThrMIPbxm1) $(geometry) $(scaleByDoseFactor)
 output      = occJob_$(ProcId).out
 error       = occJob_$(ProcId).err
 log         = submitFillHistograms_condor.sub.log
@@ -10,17 +10,18 @@ log         = submitFillHistograms_condor.sub.log
 
 samples_dir   = /eos/cms/store/cmst3/group/hgcal/CMG_studies/Production
 
-cmssw         = /afs/cern.ch/user/p/psilva/work/HGCal/BEstudies/CMSSW_11_2_0_pre2
-#cmssw         = /afs/cern.ch/user/f/franzoni/work/CMSSW_11_2_0_pre1_bxm1/
+cmssw         = /afs/cern.ch/user/p/psilva/work/HGCal/CMSSW_11_2_0_HGCAL1/
 
-#maxevents     = 5000
-maxevents     = -1
-outdir        = /eos/cms/store/cmst3/user/psilva/HGCAL/EOL/Jul15
-#outdir   =/eos/home-f/franzoni/www/CMS/HGCSample/SiOptim/2020-07-07-plots
+maxevents     = 5000
+#maxevents     = -1
+outdir        = /eos/cms/store/cmst3/user/psilva/HGCAL/EOL/23-09-2020
 
-#baseline thresholds
+#baseline config
 adcThrMIP     = 0.5
-adcThrMIPbxm1 = 2.5
+adcThrMIPbxm1 = -1
+geometry=Extended2026D49
+
+scaleByDoseFactor=1.0
 queue tag from (        
       ttbar_D49_1120pre1_PU200_eolupdate_noOOT_ter_20200713
       ttbar_D49_1120pre1_PU200_eolupdate_noPerGainShape_ter_20200713
@@ -28,33 +29,19 @@ queue tag from (
       ttbar_D49_1120pre1_PU200_eolupdate_nooot_nonoise_ter_20200713
       ttbar_D49_1120pre1_PU200_eolupdate_nopu_nonoise_ter_20200713
       ttbar_D49_1120pre1_PU200_eolupdate_nopu_ter_20200713
-      ttbar_D49_1120pre1_PU200_eolupdate_startup_ter_20200713
-      ttbar_D49_1120pre1_PU200_eolupdate_1p5ab_ter_20200715
-      ttbar_D49_1120pre1_PU200_eolupdate_4ab_800V_ter_20200715
       ttbar_D49_1120pre2_PU200_eolupdate_ter_20200713
       #ttbar_D49_m20_1120pre1_PU200_eolupdate_20200716
       #ttbar_D49_p20_1120pre1_PU200_eolupdate_20200713
 )
 
-#1 MIP threshold
-adcThrMIP     = 1.0  
-adcThrMIPbxm1 = 5.0
-queue tag from (  
-      ttbar_D49_1120pre1_PU200_eolupdate_1p5ab_ter_20200715
-      ttbar_D49_1120pre1_PU200_eolupdate_4ab_800V_ter_20200715
-      ttbar_D49_1120pre2_PU200_eolupdate_ter_20200713
-      #ttbar_D49_m20_1120pre1_PU200_eolupdate_20200716
-      #ttbar_D49_p20_1120pre1_PU200_eolupdate_20200713
-)
+scaleByDoseFactor=0.0
+tag=ttbar_D49_1120pre1_PU200_eolupdate_startup_ter_20200713
+queue 1
 
-#gain-dependent in BX-1
-adcThrMIP     = 0.5
-adcThrMIPbxm1 = -1   
-queue tag from (  
-      ttbar_D49_1120pre1_PU200_eolupdate_1p5ab_ter_20200715
-      ttbar_D49_1120pre1_PU200_eolupdate_4ab_800V_ter_20200715
-      ttbar_D49_1120pre2_PU200_eolupdate_ter_20200713
-      #ttbar_D49_m20_1120pre1_PU200_eolupdate_20200716
-      #ttbar_D49_p20_1120pre1_PU200_eolupdate_20200713
-)
+scaleByDoseFactor=0.5
+tag=ttbar_D49_1120pre1_PU200_eolupdate_1p5ab_ter_20200715
+queue=1
 
+scaleByDoseFactor=1.3333
+tag=ttbar_D49_1120pre1_PU200_eolupdate_4ab_800V_ter_20200715
+queue 1

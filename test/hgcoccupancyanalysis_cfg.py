@@ -15,6 +15,11 @@ options.register('adcThrMIP',
                  VarParsing.multiplicity.singleton, 
                  VarParsing.varType.float, 
                  "threshold (in-time)")
+options.register('scaleByDoseFactor',
+                 1.0, 
+                 VarParsing.multiplicity.singleton, 
+                 VarParsing.varType.float, 
+                 "scale fluence by this factor")
 options.register('adcThrMIPbxm1',
                  2.5, 
                  VarParsing.multiplicity.singleton, 
@@ -68,6 +73,7 @@ process.ana = cms.EDAnalyzer("HGCOccupancyAnalyzer",
                              fold            = cms.bool(options.fold),
                              doseMap         = cms.string('SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.7.20.txt'),
                              scaleByDoseAlgo = cms.uint32(0),
+                             scaleByDoseFactor = cms.double(options.scaleByDoseFactor),
                              ileakParam      = HGCAL_ileakParam_toUse,
                              cceParams       = HGCAL_cceParams_toUse
                         )
