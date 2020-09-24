@@ -66,7 +66,7 @@ for(auto &hit : *digiColl)
       HGCSiliconDetId detId(hit.id());
       bool isTDC( hit.sample(itSample).mode() );
       bool isBusy( isTDC && rawData==0 );
-      HGCalSiNoiseMap::GainRange_t gain( hit.gain() );
+      HGCalSiNoiseMap::GainRange_t gain( hit.sample(itSample).gain() );
       double rawADC( double(hit.sample(itSample).data()) );
 
 
