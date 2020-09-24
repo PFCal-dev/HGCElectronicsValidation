@@ -15,10 +15,10 @@ The examples below are given for CE-E only.
 In the first place one needs to re-instantate the radiation map class which is used at digi level:
 
 ```
-HGCalSiNoiseMap *map=new HGCalSiNoiseMap;
+HGCalSiNoiseMap *rad_map=new HGCalSiNoiseMap;
 rad_map->setDoseMap(iConfig.getParameter<std::string>("doseMap"),
                    iConfig.getParameter<uint32_t>("scaleByDoseAlgo"));
-rad_map->->setFluenceScaleFactor(iConfig.getParameter<double>("scaleByDoseFactor"));
+rad_map->setFluenceScaleFactor(iConfig.getParameter<double>("scaleByDoseFactor"));
 rad_map->setIleakParam(iConfig.getParameter<edm::ParameterSet>("ileakParam").template getParameter<std::vector<double>>("ileakParam"));
 rad_map->setCceParam(iConfig.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamFine"),
                      iConfig.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamThin"),
