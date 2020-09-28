@@ -65,10 +65,9 @@ for(auto &hit : *digiColl)
       //digi information
       HGCSiliconDetId detId(hit.id());
       bool isTDC( hit.sample(itSample).mode() );
-      bool isBusy( isTDC && rawData==0 );
       HGCalSiNoiseMap::GainRange_t gain( hit.sample(itSample).gain() );
       double rawADC( double(hit.sample(itSample).data()) );
-
+      bool isBusy( isTDC && rawData==0 );
 
       //get the operation characterisics of this detId
       //and the nubmer of ADC counts corresponding to a MIP
