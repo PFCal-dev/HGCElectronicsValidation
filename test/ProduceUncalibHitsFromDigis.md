@@ -73,17 +73,17 @@ for(auto &hit : *digiColl)
       //get the operation characterisics of this detId
       //and the nubmer of ADC counts corresponding to a MIP
       HGCalSiNoiseMap::SiCellOpCharacteristics siop=rad_map->getSiCellOpCharacteristics(detId);
-      double mipADC=double(siop.mipADC);
+      double mipfC=double(siop.mipfC);
 
       //number of MIPs
-      double nmips( rawADC/mipADC );
+      double nmips( rawADC*adcLSB/mipADC );
       if(isTDC) {
                 double adcLSB( 1./80.);
                 if(gain==HGCalSiNoiseMap::q160fC) adcLSB=1./160.;
                 if(gain==HGCalSiNoiseMap::q320fC) adcLSB=1./320.;
                  
                 double charge( (std::floor(tdcOnsetfC_ / adcLSB) + 1.0) * adcLSB + (rawADC+0.5)*tdcLSB_ );
-                nmips = rawCharge/double(mipADC);
+                nmips = rawCharge/double(mipfC);
       }
       if(isBusy) {
         nmips=0;
