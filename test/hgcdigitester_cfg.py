@@ -21,6 +21,14 @@ process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:phase2_realistic', '')
 process.MessageLogger.cerr.threshold = ''
 process.MessageLogger.cerr.FwkReport.reportEvery = 500
 
+#process.MessageLogger = cms.Service("MessageLogger",
+#    debugModules = cms.untracked.vstring('*'),
+#    destinations = cms.untracked.vstring('cout'),
+#    cout = cms.untracked.PSet(
+#        threshold = cms.untracked.string('DEBUG')
+#    )
+#)
+
 
 #source/number events to process
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1) )

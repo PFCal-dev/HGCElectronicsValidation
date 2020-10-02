@@ -38,15 +38,11 @@ using namespace std;
 
 //
 HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig ) 
-{ 
-
-  //configure digitizer
-  edm::ParameterSet cfg(iConfig.getParameter<edm::ParameterSet>("hgceeDigitizer"));
-  digitizer_ = std::make_unique<HGCEEDigitizer>(cfg);
-  digitizationType_ = cfg.getParameter<uint32_t>("digitizationType");
-
+{   
   //configure noise map
+  edm::ParameterSet cfg(iConfig.getParameter<edm::ParameterSet>("hgceeDigitizer"));
   edm::ParameterSet digiCfg(cfg.getParameter<edm::ParameterSet>("digiCfg"));
+  edm::ParameterSet feCfg(digiCfg.getParameter<edm::ParameterSet>("feCfg"));
   scal_.setDoseMap(digiCfg.getParameter<edm::ParameterSet>("noise_fC").template getParameter<std::string>("doseMap"),
                    digiCfg.getParameter<edm::ParameterSet>("noise_fC").template getParameter<uint32_t>("scaleByDoseAlgo"));
   scal_.setFluenceScaleFactor(digiCfg.getParameter<edm::ParameterSet>("noise_fC").getParameter<double>("scaleByDoseFactor"));
@@ -54,7 +50,13 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
   scal_.setCceParam(digiCfg.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamFine"),
                     digiCfg.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamThin"),
                     digiCfg.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamThick"));
-  mipTarget_=digiCfg.getParameter<edm::ParameterSet>("feCfg").getParameter<uint32_t>("targetMIPvalue_ADC");
+  mipTarget_=feCfg.getParameter<uint32_t>("targetMIPvalue_ADC");
+
+  //configure digitizer
+  digitizer_ = std::make_unique<HGCEEDigitizer>(cfg);
+  digitizationType_ = cfg.getParameter<uint32_t>("digitizationType");
+  tdcLSB_=feCfg.getParameter<double>("tdcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("tdcNbits") );
+  tdcOnset_fC_=feCfg.getParameter<double>("tdcOnset_fC");
 }
 
 //
@@ -70,40 +72,69 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
   iSetup.get<IdealGeometryRecord>().get("HGCalEESensitive",geoHandle);
   const HGCalGeometry *geo=geoHandle.product();
 
-
   //get a valid DetId from the geometry
   DetId rawId(geo->getValidDetIds().begin()->rawId());
   std::unordered_set<DetId> validIds;  
   validIds.insert(rawId);
-  HGCSiliconDetId cellId(rawId);
-  const auto &xy = (geo->topology()).dddConstants().locateCell(cellId.layer(), cellId.waferU(), cellId.waferV(), cellId.cellU(), cellId.cellV(), true, true);
-  std::cout << cellId.rawId() << " @ " << xy.first << " " << xy.second << " lay=" << cellId.layer() << std::endl;
 
   //re-config noise map and retrieve si-operation mode for this detId
   scal_.setGeometry(geo, HGCalSiNoiseMap::AUTO, mipTarget_);
+  HGCSiliconDetId cellId(rawId);
   HGCalSiNoiseMap::SiCellOpCharacteristics siop=scal_.getSiCellOpCharacteristics(cellId);
   HGCalSiNoiseMap::GainRange_t gain((HGCalSiNoiseMap::GainRange_t)siop.core.gain);
-  std::cout <<"\t lsb ADC=" << scal_.getLSBPerGain()[gain] << " max ADC=" << scal_.getMaxADCPerGain()[gain] << std::endl;
+  double adcLSB=scal_.getLSBPerGain()[gain];
+  double cce=siop.core.cce;
+  std::cout << "ADC lsb=" << adcLSB 
+            << " TDC lsb=" << tdcLSB_ 
+            << " noise=" << siop.core.noise 
+            << " mip=" << siop.mipfC << std::endl;
 
   //prepare a sim hit data accumulator to be filled with charge-only information
   hgc::HGCSimHitDataAccumulator simData;
+  simData.reserve(1);
   auto simIt = simData.emplace(rawId,hgc::HGCCellInfo()).first;
 
   //prepare the inputs for the digitization
-  auto digiResult = std::make_unique<HGCalDigiCollection>();
   edm::Service<edm::RandomNumberGenerator> rng;
   CLHEP::HepRandomEngine *engine = &rng->getEngine(iEvent.streamID());
 
+  std::ofstream ofile;
+  ofile.open ("digitest.dat");
+  ofile << "qsim mode ADC qrec qreccce" << std::endl;
+  
   //loop to digitize different values
-  for(float q=0; q<10000; q+=100) { 
-    (simIt->second).hit_info[0][0]=q;
-    digitizer_->runSimple(digiResult,simData,geo,validIds,engine);
+  float deltaq(0.1);
+  for(float q=0; q<10000; q+=deltaq) { 
     
-    //cout << q << " " << ((*digiResult)[0])[0].data() << endl;
+    if(q>10)   deltaq=1;
+    if(q>100)  deltaq=10;
+    if(q>1000) deltaq=100;
+    
+    for(int i=0; i<100; i++) {
+      auto digiResult = std::make_unique<HGCalDigiCollection>();
+      (simIt->second).hit_info[0][9]=q; //fill in-time index only
+      digitizer_->run(digiResult,simData,geo,validIds,digitizationType_,engine);
+      
+      //if a digi was not produced move to next value
+      if(digiResult->size()==0) continue;
+      
+      //read digi
+      uint32_t mode=((*digiResult)[0])[2].mode();
+      uint32_t adc=((*digiResult)[0])[2].data();
+      
+      //convert back to charge
+      double qrec( adc*adcLSB );
+      if(mode){
+        qrec=(std::floor(tdcOnset_fC_/adcLSB)+1)*adcLSB +(adc+0.5)*tdcLSB_ ;
+        //qrec=tdcOnset_fC_*0.5*tdcLSB_+-0.5*adcLSB+adc*tdcLSB_; //(adc+0.5)*tdcLSB_ ;
+      }
+      double qrec_cce(qrec/cce);
+      
+      ofile << q << " " << mode << " " << adc << " " << qrec << " " << qrec_cce << std::endl;
+    }
   }
-
-
-
+  
+  ofile.close();
 }
 
 
