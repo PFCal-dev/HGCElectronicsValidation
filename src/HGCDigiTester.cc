@@ -55,8 +55,8 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
   //configure digitizer
   digitizer_ = std::make_unique<HGCEEDigitizer>(cfg);
   digitizationType_ = cfg.getParameter<uint32_t>("digitizationType");
-  tdcLSB_=feCfg.getParameter<double>("tdcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("tdcNbits") );
   tdcOnset_fC_=feCfg.getParameter<double>("tdcOnset_fC");
+  tdcLSB_=feCfg.getParameter<double>("tdcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("tdcNbits") );
 }
 
 //
@@ -84,9 +84,10 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
   HGCalSiNoiseMap::GainRange_t gain((HGCalSiNoiseMap::GainRange_t)siop.core.gain);
   double adcLSB=scal_.getLSBPerGain()[gain];
   double cce=siop.core.cce;
+  double noise=siop.core.noise;
   std::cout << "ADC lsb=" << adcLSB 
             << " TDC lsb=" << tdcLSB_ 
-            << " noise=" << siop.core.noise 
+            << " noise=" <<  noise
             << " mip=" << siop.mipfC << std::endl;
 
   //prepare a sim hit data accumulator to be filled with charge-only information
@@ -103,35 +104,44 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
   ofile << "qsim mode ADC qrec qreccce" << std::endl;
   
   //loop to digitize different values
-  float deltaq(0.1);
-  for(float q=0; q<10000; q+=deltaq) { 
-    
-    if(q>10)   deltaq=1;
-    if(q>100)  deltaq=10;
-    if(q>1000) deltaq=100;
-    
-    for(int i=0; i<100; i++) {
-      auto digiResult = std::make_unique<HGCalDigiCollection>();
-      (simIt->second).hit_info[0][9]=q; //fill in-time index only
-      digitizer_->run(digiResult,simData,geo,validIds,digitizationType_,engine);
-      
-      //if a digi was not produced move to next value
-      if(digiResult->size()==0) continue;
-      
-      //read digi
-      uint32_t mode=((*digiResult)[0])[2].mode();
-      uint32_t adc=((*digiResult)[0])[2].data();
-      
-      //convert back to charge
-      double qrec( adc*adcLSB );
-      if(mode){
-        qrec=(std::floor(tdcOnset_fC_/adcLSB)+1)*adcLSB +(adc+0.5)*tdcLSB_ ;
-        //qrec=tdcOnset_fC_*0.5*tdcLSB_+-0.5*adcLSB+adc*tdcLSB_; //(adc+0.5)*tdcLSB_ ;
-      }
-      double qrec_cce(qrec/cce);
-      
-      ofile << q << " " << mode << " " << adc << " " << qrec << " " << qrec_cce << std::endl;
+  //use a uniform distribution of charges in the two ranges
+  std::vector<float> qinj;
+  for(int i=0; i<pow(2,10); i++){
+    for(float x=0; x<=1; x+=0.1) {
+      float qval=i*x*adcLSB;
+      if(qval>tdcOnset_fC_) continue;
+      qinj.push_back(qval);
     }
+  }
+  for(int i=0; i<pow(2,12); i++){
+    for(float x=0; x<=1; x+=0.1) {
+      float qval=i*x*tdcLSB_;
+      if(qval<tdcOnset_fC_) continue;
+      qinj.push_back(qval);
+    }
+  }   
+
+  for(auto &q:qinj) {
+
+    auto digiResult = std::make_unique<HGCalDigiCollection>();
+    (simIt->second).hit_info[0][9]=q; //fill in-time index only
+    digitizer_->run(digiResult,simData,geo,validIds,digitizationType_,engine);
+      
+    //if a digi was not produced move to next value
+    if(digiResult->size()==0) continue;
+      
+    //read digi
+    uint32_t mode=((*digiResult)[0])[2].mode();
+    uint32_t adc=((*digiResult)[0])[2].data();
+      
+    //convert back to charge
+    double qrec( (adc+0.5)*adcLSB );
+    if(mode){        
+      qrec=tdcOnset_fC_+(adc+0.5)*tdcLSB_;
+    }
+    double qrec_cce(qrec/cce);
+      
+    ofile << q << " " << mode << " " << adc << " " << qrec << " " << qrec_cce << std::endl;    
   }
   
   ofile.close();

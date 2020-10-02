@@ -37,7 +37,11 @@ process.source = cms.Source("EmptySource")
 #prepare digitization parameters fo the end of life
 process.load('SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi')
 from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import HGCal_setEndOfLifeNoise
-HGCal_setEndOfLifeNoise(process)
+#HGCal_setEndOfLifeNoise(process,byDoseAlgo=6) #no noise, no CCE
+#HGCal_setEndOfLifeNoise(process,byDoseAlgo=4) #no noise
+#HGCal_setEndOfLifeNoise(process,byDoseAlgo=2) #no CCE
+HGCal_setEndOfLifeNoise(process,byDoseAlgo=0) #with noise and CCE
+
 
 #analyzer
 process.ana = cms.EDAnalyzer("HGCDigiTester",
