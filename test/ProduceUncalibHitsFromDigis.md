@@ -1,6 +1,10 @@
-## Deconvoluting radiation effects
+## Deconvoluting radiation effects and gain setting at ROC level
 
-The following gathers some instructions to deconvolute the radiation effects simulated at DIGI level.
+The following intructions gather info and code snippets to handle the radiation-induced effects taken into account by the HGCAL digitisation in producing DIGI collections,
+in order to produce derived collections siuch as ```recHits``` or ```trigger primitives```.
+One can find in [this talk](https://indico.cern.ch/event/933714/contributions/3924245/) a comprehensive description of the model used to emulate the electronics;
+in a nutshell, these instructions give guidance on how to get hold of the radiation scenario used in the DIGI step, and how to use it to present the amplitudes in units of MIP, taking consistenly into account the electronics gain.
+
 It can be used to recompute the MIP from a digi correcting for the loss of charge collection efficiency and for the choice of the gain in the ROC.
 The examples below are given for CE-E only.
 
@@ -11,10 +15,10 @@ The examples below are given for CE-E only.
 In the first place one needs to re-instantate the radiation map class which is used at digi level:
 
 ```
-HGCalSiNoiseMap *map=new HGCalSiNoiseMap;
+HGCalSiNoiseMap *rad_map=new HGCalSiNoiseMap;
 rad_map->setDoseMap(iConfig.getParameter<std::string>("doseMap"),
                    iConfig.getParameter<uint32_t>("scaleByDoseAlgo"));
-rad_map->->setFluenceScaleFactor(iConfig.getParameter<double>("scaleByDoseFactor"));
+rad_map->setFluenceScaleFactor(iConfig.getParameter<double>("scaleByDoseFactor"));
 rad_map->setIleakParam(iConfig.getParameter<edm::ParameterSet>("ileakParam").template getParameter<std::vector<double>>("ileakParam"));
 rad_map->setCceParam(iConfig.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamFine"),
                      iConfig.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamThin"),
@@ -61,24 +65,24 @@ for(auto &hit : *digiColl)
       //digi information
       HGCSiliconDetId detId(hit.id());
       bool isTDC( hit.sample(itSample).mode() );
-      bool isBusy( isTDC && rawData==0 );
-      HGCalSiNoiseMap::GainRange_t gain( hit.gain() );
+      HGCalSiNoiseMap::GainRange_t gain( hit.sample(itSample).gain() );
       double rawADC( double(hit.sample(itSample).data()) );
+      bool isBusy( isTDC && rawData==0 );
 
-
-      //get the MIP position of this detId
+      //get the operation characterisics of this detId
+      //and the nubmer of ADC counts corresponding to a MIP
       HGCalSiNoiseMap::SiCellOpCharacteristics siop=rad_map->getSiCellOpCharacteristics(detId);
-      double mipADC=double(siop.mipADC);
+      double mipfC=double(siop.mipfC);
 
       //number of MIPs
-      double nmips( rawADC/mipADC );
+      double nmips( rawADC*adcLSB/mipADC );
       if(isTDC) {
                 double adcLSB( 1./80.);
                 if(gain==HGCalSiNoiseMap::q160fC) adcLSB=1./160.;
                 if(gain==HGCalSiNoiseMap::q320fC) adcLSB=1./320.;
                  
                 double charge( (std::floor(tdcOnsetfC_ / adcLSB) + 1.0) * adcLSB + (rawADC+0.5)*tdcLSB_ );
-                nmips = rawCharge/double(mipADC);
+                nmips = rawCharge/double(mipfC);
       }
       if(isBusy) {
         nmips=0;
