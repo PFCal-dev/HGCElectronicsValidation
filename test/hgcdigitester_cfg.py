@@ -2,11 +2,20 @@ import FWCore.ParameterSet.Config as cms
 
 process = cms.Process("ANALYSIS")
 
-#parse command line arguments
 from FWCore.ParameterSet.VarParsing import VarParsing
 options = VarParsing ('standard')
-options.register('geometry', 'Extended2026D49', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'geometry to use')
+options.register('input', 
+                 '/eos/cms/store/cmst3/group/hgcal/CMG_studies/Production/FlatRandomPtGunProducer__20201022/GSD/',
+                 VarParsing.multiplicity.singleton, 
+                 VarParsing.varType.string, 
+                 "input directory")
+options.register('geometry', 
+                 'Extended2026D49', 
+                 VarParsing.multiplicity.singleton, 
+                 VarParsing.varType.string, 
+                 'geometry to use')
 options.parseArguments()
+
 
 #set geometry/global tag
 process.load('Configuration.StandardSequences.Services_cff')
@@ -31,8 +40,18 @@ process.MessageLogger.cerr.FwkReport.reportEvery = 500
 
 
 #source/number events to process
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1) )
-process.source = cms.Source("EmptySource")
+#source/number events to process
+import os
+if os.path.isdir(options.input):
+    fList = ['file:'+os.path.join(options.input,f) for f in os.listdir(options.input) if '.root' in f]
+else:
+    fList = ['file:'+x for x in options.input.split(',')]
+
+process.source = cms.Source("PoolSource",
+                            fileNames = cms.untracked.vstring(fList),
+                            duplicateCheckMode = cms.untracked.string("noDuplicateCheck")
+                        )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(options.maxEvents) )
 
 #prepare digitization parameters fo the end of life
 process.load('SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi')

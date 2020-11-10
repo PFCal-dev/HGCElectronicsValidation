@@ -11,13 +11,16 @@
 #include "FWCore/ServiceRegistry/interface/Service.h"
 
 #include "DetectorDescription/Core/interface/DDCompactView.h"
-
+#include "SimDataFormats/CaloHit/interface/PCaloHitContainer.h"
+#include "SimDataFormats/CaloHit/interface/PCaloHit.h"
 #include "DataFormats/ForwardDetId/interface/HGCalDetId.h"
 #include "DataFormats/HGCDigi/interface/HGCDigiCollections.h"
 
 #include "SimCalorimetry/HGCalSimProducers/interface/HGCDigitizerBase.h"  
 #include "SimCalorimetry/HGCalSimProducers/interface/HGCEEDigitizer.h"
 #include "Geometry/HGCalGeometry/interface/HGCalGeometry.h"
+
+#include "TTree.h"
 
 /**
    @class HGCDigiTester
@@ -35,6 +38,10 @@ class HGCDigiTester : public edm::EDAnalyzer
   void endJob();
 
  private:
+  
+  edm::EDGetTokenT<edm::PCaloHitContainer> simHitsCEE_;
+  edm::EDGetTokenT<HGCalDigiCollection> digisCEE_;
+
   std::unique_ptr<HGCEEDigitizer> digitizer_;
   uint32_t digitizationType_;
   double tdcLSB_;
@@ -42,6 +49,12 @@ class HGCDigiTester : public edm::EDAnalyzer
 
   HGCalSiNoiseMap scal_;
   uint32_t mipTarget_;
+  
+  Float_t qsim_,qrec_,cce_,eta_,radius_,z_;
+  Bool_t isToT_;
+  Int_t layer_,thick_;
+  TTree *tree_;
+
 };
  
 

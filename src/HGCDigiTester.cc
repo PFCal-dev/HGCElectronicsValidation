@@ -1,27 +1,22 @@
 #include "UserCode/HGCElectronicsValidation/interface/HGCDigiTester.h"
-
 #include "DetectorDescription/OfflineDBLoader/interface/GeometryInfoDump.h"
 #include "Geometry/Records/interface/IdealGeometryRecord.h"
+#include "SimDataFormats/CaloTest/interface/HGCalTestNumbering.h"
 #include "SimG4CMS/Calo/interface/CaloHitID.h"
-
 #include "DetectorDescription/Core/interface/DDFilter.h"
 #include "DetectorDescription/Core/interface/DDFilteredView.h"
 #include "DetectorDescription/Core/interface/DDSolid.h"
-
 #include "DataFormats/GeometryVector/interface/Basic3DVector.h"
-
 #include "CLHEP/Units/GlobalSystemOfUnits.h"
-
 #include "FWCore/ServiceRegistry/interface/Service.h"
 #include "FWCore/Utilities/interface/Exception.h"
 #include "FWCore/Utilities/interface/RandomNumberGenerator.h"
 #include "FWCore/Utilities/interface/StreamID.h"
-
 #include "CLHEP/Geometry/Point3D.h"
 #include "CLHEP/Geometry/Plane3D.h"
 #include "CLHEP/Geometry/Vector3D.h"
-
 #include "FWCore/ParameterSet/interface/FileInPath.h"
+#include "CommonTools/UtilAlgos/interface/TFileService.h"
 
 #include <fstream>
 #include <iostream>
@@ -38,6 +33,8 @@ using namespace std;
 
 //
 HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig ) 
+  : simHitsCEE_( consumes<std::vector<PCaloHit>>(edm::InputTag("g4SimHits", "HGCHitsEE")) ),
+    digisCEE_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","EE")) )
 {   
   //configure noise map
   edm::ParameterSet cfg(iConfig.getParameter<edm::ParameterSet>("hgceeDigitizer"));
@@ -57,6 +54,18 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
   digitizationType_ = cfg.getParameter<uint32_t>("digitizationType");
   tdcOnset_fC_=feCfg.getParameter<double>("tdcOnset_fC");
   tdcLSB_=feCfg.getParameter<double>("tdcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("tdcNbits") );
+
+  edm::Service<TFileService> fs;
+  tree_ = fs->make<TTree>("hits","hits");
+  tree_->Branch("qsim",&qsim_,"qsim/F");
+  tree_->Branch("qreq",&qrec_,"qrec/F");
+  tree_->Branch("cce",&cce_,"cce/F");
+  tree_->Branch("eta",&eta_,"era/F");
+  tree_->Branch("radius",&radius_,"radius/F");
+  tree_->Branch("z",&z_,"z/F");
+  tree_->Branch("isToT",&isToT_,"isTOT/O");
+  tree_->Branch("layer",&layer_,"layer/I");
+  tree_->Branch("thick",&thick_,"thick/I");
 }
 
 //
@@ -67,11 +76,73 @@ void HGCDigiTester::endJob()
 //
 void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iSetup)
 {
+  //read sim hits
+  edm::Handle<edm::PCaloHitContainer> simHits;
+  iEvent.getByToken(simHitsCEE_,simHits);
+
+  //read digis
+  edm::Handle<HGCalDigiCollection> digis;
+  iEvent.getByToken(digisCEE_,digis);
+
   //read geometry
   edm::ESHandle<HGCalGeometry> geoHandle;
   iSetup.get<IdealGeometryRecord>().get("HGCalEESensitive",geoHandle);
   const HGCalGeometry *geo=geoHandle.product();
+  const HGCalTopology &topo=geo->topology();
+  const HGCalDDDConstants &dddConst=topo.dddConstants();
 
+  //set the geometry
+  scal_.setGeometry(geo, HGCalSiNoiseMap::AUTO, mipTarget_);
+  
+  //acumulate total energy deposited in each DetId
+  std::map<uint32_t,double> simE;
+  for(auto sh : *simHits) {
+
+    //assign a reco-id
+    uint32_t key(sh.id());
+    if(simE.find(key)==simE.end()) simE[key]=0.;
+    simE[key]=simE[key]+sh.energy();
+  }
+
+  //loop over digis
+  size_t itSample(2);
+  for(auto d : *digis) {
+
+    HGCSiliconDetId cellId(d.id());
+
+    //read digi (in-time sample only)
+    uint32_t adc(d.sample(itSample).data() );
+    isToT_ = d.sample(itSample).mode();
+    HGCalSiNoiseMap::GainRange_t gain = (HGCalSiNoiseMap::GainRange_t)d.sample(itSample).gain();
+
+    //get the conditions for this det id
+    HGCalSiNoiseMap::SiCellOpCharacteristics siop=scal_.getSiCellOpCharacteristics(cellId);                                          
+    double adcLSB=scal_.getLSBPerGain()[gain];                                                    
+    cce_=siop.core.cce;
+
+    //convert back to charge
+    qrec_=(adc+0.5)*adcLSB ;
+    if(isToT_) 
+      qrec_=tdcOnset_fC_+(adc+0.5)*tdcLSB_;          
+
+    //get the simulated charge for this hit
+    uint32_t key( cellId.rawId() );
+    if(simE.find(key)==simE.end()) continue; //ignore for the moment
+    qsim_ = simE[key] * 1.0e6 * 0.044259; // GeV -> fC  (1000 eV / 3.62 (eV per e) / 6.24150934e3 (e per fC))
+
+    //additional info
+    layer_ = cellId.layer();
+    const auto &xy(dddConst.locateCell(cellId.layer(), cellId.waferU(), cellId.waferV(), cellId.cellU(), cellId.cellV(), true, true));
+    radius_ = sqrt(std::pow(xy.first, 2) + std::pow(xy.second, 2));  //in cm
+    z_      = dddConst.waferZ(layer_,true);
+    eta_    = TMath::ATanH(z_/sqrt(radius_*radius_+z_*z_));
+    thick_  = dddConst.waferType(layer_,cellId.waferU(),cellId.waferV());
+    
+    tree_->Fill();
+  }
+
+
+    /*
   //get a valid DetId from the geometry
   DetId rawId(geo->getValidDetIds().begin()->rawId());
   std::unordered_set<DetId> validIds;  
@@ -135,16 +206,23 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
     uint32_t adc=((*digiResult)[0])[2].data();
       
     //convert back to charge
-    double qrec( (adc+0.5)*adcLSB );
+    //double k=1./sqrt(8*3.1415);
+    //double nbias=k*noise/adcLSB;
+    double nbias(0.);
+    double qrec( (adc+0.5+nbias)*adcLSB );
     if(mode){        
-      qrec=tdcOnset_fC_+(adc+0.5)*tdcLSB_;
+      //nbias=k*noise/tdcLSB_;
+      nbias=0.;
+      qrec=tdcOnset_fC_+(adc+0.5+nbias)*tdcLSB_;      
     }
+    qrec=max(0., qrec);
     double qrec_cce(qrec/cce);
-      
+
     ofile << q << " " << mode << " " << adc << " " << qrec << " " << qrec_cce << std::endl;    
   }
   
   ofile.close();
+    */
 }
 
 
