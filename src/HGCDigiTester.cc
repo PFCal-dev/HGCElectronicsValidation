@@ -165,8 +165,6 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
     z_      = zside*dddConst.waferZ(layer_,true);
     eta_    = TMath::ATanH(z_/sqrt(radius_*radius_+z_*z_));
 
-    
-
     genergy_=photons[zside].energy();
     gpt_=photons[zside].pt();
     geta_=photons[zside].eta();
