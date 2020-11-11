@@ -9,7 +9,8 @@
 #include "FWCore/Framework/interface/ESTransientHandle.h"
 #include "FWCore/Framework/interface/MakerMacros.h"
 #include "FWCore/ServiceRegistry/interface/Service.h"
-
+#include "DataFormats/HepMCCandidate/interface/GenParticle.h"
+#include "DataFormats/HepMCCandidate/interface/GenParticleFwd.h"
 #include "DetectorDescription/Core/interface/DDCompactView.h"
 #include "SimDataFormats/CaloHit/interface/PCaloHitContainer.h"
 #include "SimDataFormats/CaloHit/interface/PCaloHit.h"
@@ -41,6 +42,7 @@ class HGCDigiTester : public edm::EDAnalyzer
   
   edm::EDGetTokenT<edm::PCaloHitContainer> simHitsCEE_;
   edm::EDGetTokenT<HGCalDigiCollection> digisCEE_;
+  edm::EDGetTokenT<std::vector<reco::GenParticle>> genParticles_;
 
   std::unique_ptr<HGCEEDigitizer> digitizer_;
   uint32_t digitizationType_;
@@ -49,12 +51,11 @@ class HGCDigiTester : public edm::EDAnalyzer
 
   HGCalSiNoiseMap scal_;
   uint32_t mipTarget_;
-  
-  Float_t qsim_,qrec_,cce_,eta_,radius_,z_;
-  Bool_t isToT_;
-  Int_t layer_,thick_;
-  TTree *tree_;
 
+  Int_t event_,layer_,thick_,isToT_;
+  Float_t gpt_,geta_,gphi_,genergy_;
+  Float_t qsim_,qrec_,mipsim_,miprec_,cce_,eta_,radius_,z_;
+  TTree *tree_;
 };
  
 

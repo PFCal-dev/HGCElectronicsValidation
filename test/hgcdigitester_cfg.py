@@ -75,4 +75,11 @@ process.TFileService = cms.Service("TFileService",
                                    fileName = cms.string(options.output)
                                )
 
+
+from RecoLocalCalo.HGCalRecProducers.HGCalRecHit_cfi import *
+print('*'*50)
+print('de/dx weights')
+print(dEdX.weights)
+print('*'*50)
+
 process.p = cms.Path(process.ana)
