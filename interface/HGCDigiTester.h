@@ -46,8 +46,9 @@ class HGCDigiTester : public edm::EDAnalyzer
 
   std::unique_ptr<HGCEEDigitizer> digitizer_;
   uint32_t digitizationType_;
-  double tdcLSB_;
+  double tdcLSB_,vanilla_adcLSB_fC_;
   double tdcOnset_fC_;
+  bool useVanillaCfg_;
 
   HGCalSiNoiseMap scal_;
   uint32_t mipTarget_;

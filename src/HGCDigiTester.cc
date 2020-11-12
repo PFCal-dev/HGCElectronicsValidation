@@ -56,6 +56,8 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
   digitizationType_ = cfg.getParameter<uint32_t>("digitizationType");
   tdcOnset_fC_=feCfg.getParameter<double>("tdcOnset_fC");
   tdcLSB_=feCfg.getParameter<double>("tdcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("tdcNbits") );
+  vanilla_adcLSB_fC_ = feCfg.getParameter<double>("adcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("adcNbits") );
+  useVanillaCfg_ = iConfig.getParameter<bool>("useVanillaCfg");
 
   edm::Service<TFileService> fs;
   tree_ = fs->make<TTree>("hits","hits");
@@ -138,10 +140,10 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
     //get the conditions for this det id
     HGCalSiNoiseMap::SiCellOpCharacteristics siop=scal_.getSiCellOpCharacteristics(cellId);                                          
-    double adcLSB=scal_.getLSBPerGain()[gain];                                                    
-    cce_=siop.core.cce;
+
 
     //convert back to charge
+    double adcLSB=useVanillaCfg_ ? vanilla_adcLSB_fC_ : scal_.getLSBPerGain()[gain];
     qrec_=(adc+0.5)*adcLSB ;
     if(isToT_) 
       qrec_=tdcOnset_fC_+(adc+0.5)*tdcLSB_;          
@@ -156,6 +158,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
     double mipEqfC( scal_.getMipEqfC()[thick_] );
     miprec_=qrec_/mipEqfC;
     mipsim_=qsim_/mipEqfC;
+
+    cce_=useVanillaCfg_ ? 1 : siop.core.cce;
 
     //additional info
     layer_ = cellId.layer();

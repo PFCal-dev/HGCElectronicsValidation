@@ -14,6 +14,11 @@ options.register('geometry',
                  VarParsing.multiplicity.singleton, 
                  VarParsing.varType.string, 
                  'geometry to use')
+options.register('useVanillaCfg', 
+                 False, 
+                 VarParsing.multiplicity.singleton, 
+                 VarParsing.varType.bool, 
+                 'use vanilla fe parameters from the cfg')
 options.parseArguments()
 
 
@@ -64,7 +69,8 @@ HGCal_setEndOfLifeNoise(process,byDoseAlgo=0) #with noise and CCE
 
 #analyzer
 process.ana = cms.EDAnalyzer("HGCDigiTester",
-                             hgceeDigitizer=process.hgceeDigitizer)
+                             hgceeDigitizer=process.hgceeDigitizer,
+                             useVanillaCfg=cms.bool(options.useVanillaCfg))
 
 process.RandomNumberGeneratorService.ana = cms.PSet( initialSeed = cms.untracked.uint32(0),
                                                      engineName = cms.untracked.string('TRandom3')
