@@ -26,6 +26,7 @@
 using namespace std;
 
 typedef math::XYZTLorentzVector LorentzVector;
+typedef math::XYZPoint Point;
 
 //
 // PLUGIN IMPLEMENTATION
@@ -35,30 +36,40 @@ typedef math::XYZTLorentzVector LorentzVector;
 //
 HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig ) 
   : simHitsCEE_( consumes<std::vector<PCaloHit>>(edm::InputTag("g4SimHits", "HGCHitsEE")) ),
+    simHitsCEH_( consumes<std::vector<PCaloHit>>(edm::InputTag("g4SimHits", "HGCHitsHEfront")) ),
+    simHitsCEHSci_( consumes<std::vector<PCaloHit>>(edm::InputTag("g4SimHits", "HGCHitsHEback")) ),
     digisCEE_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","EE")) ),
+    digisCEH_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","HEfront")) ),
+    digisCEHSci_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","HEback")) ),
     genParticles_( consumes<std::vector<reco::GenParticle>>(edm::InputTag("genParticles")) )
 {   
   //configure noise map
-  edm::ParameterSet cfg(iConfig.getParameter<edm::ParameterSet>("hgceeDigitizer"));
-  edm::ParameterSet digiCfg(cfg.getParameter<edm::ParameterSet>("digiCfg"));
-  edm::ParameterSet feCfg(digiCfg.getParameter<edm::ParameterSet>("feCfg"));
-  scal_.setDoseMap(digiCfg.getParameter<edm::ParameterSet>("noise_fC").template getParameter<std::string>("doseMap"),
-                   digiCfg.getParameter<edm::ParameterSet>("noise_fC").template getParameter<uint32_t>("scaleByDoseAlgo"));
-  scal_.setFluenceScaleFactor(digiCfg.getParameter<edm::ParameterSet>("noise_fC").getParameter<double>("scaleByDoseFactor"));
-  scal_.setIleakParam(digiCfg.getParameter<edm::ParameterSet>("ileakParam").template getParameter<std::vector<double>>("ileakParam"));
-  scal_.setCceParam(digiCfg.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamFine"),
-                    digiCfg.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamThin"),
-                    digiCfg.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamThick"));
-  mipTarget_=feCfg.getParameter<uint32_t>("targetMIPvalue_ADC");
+  std::string digitizers[]={"hgceeDigitizer","hgcehDigitizer","hgcehsciDigitizer"};
+  for(size_t i=0; i<3; i++) {
+    edm::ParameterSet cfg(iConfig.getParameter<edm::ParameterSet>(digitizers[i]));
+    edm::ParameterSet digiCfg(cfg.getParameter<edm::ParameterSet>("digiCfg"));
+    edm::ParameterSet feCfg(digiCfg.getParameter<edm::ParameterSet>("feCfg"));
+    if(i<2) {
+      HGCalSiNoiseMap *scal=new HGCalSiNoiseMap;
+      scal->setDoseMap(digiCfg.getParameter<edm::ParameterSet>("noise_fC").template getParameter<std::string>("doseMap"),
+                             digiCfg.getParameter<edm::ParameterSet>("noise_fC").template getParameter<uint32_t>("scaleByDoseAlgo"));
+      scal->setFluenceScaleFactor(digiCfg.getParameter<edm::ParameterSet>("noise_fC").getParameter<double>("scaleByDoseFactor"));
+      scal->setIleakParam(digiCfg.getParameter<edm::ParameterSet>("ileakParam").template getParameter<std::vector<double>>("ileakParam"));
+      scal->setCceParam(digiCfg.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamFine"),
+                        digiCfg.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamThin"),
+                        digiCfg.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamThick"));
+      scal_.push_back( scal );
+     }
 
-  //configure digitizer
-  digitizer_ = std::make_unique<HGCEEDigitizer>(cfg);
-  digitizationType_ = cfg.getParameter<uint32_t>("digitizationType");
-  tdcOnset_fC_=feCfg.getParameter<double>("tdcOnset_fC");
-  tdcLSB_=feCfg.getParameter<double>("tdcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("tdcNbits") );
-  vanilla_adcLSB_fC_ = feCfg.getParameter<double>("adcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("adcNbits") );
+    //other digitizer configs    
+    vanilla_mipfC_[i]=feCfg.getParameter<double>("mipfC");
+    mipTarget_[i]=feCfg.getParameter<uint32_t>("targetMIPvalue_ADC");
+    tdcOnset_fC_[i]=feCfg.getParameter<double>("tdcOnset_fC");
+    tdcLSB_[i]=feCfg.getParameter<double>("tdcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("tdcNbits") );
+    vanilla_adcLSB_fC_[i] = feCfg.getParameter<double>("adcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("adcNbits") );
+  }
   useVanillaCfg_ = iConfig.getParameter<bool>("useVanillaCfg");
-
+  
   edm::Service<TFileService> fs;
   tree_ = fs->make<TTree>("hits","hits");
   event_=0;
@@ -66,11 +77,14 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
   tree_->Branch("gpt",&gpt_,"gpt/F");
   tree_->Branch("geta",&geta_,"geta/F");
   tree_->Branch("gphi",&gphi_,"gphi/F");
+  tree_->Branch("gvradius",&gvradius_,"gvradius/F");
+  tree_->Branch("gvz",&gvz_,"gvz/F");
   tree_->Branch("event",&event_,"event/I");
   tree_->Branch("qsim",&qsim_,"qsim/F");
   tree_->Branch("qrec",&qrec_,"qrec/F");
   tree_->Branch("mipsim",&mipsim_,"mipsim/F");
   tree_->Branch("miprec",&miprec_,"miprec/F");
+  tree_->Branch("avgmiprec",&avgmiprec_,"avgmiprec/F");
   tree_->Branch("cce",&cce_,"cce/F");
   tree_->Branch("eta",&eta_,"eta/F");
   tree_->Branch("radius",&radius_,"radius/F");
@@ -78,6 +92,7 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
   tree_->Branch("isTOT",&isToT_,"isTOT/I");
   tree_->Branch("layer",&layer_,"layer/I");
   tree_->Branch("thick",&thick_,"thick/I");
+  tree_->Branch("isSci",&isSci_,"isSci/I");
 }
 
 //
@@ -93,172 +108,119 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
   edm::Handle<std::vector<reco::GenParticle> > genParticlesHandle;
   iEvent.getByToken(genParticles_, genParticlesHandle);
   std::map<int,LorentzVector> photons;
+  std::map<int,Point> photonVertex;
   for(size_t i = 0; i < genParticlesHandle->size(); ++i )  {    
     const reco::GenParticle &p = (*genParticlesHandle)[i];
     int idx(p.eta()>0 ? 1 : -1);
     photons[idx]=p.p4();
+    photonVertex[idx]=p.vertex();
   }
 
   //read sim hits
-  edm::Handle<edm::PCaloHitContainer> simHits;
-  iEvent.getByToken(simHitsCEE_,simHits);
+  //acumulate total energy deposited in each DetId
+  edm::Handle<edm::PCaloHitContainer> simHitsCEE,simHitsCEH,simHitsCEHSci;
+  iEvent.getByToken(simHitsCEE_,    simHitsCEE);
+  iEvent.getByToken(simHitsCEH_,    simHitsCEH);
+  iEvent.getByToken(simHitsCEHSci_, simHitsCEHSci);
+
+  std::map<uint32_t,double> simE;
+  for(size_t i=0; i<3; i++) {
+    const std::vector<PCaloHit> &simHits((i==0 ? *simHitsCEE : (i==1 ? *simHitsCEH : *simHitsCEHSci)));
+    for(auto sh : simHits) {
+      //assign a reco-id
+      uint32_t key(sh.id());
+      if(simE.find(key)==simE.end()) simE[key]=0.;
+      simE[key]=simE[key]+sh.energy();
+    }
+  }    
 
   //read digis
-  edm::Handle<HGCalDigiCollection> digis;
-  iEvent.getByToken(digisCEE_,digis);
+  edm::Handle<HGCalDigiCollection> digisCEE,digisCEH,digisCEHSci;
+  iEvent.getByToken(digisCEE_,digisCEE);
+  iEvent.getByToken(digisCEH_,digisCEH);
+  iEvent.getByToken(digisCEHSci_,digisCEHSci);
 
-  //read geometry
-  edm::ESHandle<HGCalGeometry> geoHandle;
-  iSetup.get<IdealGeometryRecord>().get("HGCalEESensitive",geoHandle);
-  const HGCalGeometry *geo=geoHandle.product();
-  const HGCalTopology &topo=geo->topology();
-  const HGCalDDDConstants &dddConst=topo.dddConstants();
+  //read geometry components for HGCAL
+  edm::ESHandle<HGCalGeometry> geoHandleCEE,geoHandleCEH,geoHandleCEHSci;
+
+  iSetup.get<IdealGeometryRecord>().get("HGCalEESensitive",geoHandleCEE);
+  const HGCalGeometry *geoCEE=geoHandleCEE.product();
+  const HGCalTopology &topoCEE=geoCEE->topology();
+  const HGCalDDDConstants &dddConstCEE=topoCEE.dddConstants();
+
+  iSetup.get<IdealGeometryRecord>().get("HGCalHESiliconSensitive",geoHandleCEH);
+  const HGCalGeometry *geoCEH=geoHandleCEH.product();
+  const HGCalTopology &topoCEH=geoCEH->topology();
+  const HGCalDDDConstants &dddConstCEH=topoCEH.dddConstants();
+
+  iSetup.get<IdealGeometryRecord>().get("HGCalHEScintillatorSensitive",geoHandleCEHSci);
+  const HGCalGeometry *geoCEHSci=geoHandleCEHSci.product();
+  const HGCalTopology &topoCEHSci=geoCEHSci->topology();
+  const HGCalDDDConstants &dddConstCEHSci=topoCEHSci.dddConstants();
 
   //set the geometry
-  scal_.setGeometry(geo, HGCalSiNoiseMap::AUTO, mipTarget_);
+  scal_[0]->setGeometry(geoCEE, HGCalSiNoiseMap::AUTO, mipTarget_[0]);
+  scal_[1]->setGeometry(geoCEH, HGCalSiNoiseMap::AUTO, mipTarget_[1]);
   
-  //acumulate total energy deposited in each DetId
-  std::map<uint32_t,double> simE;
-  for(auto sh : *simHits) {
-
-    //assign a reco-id
-    uint32_t key(sh.id());
-    if(simE.find(key)==simE.end()) simE[key]=0.;
-    simE[key]=simE[key]+sh.energy();
-  }
-
   //loop over digis
   size_t itSample(2);
-  for(auto d : *digis) {
+  for(size_t i=0; i<2; i++) {
 
-    HGCSiliconDetId cellId(d.id());
+    const HGCalDigiCollection &digis(i==0 ? *digisCEE : *digisCEH);
+    const HGCalDDDConstants &dddConst(i==0 ? dddConstCEE : dddConstCEH);
 
-    //read digi (in-time sample only)
-    uint32_t adc(d.sample(itSample).data() );
-    isToT_ = d.sample(itSample).mode();
-    HGCalSiNoiseMap::GainRange_t gain = (HGCalSiNoiseMap::GainRange_t)d.sample(itSample).gain();
+    for(auto d : digis) {
 
-    //get the conditions for this det id
-    HGCalSiNoiseMap::SiCellOpCharacteristics siop=scal_.getSiCellOpCharacteristics(cellId);                                          
+      HGCSiliconDetId cellId(d.id());
+      //read digi (in-time sample only)
+      uint32_t adc(d.sample(itSample).data() );
+      isToT_ = d.sample(itSample).mode();
+      HGCalSiNoiseMap::GainRange_t gain = (HGCalSiNoiseMap::GainRange_t)d.sample(itSample).gain();
 
+      //get the conditions for this det id
+      HGCalSiNoiseMap::SiCellOpCharacteristics siop=scal_[i]->getSiCellOpCharacteristics(cellId);
 
-    //convert back to charge
-    double adcLSB=useVanillaCfg_ ? vanilla_adcLSB_fC_ : scal_.getLSBPerGain()[gain];
-    qrec_=(adc+0.5)*adcLSB ;
-    if(isToT_) 
-      qrec_=tdcOnset_fC_+(adc+0.5)*tdcLSB_;          
+      //convert back to charge
+      double adcLSB=useVanillaCfg_ ? vanilla_adcLSB_fC_[i] : scal_[i]->getLSBPerGain()[gain];
+      qrec_=(adc+0.5)*adcLSB ;
+      if(isToT_) 
+        qrec_=tdcOnset_fC_[i]+(adc+0.5)*tdcLSB_[i];          
 
-    //get the simulated charge for this hit
-    uint32_t key( cellId.rawId() );
-    if(simE.find(key)==simE.end()) continue; //ignore for the moment
-    qsim_ = simE[key] * 1.0e6 * 0.044259; // GeV -> fC  (1000 eV / 3.62 (eV per e) / 6.24150934e3 (e per fC))
+      //get the simulated charge for this hit
+      uint32_t key( cellId.rawId() );
+      if(simE.find(key)==simE.end()) continue; //ignore for the moment
 
-    //convert fC to #MIPs
-    thick_  = cellId.type(); //dddConst.waferType(layer_,cellId.waferU(),cellId.waferV());
-    double mipEqfC( scal_.getMipEqfC()[thick_] );
-    miprec_=qrec_/mipEqfC;
-    mipsim_=qsim_/mipEqfC;
+      qsim_ = simE[key] * 1.0e6 * 0.044259; // GeV -> fC  (1000 eV / 3.62 (eV per e) / 6.24150934e3 (e per fC))
+      
+      //convert fC to #MIPs
+      thick_  = cellId.type();
+      double mipEqfC( scal_[i]->getMipEqfC()[thick_] );
+      miprec_=qrec_/mipEqfC;
+      avgmiprec_=qrec_/vanilla_mipfC_[i];
+      mipsim_=qsim_/mipEqfC;
+      
+      cce_=useVanillaCfg_ ? 1 : siop.core.cce;
 
-    cce_=useVanillaCfg_ ? 1 : siop.core.cce;
+      //additional info
+      layer_ = cellId.layer();
+      const auto &xy(dddConst.locateCell(cellId.layer(), cellId.waferU(), cellId.waferV(), cellId.cellU(), cellId.cellV(), true, true));
+      radius_ = sqrt(std::pow(xy.first, 2) + std::pow(xy.second, 2));  //in cm
+      int zside(cellId.zside());
+      z_      = zside*dddConst.waferZ(layer_,true);
+      eta_    = TMath::ATanH(z_/sqrt(radius_*radius_+z_*z_));
 
-    //additional info
-    layer_ = cellId.layer();
-    const auto &xy(dddConst.locateCell(cellId.layer(), cellId.waferU(), cellId.waferV(), cellId.cellU(), cellId.cellV(), true, true));
-    radius_ = sqrt(std::pow(xy.first, 2) + std::pow(xy.second, 2));  //in cm
-    int zside(cellId.zside());
-    z_      = zside*dddConst.waferZ(layer_,true);
-    eta_    = TMath::ATanH(z_/sqrt(radius_*radius_+z_*z_));
-
-    genergy_=photons[zside].energy();
-    gpt_=photons[zside].pt();
-    geta_=photons[zside].eta();
-    gphi_=photons[zside].phi();
-
-    tree_->Fill();
-  }
-
-
-    /*
-  //get a valid DetId from the geometry
-  DetId rawId(geo->getValidDetIds().begin()->rawId());
-  std::unordered_set<DetId> validIds;  
-  validIds.insert(rawId);
-
-  //re-config noise map and retrieve si-operation mode for this detId
-  scal_.setGeometry(geo, HGCalSiNoiseMap::AUTO, mipTarget_);
-  HGCSiliconDetId cellId(rawId);
-  HGCalSiNoiseMap::SiCellOpCharacteristics siop=scal_.getSiCellOpCharacteristics(cellId);
-  HGCalSiNoiseMap::GainRange_t gain((HGCalSiNoiseMap::GainRange_t)siop.core.gain);
-  double adcLSB=scal_.getLSBPerGain()[gain];
-  double cce=siop.core.cce;
-  double noise=siop.core.noise;
-  std::cout << "ADC lsb=" << adcLSB 
-            << " TDC lsb=" << tdcLSB_ 
-            << " noise=" <<  noise
-            << " mip=" << siop.mipfC << std::endl;
-
-  //prepare a sim hit data accumulator to be filled with charge-only information
-  hgc::HGCSimHitDataAccumulator simData;
-  simData.reserve(1);
-  auto simIt = simData.emplace(rawId,hgc::HGCCellInfo()).first;
-
-  //prepare the inputs for the digitization
-  edm::Service<edm::RandomNumberGenerator> rng;
-  CLHEP::HepRandomEngine *engine = &rng->getEngine(iEvent.streamID());
-
-  std::ofstream ofile;
-  ofile.open ("digitest.dat");
-  ofile << "qsim mode ADC qrec qreccce" << std::endl;
-  
-  //loop to digitize different values
-  //use a uniform distribution of charges in the two ranges
-  std::vector<float> qinj;
-  for(int i=0; i<pow(2,10); i++){
-    for(float x=0; x<=1; x+=0.1) {
-      float qval=i*x*adcLSB;
-      if(qval>tdcOnset_fC_) continue;
-      qinj.push_back(qval);
+      isSci_  = false;
+      
+      genergy_  = photons[zside].energy();
+      gpt_      = photons[zside].pt();
+      geta_     = photons[zside].eta();
+      gphi_     = photons[zside].phi();
+      gvradius_ = sqrt(pow(photons[zside].x(),2)+pow(photons[zside].y(),2));
+      gvz_      = photons[zside].z();
+      tree_->Fill();
     }
   }
-  for(int i=0; i<pow(2,12); i++){
-    for(float x=0; x<=1; x+=0.1) {
-      float qval=i*x*tdcLSB_;
-      if(qval<tdcOnset_fC_) continue;
-      qinj.push_back(qval);
-    }
-  }   
 
-  for(auto &q:qinj) {
-
-    auto digiResult = std::make_unique<HGCalDigiCollection>();
-    (simIt->second).hit_info[0][9]=q; //fill in-time index only
-    digitizer_->run(digiResult,simData,geo,validIds,digitizationType_,engine);
-      
-    //if a digi was not produced move to next value
-    if(digiResult->size()==0) continue;
-      
-    //read digi
-    uint32_t mode=((*digiResult)[0])[2].mode();
-    uint32_t adc=((*digiResult)[0])[2].data();
-      
-    //convert back to charge
-    //double k=1./sqrt(8*3.1415);
-    //double nbias=k*noise/adcLSB;
-    double nbias(0.);
-    double qrec( (adc+0.5+nbias)*adcLSB );
-    if(mode){        
-      //nbias=k*noise/tdcLSB_;
-      nbias=0.;
-      qrec=tdcOnset_fC_+(adc+0.5+nbias)*tdcLSB_;      
-    }
-    qrec=max(0., qrec);
-    double qrec_cce(qrec/cce);
-
-    ofile << q << " " << mode << " " << adc << " " << qrec << " " << qrec_cce << std::endl;    
-  }
-  
-  ofile.close();
-    */
 }
 
 

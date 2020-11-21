@@ -40,22 +40,19 @@ class HGCDigiTester : public edm::EDAnalyzer
 
  private:
   
-  edm::EDGetTokenT<edm::PCaloHitContainer> simHitsCEE_;
-  edm::EDGetTokenT<HGCalDigiCollection> digisCEE_;
+  edm::EDGetTokenT<edm::PCaloHitContainer> simHitsCEE_,simHitsCEH_,simHitsCEHSci_;
+  edm::EDGetTokenT<HGCalDigiCollection> digisCEE_,digisCEH_,digisCEHSci_;
   edm::EDGetTokenT<std::vector<reco::GenParticle>> genParticles_;
 
-  std::unique_ptr<HGCEEDigitizer> digitizer_;
-  uint32_t digitizationType_;
-  double tdcLSB_,vanilla_adcLSB_fC_;
-  double tdcOnset_fC_;
+  std::vector<HGCalSiNoiseMap *>scal_;
+  uint32_t mipTarget_[3];
+  double tdcLSB_[3],vanilla_adcLSB_fC_[3],vanilla_mipfC_[3];
+  double tdcOnset_fC_[3];
   bool useVanillaCfg_;
 
-  HGCalSiNoiseMap scal_;
-  uint32_t mipTarget_;
-
-  Int_t event_,layer_,thick_,isToT_;
-  Float_t gpt_,geta_,gphi_,genergy_;
-  Float_t qsim_,qrec_,mipsim_,miprec_,cce_,eta_,radius_,z_;
+  Int_t event_,layer_,thick_,isSci_,isToT_;
+  Float_t gpt_,geta_,gphi_,genergy_,gvradius_,gvz_;
+  Float_t qsim_,qrec_,mipsim_,miprec_,avgmiprec_,cce_,eta_,radius_,z_;
   TTree *tree_;
 };
  
