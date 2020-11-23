@@ -49,6 +49,8 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     edm::ParameterSet cfg(iConfig.getParameter<edm::ParameterSet>(digitizers[i]));
     edm::ParameterSet digiCfg(cfg.getParameter<edm::ParameterSet>("digiCfg"));
     edm::ParameterSet feCfg(digiCfg.getParameter<edm::ParameterSet>("feCfg"));
+
+    //Si specific
     if(i<2) {
       HGCalSiNoiseMap *scal=new HGCalSiNoiseMap;
       scal->setDoseMap(digiCfg.getParameter<edm::ParameterSet>("noise_fC").template getParameter<std::string>("doseMap"),
@@ -59,10 +61,24 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
                         digiCfg.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamThin"),
                         digiCfg.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamThick"));
       scal_.push_back( scal );
-     }
 
-    //other digitizer configs    
-    vanilla_mipfC_[i]=feCfg.getParameter<double>("mipfC");
+      avg_mipfC_[i]=iConfig.getParameter<std::vector<double> >(i==0? "hgcee_fCPerMIP" : "hgceh_fCPerMIP");
+    }
+
+    //Sci-specific
+    if(i==2) {
+
+      scaleByTileArea_ = digiCfg.getParameter<bool>("scaleByTileArea");
+      scaleBySipmArea_ = digiCfg.getParameter<bool>("scaleBySipmArea");
+
+      scalSci_ = new HGCalSciNoiseMap;
+      scalSci_->setDoseMap(digiCfg.getParameter<edm::ParameterSet>("noise").template getParameter<std::string>("doseMap"),
+                           digiCfg.getParameter<edm::ParameterSet>("noise").template getParameter<uint32_t>("scaleByDoseAlgo"));
+      scalSci_->setFluenceScaleFactor(digiCfg.getParameter<edm::ParameterSet>("noise").getParameter<double>("scaleByDoseFactor"));
+      scalSci_->setSipmMap(digiCfg.getParameter<std::string>("sipmMap"));
+      sci_keV2MIP_ = iConfig.getParameter<double>("hgcehsci_keV2DIGI");
+    }
+
     mipTarget_[i]=feCfg.getParameter<uint32_t>("targetMIPvalue_ADC");
     tdcOnset_fC_[i]=feCfg.getParameter<double>("tdcOnset_fC");
     tdcLSB_[i]=feCfg.getParameter<double>("tdcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("tdcNbits") );
@@ -80,11 +96,12 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
   tree_->Branch("gvradius",&gvradius_,"gvradius/F");
   tree_->Branch("gvz",&gvz_,"gvz/F");
   tree_->Branch("event",&event_,"event/I");
-  tree_->Branch("qsim",&qsim_,"qsim/F");
-  tree_->Branch("qrec",&qrec_,"qrec/F");
+  //tree_->Branch("qsim",&qsim_,"qsim/F");
+  // tree_->Branch("qrec",&qrec_,"qrec/F");
   tree_->Branch("mipsim",&mipsim_,"mipsim/F");
   tree_->Branch("miprec",&miprec_,"miprec/F");
   tree_->Branch("avgmiprec",&avgmiprec_,"avgmiprec/F");
+  tree_->Branch("avgmipsim",&avgmipsim_,"avgmipsim/F");
   tree_->Branch("cce",&cce_,"cce/F");
   tree_->Branch("eta",&eta_,"eta/F");
   tree_->Branch("radius",&radius_,"radius/F");
@@ -155,68 +172,121 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
   iSetup.get<IdealGeometryRecord>().get("HGCalHEScintillatorSensitive",geoHandleCEHSci);
   const HGCalGeometry *geoCEHSci=geoHandleCEHSci.product();
-  const HGCalTopology &topoCEHSci=geoCEHSci->topology();
-  const HGCalDDDConstants &dddConstCEHSci=topoCEHSci.dddConstants();
+  // const HGCalTopology &topoCEHSci=geoCEHSci->topology();
+  // const HGCalDDDConstants &dddConstCEHSci=topoCEHSci.dddConstants();
 
   //set the geometry
   scal_[0]->setGeometry(geoCEE, HGCalSiNoiseMap::AUTO, mipTarget_[0]);
   scal_[1]->setGeometry(geoCEH, HGCalSiNoiseMap::AUTO, mipTarget_[1]);
-  
+  scalSci_->setGeometry(geoCEHSci);
+
   //loop over digis
   size_t itSample(2);
-  for(size_t i=0; i<2; i++) {
+  for(size_t i=0; i<3; i++) {
 
-    const HGCalDigiCollection &digis(i==0 ? *digisCEE : *digisCEH);
-    const HGCalDDDConstants &dddConst(i==0 ? dddConstCEE : dddConstCEH);
+    const HGCalDigiCollection &digis(i==0 ? *digisCEE : (i==1 ? *digisCEH : *digisCEHSci) );
 
     for(auto d : digis) {
 
-      HGCSiliconDetId cellId(d.id());
+      //check if it's matched to a simId
+      uint32_t key( d.id().rawId() );
+      if(simE.find(key)==simE.end()) continue;
+
       //read digi (in-time sample only)
-      uint32_t adc(d.sample(itSample).data() );
-      isToT_ = d.sample(itSample).mode();
       HGCalSiNoiseMap::GainRange_t gain = (HGCalSiNoiseMap::GainRange_t)d.sample(itSample).gain();
+      uint32_t adc(d.sample(itSample).data() );
+      isToT_=d.sample(itSample).mode();
 
-      //get the conditions for this det id
-      HGCalSiNoiseMap::SiCellOpCharacteristics siop=scal_[i]->getSiCellOpCharacteristics(cellId);
+      //reset common variables
+      double adcLSB(vanilla_adcLSB_fC_[i]),mipEqfC(1.0),avgMipEqfC(1.0);
+      qsim_=0;
+      qrec_=0.;
+      cce_=1.;
+      thick_=-1;
+      layer_=0;
+      radius_=0;
+      z_=0;
+      int zside=0;
 
+      //Si-specific
+      if(i<2) {
+
+        //simulated charge
+        qsim_ = simE[key] * 1.0e6 * 0.044259; // GeV -> fC  (1000 eV / 3.62 (eV per e) / 6.24150934e3 (e per fC))
+
+        //get the conditions for this det id
+        HGCSiliconDetId cellId(d.id());
+        HGCalSiNoiseMap::SiCellOpCharacteristics siop=scal_[i]->getSiCellOpCharacteristics(cellId);
+        if(!useVanillaCfg_) {
+          adcLSB=scal_[i]->getLSBPerGain()[gain];
+          cce_=siop.core.cce;
+        }
+        mipEqfC     = scal_[i]->getMipEqfC()[thick_];
+        avgMipEqfC = avg_mipfC_[i][thick_];
+        thick_     = cellId.type();
+        isSci_     = false;
+
+        //additional info
+        layer_ = cellId.layer();
+        const HGCalDDDConstants &dddConst(i==0 ? dddConstCEE : dddConstCEH);
+        const auto &xy(dddConst.locateCell(cellId.layer(), cellId.waferU(), cellId.waferV(), cellId.cellU(), cellId.cellV(), true, true));
+        radius_ = sqrt(std::pow(xy.first, 2) + std::pow(xy.second, 2));  //in cm
+        int zside(cellId.zside());
+        z_ = zside*dddConst.waferZ(layer_,true);
+      }
+
+      //Sci-specific
+      if(i==2) {
+
+        //simulated "charge" (in reality this is in MIP units)
+        qsim_ = simE[key] *1.0e+6 * sci_keV2MIP_; // keV to mip
+
+        //get the conditions for this det id
+        //signal scaled by tile and sipm area + dose
+        HGCScintillatorDetId cellId(d.id());
+        GlobalPoint global = geoCEHSci->getPosition(cellId);
+        radius_ = scalSci_->computeRadius(cellId);
+        if(!useVanillaCfg_) {
+          double signal_scale( scalSci_->scaleByDose(cellId,radius_).first );
+          if(scaleBySipmArea_) signal_scale *= scalSci_->scaleBySipmArea(cellId,radius_);
+          if(scaleByTileArea_) signal_scale *= scalSci_->scaleByTileArea(cellId,radius_);
+          cce_ = signal_scale;
+        }
+
+        mipEqfC    = 1.0;     //the digis are already in MIP units
+        avgMipEqfC = 1.0;
+
+        //additional info
+        layer_ = cellId.layer();
+        z_     = global.z();
+        zside  = (z_<0 ? -1 : 1);
+        thick_ = -1;
+        isSci_ = true;
+      }
+       
       //convert back to charge
-      double adcLSB=useVanillaCfg_ ? vanilla_adcLSB_fC_[i] : scal_[i]->getLSBPerGain()[gain];
       qrec_=(adc+0.5)*adcLSB ;
       if(isToT_) 
         qrec_=tdcOnset_fC_[i]+(adc+0.5)*tdcLSB_[i];          
 
-      //get the simulated charge for this hit
-      uint32_t key( cellId.rawId() );
-      if(simE.find(key)==simE.end()) continue; //ignore for the moment
-
-      qsim_ = simE[key] * 1.0e6 * 0.044259; // GeV -> fC  (1000 eV / 3.62 (eV per e) / 6.24150934e3 (e per fC))
-      
-      //convert fC to #MIPs
-      thick_  = cellId.type();
-      double mipEqfC( scal_[i]->getMipEqfC()[thick_] );
-      miprec_=qrec_/mipEqfC;
-      avgmiprec_=qrec_/vanilla_mipfC_[i];
-      mipsim_=qsim_/mipEqfC;
-      
-      cce_=useVanillaCfg_ ? 1 : siop.core.cce;
+      //convert charge to #MIPs
+      miprec_     = qrec_/mipEqfC;
+      mipsim_     = qsim_/mipEqfC;
+      avgmiprec_  = qrec_/avgMipEqfC;
+      avgmipsim_  = qsim_/avgMipEqfC;
 
       //additional info
-      layer_ = cellId.layer();
-      const auto &xy(dddConst.locateCell(cellId.layer(), cellId.waferU(), cellId.waferV(), cellId.cellU(), cellId.cellV(), true, true));
-      radius_ = sqrt(std::pow(xy.first, 2) + std::pow(xy.second, 2));  //in cm
-      int zside(cellId.zside());
-      z_      = zside*dddConst.waferZ(layer_,true);
       eta_    = TMath::ATanH(z_/sqrt(radius_*radius_+z_*z_));
 
-      isSci_  = false;
-      
+      //MC truth
       genergy_  = photons[zside].energy();
       gpt_      = photons[zside].pt();
       geta_     = photons[zside].eta();
       gphi_     = photons[zside].phi();
       gvradius_ = sqrt(pow(photons[zside].x(),2)+pow(photons[zside].y(),2));
       gvz_      = photons[zside].z();
+
+      //store hit
       tree_->Fill();
     }
   }

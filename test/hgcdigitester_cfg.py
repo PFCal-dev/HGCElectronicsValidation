@@ -20,6 +20,12 @@ options.register('useVanillaCfg',
                  VarParsing.multiplicity.singleton, 
                  VarParsing.varType.bool, 
                  'use vanilla fe parameters from the cfg')
+options.register('byDoseAlgo', 
+                 0, 
+                 VarParsing.multiplicity.singleton, 
+                 VarParsing.varType.int, 
+                 'dose algorithm to use')
+
 options.parseArguments()
 
 
@@ -54,10 +60,7 @@ process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(options.maxE
 process.load('SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi')
 process.load('RecoLocalCalo.HGCalRecProducers.HGCalRecHit_cfi')
 from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import HGCal_setEndOfLifeNoise
-#HGCal_setEndOfLifeNoise(process,byDoseAlgo=6) #no noise, no CCE
-#HGCal_setEndOfLifeNoise(process,byDoseAlgo=4) #no noise
-#HGCal_setEndOfLifeNoise(process,byDoseAlgo=2) #no CCE
-HGCal_setEndOfLifeNoise(process,byDoseAlgo=0) #with noise and CCE
+HGCal_setEndOfLifeNoise(process,byDoseAlgo=options.byDoseAlgo)
 
 
 #analyzer
@@ -68,7 +71,8 @@ process.ana = cms.EDAnalyzer("HGCDigiTester",
                              hgcee_fCPerMIP=process.HGCalRecHit.HGCEE_fCPerMIP,
                              hgceh_fCPerMIP=process.HGCalRecHit.HGCHEF_fCPerMIP,
                              hgcehsci_keV2DIGI=process.HGCalRecHit.HGCHEB_keV2DIGI,
-)
+                             useVanillaCfg=cms.bool(options.useVanillaCfg)
+                         )
 
 process.RandomNumberGeneratorService.ana = cms.PSet( initialSeed = cms.untracked.uint32(0),
                                                      engineName = cms.untracked.string('TRandom3')

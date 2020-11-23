@@ -19,6 +19,8 @@
 
 #include "SimCalorimetry/HGCalSimProducers/interface/HGCDigitizerBase.h"  
 #include "SimCalorimetry/HGCalSimProducers/interface/HGCEEDigitizer.h"
+#include "SimCalorimetry/HGCalSimProducers/interface/HGCHEfrontDigitizer.h"
+#include "SimCalorimetry/HGCalSimProducers/interface/HGCHEbackDigitizer.h"
 #include "Geometry/HGCalGeometry/interface/HGCalGeometry.h"
 
 #include "TTree.h"
@@ -45,14 +47,18 @@ class HGCDigiTester : public edm::EDAnalyzer
   edm::EDGetTokenT<std::vector<reco::GenParticle>> genParticles_;
 
   std::vector<HGCalSiNoiseMap *>scal_;
+  HGCalSciNoiseMap *scalSci_;
+
   uint32_t mipTarget_[3];
-  double tdcLSB_[3],vanilla_adcLSB_fC_[3],vanilla_mipfC_[3];
+  double tdcLSB_[3],vanilla_adcLSB_fC_[3];
+  std::vector<double> avg_mipfC_[3];
+  double sci_keV2MIP_;
   double tdcOnset_fC_[3];
-  bool useVanillaCfg_;
+  bool useVanillaCfg_,scaleByTileArea_,scaleBySipmArea_;
 
   Int_t event_,layer_,thick_,isSci_,isToT_;
   Float_t gpt_,geta_,gphi_,genergy_,gvradius_,gvz_;
-  Float_t qsim_,qrec_,mipsim_,miprec_,avgmiprec_,cce_,eta_,radius_,z_;
+  Float_t qsim_,qrec_,mipsim_,avgmipsim_,miprec_,avgmiprec_,cce_,eta_,radius_,z_;
   TTree *tree_;
 };
  
