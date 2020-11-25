@@ -6,7 +6,7 @@ process = cms.Process("ANALYSIS", Phase2C9)
 from FWCore.ParameterSet.VarParsing import VarParsing
 options = VarParsing ('standard')
 options.register('input', 
-                 '/eos/cms/store/cmst3/group/hgcal/CMG_studies/Production/FlatRandomPtGunProducer__20201022/GSD/',
+                 '/eos/cms/store/cmst3/group/hgcal/CMG_studies/Production/CloseByParticleGunProducer_aged3iab_20201117/GSD/',
                  VarParsing.multiplicity.singleton, 
                  VarParsing.varType.string, 
                  "input directory")
@@ -61,7 +61,6 @@ process.load('SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi')
 process.load('RecoLocalCalo.HGCalRecProducers.HGCalRecHit_cfi')
 from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import HGCal_setEndOfLifeNoise
 HGCal_setEndOfLifeNoise(process,byDoseAlgo=options.byDoseAlgo)
-
 
 #analyzer
 process.ana = cms.EDAnalyzer("HGCDigiTester",

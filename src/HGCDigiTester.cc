@@ -62,7 +62,8 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
                         digiCfg.getParameter<edm::ParameterSet>("cceParams").template getParameter<std::vector<double>>("cceParamThick"));
       scal_.push_back( scal );
 
-      avg_mipfC_[i]=iConfig.getParameter<std::vector<double> >(i==0? "hgcee_fCPerMIP" : "hgceh_fCPerMIP");
+      std::vector<double> avg_mip=iConfig.getParameter<std::vector<double> >(i==0? "hgcee_fCPerMIP" : "hgceh_fCPerMIP");
+      for(auto v:avg_mip)avg_mipfC_[i].push_back(v);
     }
 
     //Sci-specific
@@ -106,6 +107,7 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
   tree_->Branch("eta",&eta_,"eta/F");
   tree_->Branch("radius",&radius_,"radius/F");
   tree_->Branch("z",&z_,"z/F");
+  tree_->Branch("isSat",&isSat_,"isSat/I");
   tree_->Branch("isTOT",&isToT_,"isTOT/I");
   tree_->Branch("layer",&layer_,"layer/I");
   tree_->Branch("thick",&thick_,"thick/I");
@@ -128,7 +130,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
   std::map<int,Point> photonVertex;
   for(size_t i = 0; i < genParticlesHandle->size(); ++i )  {    
     const reco::GenParticle &p = (*genParticlesHandle)[i];
-    int idx(p.eta()>0 ? 1 : -1);
+    int idx(p.pz()>0 ? 1 : -1);
     photons[idx]=p.p4();
     photonVertex[idx]=p.vertex();
   }
@@ -193,10 +195,13 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       if(simE.find(key)==simE.end()) continue;
 
       //read digi (in-time sample only)
-      HGCalSiNoiseMap::GainRange_t gain = (HGCalSiNoiseMap::GainRange_t)d.sample(itSample).gain();
       uint32_t adc(d.sample(itSample).data() );
       isToT_=d.sample(itSample).mode();
 
+      isSat_=false;
+      //if(!isToT_ && adc>1020) isSat_=true; // never happens
+      if(isToT_ && adc==4095) isSat_=true;
+      
       //reset common variables
       double adcLSB(vanilla_adcLSB_fC_[i]),mipEqfC(1.0),avgMipEqfC(1.0);
       qsim_=0;
@@ -208,6 +213,13 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       z_=0;
       int zside=0;
 
+      HGCalSiNoiseMap::GainRange_t gain = (HGCalSiNoiseMap::GainRange_t)d.sample(itSample).gain();
+
+      //scintillator does not yet attribute different gains
+      if(!useVanillaCfg_ || i==2) {
+        adcLSB=scal_[0]->getLSBPerGain()[gain];
+      }
+
       //Si-specific
       if(i<2) {
 
@@ -217,13 +229,11 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         //get the conditions for this det id
         HGCSiliconDetId cellId(d.id());
         HGCalSiNoiseMap::SiCellOpCharacteristics siop=scal_[i]->getSiCellOpCharacteristics(cellId);
-        if(!useVanillaCfg_) {
-          adcLSB=scal_[i]->getLSBPerGain()[gain];
-          cce_=siop.core.cce;
-        }
+        cce_=siop.core.cce;
+        
+        thick_     = cellId.type();
         mipEqfC     = scal_[i]->getMipEqfC()[thick_];
         avgMipEqfC = avg_mipfC_[i][thick_];
-        thick_     = cellId.type();
         isSci_     = false;
 
         //additional info
@@ -231,7 +241,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         const HGCalDDDConstants &dddConst(i==0 ? dddConstCEE : dddConstCEH);
         const auto &xy(dddConst.locateCell(cellId.layer(), cellId.waferU(), cellId.waferV(), cellId.cellU(), cellId.cellV(), true, true));
         radius_ = sqrt(std::pow(xy.first, 2) + std::pow(xy.second, 2));  //in cm
-        int zside(cellId.zside());
+        zside=cellId.zside();
         z_ = zside*dddConst.waferZ(layer_,true);
       }
 
@@ -250,7 +260,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
           double signal_scale( scalSci_->scaleByDose(cellId,radius_).first );
           if(scaleBySipmArea_) signal_scale *= scalSci_->scaleBySipmArea(cellId,radius_);
           if(scaleByTileArea_) signal_scale *= scalSci_->scaleByTileArea(cellId,radius_);
-          cce_ = signal_scale;
+          cce_ = 1./signal_scale;
         }
 
         mipEqfC    = 1.0;     //the digis are already in MIP units
@@ -259,11 +269,13 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         //additional info
         layer_ = cellId.layer();
         z_     = global.z();
-        zside  = (z_<0 ? -1 : 1);
+        zside  = cellId.zside();
+        //zside  = (z_<0 ? -1 : 1);
         thick_ = -1;
         isSci_ = true;
       }
        
+
       //convert back to charge
       qrec_=(adc+0.5)*adcLSB ;
       if(isToT_) 
@@ -283,8 +295,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       gpt_      = photons[zside].pt();
       geta_     = photons[zside].eta();
       gphi_     = photons[zside].phi();
-      gvradius_ = sqrt(pow(photons[zside].x(),2)+pow(photons[zside].y(),2));
-      gvz_      = photons[zside].z();
+      gvradius_ = sqrt(pow(photonVertex[zside].x(),2)+pow(photonVertex[zside].y(),2));
+      gvz_      = photonVertex[zside].z();
 
       //store hit
       tree_->Fill();
