@@ -216,7 +216,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       HGCalSiNoiseMap::GainRange_t gain = (HGCalSiNoiseMap::GainRange_t)d.sample(itSample).gain();
 
       //scintillator does not yet attribute different gains
-      if(!useVanillaCfg_ || i==2) {
+      if(!useVanillaCfg_ && i!=2) {
         adcLSB=scal_[0]->getLSBPerGain()[gain];
       }
 
@@ -256,11 +256,11 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         HGCScintillatorDetId cellId(d.id());
         GlobalPoint global = geoCEHSci->getPosition(cellId);
         radius_ = scalSci_->computeRadius(cellId);
-        if(!useVanillaCfg_) {
+        if(!useVanillaCfg_ && scalSci_->algo()==0) {
           double signal_scale( scalSci_->scaleByDose(cellId,radius_).first );
           if(scaleBySipmArea_) signal_scale *= scalSci_->scaleBySipmArea(cellId,radius_);
           if(scaleByTileArea_) signal_scale *= scalSci_->scaleByTileArea(cellId,radius_);
-          cce_ = 1./signal_scale;
+          cce_ = signal_scale;
         }
 
         mipEqfC    = 1.0;     //the digis are already in MIP units
@@ -289,6 +289,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
       //additional info
       eta_    = TMath::ATanH(z_/sqrt(radius_*radius_+z_*z_));
+      layer_  = i==0 ? layer_ : layer_+28;
 
       //MC truth
       genergy_  = photons[zside].energy();
