@@ -2,7 +2,7 @@
 ## cmsenv;  condor_submit   -file submitFillHistograms.sub
 
 executable  = $(cmssw)/src/UserCode/HGCElectronicsValidation/test/scripts/fillOccupancyHistograms.sh
-arguments   = $(cmssw) $(samples_dir)/$(tag) $(maxevents) $(outdir) $(adcThrMIP) $(adcThrMIPbxm1) $(geometry) $(scaleByDoseFactor)
+arguments   = $(cmssw) $(samples_dir)/$(tag) $(maxevents) $(outdir) False $(adcThrMIP) $(adcThrMIPbxm1) $(geometry) $(scaleByDoseFactor)
 output      = occJob_$(ProcId).out
 error       = occJob_$(ProcId).err
 log         = submitFillHistograms_condor.sub.log
@@ -14,7 +14,7 @@ cmssw         = /afs/cern.ch/user/p/psilva/work/HGCal/CMSSW_11_2_0_HGCAL1/
 
 maxevents     = 5000
 #maxevents     = -1
-outdir        = /eos/cms/store/cmst3/user/psilva/HGCAL/EOL/23-09-2020
+outdir        = /eos/cms/store/cmst3/user/psilva/HGCAL/EOL/2020-12-10
 
 #baseline config
 adcThrMIP     = 0.5
@@ -32,6 +32,7 @@ queue tag from (
       ttbar_D49_1120pre2_PU200_eolupdate_ter_20200713
       #ttbar_D49_m20_1120pre1_PU200_eolupdate_20200716
       #ttbar_D49_p20_1120pre1_PU200_eolupdate_20200713
+      ttbar_D49_1120pre2_aged_vanilla_20201209
 )
 
 scaleByDoseFactor=0.0
@@ -40,7 +41,7 @@ queue 1
 
 scaleByDoseFactor=0.5
 tag=ttbar_D49_1120pre1_PU200_eolupdate_1p5ab_ter_20200715
-queue=1
+queue 1
 
 scaleByDoseFactor=1.3333
 tag=ttbar_D49_1120pre1_PU200_eolupdate_4ab_800V_ter_20200715

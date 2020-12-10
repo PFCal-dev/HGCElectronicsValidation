@@ -289,7 +289,9 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
       //additional info
       eta_    = TMath::ATanH(z_/sqrt(radius_*radius_+z_*z_));
-      layer_  = i==0 ? layer_ : layer_+28;
+
+      //for CEH shift by CEE layers
+      if(i>0) layer_+=28;
 
       //MC truth
       genergy_  = photons[zside].energy();
