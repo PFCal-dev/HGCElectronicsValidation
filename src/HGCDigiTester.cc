@@ -10,6 +10,7 @@
 #include "CLHEP/Units/GlobalSystemOfUnits.h"
 #include "FWCore/ServiceRegistry/interface/Service.h"
 #include "FWCore/Utilities/interface/Exception.h"
+#include "DataFormats/ForwardDetId/interface/HGCSiliconDetIdToROC.h"
 #include "FWCore/Utilities/interface/RandomNumberGenerator.h"
 #include "FWCore/Utilities/interface/StreamID.h"
 #include "CLHEP/Geometry/Point3D.h"
@@ -97,6 +98,10 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
   tree_->Branch("gvradius",&gvradius_,"gvradius/F");
   tree_->Branch("gvz",&gvz_,"gvz/F");
   tree_->Branch("event",&event_,"event/I");
+  tree_->Branch("layer",&layer_,"layer/I");
+  tree_->Branch("u",&u_,"u/I");
+  tree_->Branch("v",&v_,"v/I");
+  tree_->Branch("roc",&roc_,"roc/I");
   //tree_->Branch("qsim",&qsim_,"qsim/F");
   // tree_->Branch("qrec",&qrec_,"qrec/F");
   tree_->Branch("mipsim",&mipsim_,"mipsim/F");
@@ -109,7 +114,6 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
   tree_->Branch("z",&z_,"z/F");
   tree_->Branch("isSat",&isSat_,"isSat/I");
   tree_->Branch("isTOT",&isToT_,"isTOT/I");
-  tree_->Branch("layer",&layer_,"layer/I");
   tree_->Branch("thick",&thick_,"thick/I");
   tree_->Branch("isSci",&isSci_,"isSci/I");
 }
@@ -171,6 +175,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
   const HGCalGeometry *geoCEH=geoHandleCEH.product();
   const HGCalTopology &topoCEH=geoCEH->topology();
   const HGCalDDDConstants &dddConstCEH=topoCEH.dddConstants();
+  HGCSiliconDetIdToROC sid2roc;
 
   iSetup.get<IdealGeometryRecord>().get("HGCalHEScintillatorSensitive",geoHandleCEHSci);
   const HGCalGeometry *geoCEHSci=geoHandleCEHSci.product();
@@ -209,6 +214,9 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       cce_=1.;
       thick_=-1;
       layer_=0;
+      u_=0;
+      v_=0;
+      roc_=0;
       radius_=0;
       z_=0;
       int zside=0;
@@ -228,16 +236,19 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
         //get the conditions for this det id
         HGCSiliconDetId cellId(d.id());
+        u_ = cellId.waferUV().first;
+        v_ = cellId.waferUV().second;
+        roc_    = sid2roc.getROCNumber(cellId);
         HGCalSiNoiseMap::SiCellOpCharacteristics siop=scal_[i]->getSiCellOpCharacteristics(cellId);
-        cce_=siop.core.cce;
-        
+        cce_       = siop.core.cce;
         thick_     = cellId.type();
-        mipEqfC     = scal_[i]->getMipEqfC()[thick_];
+        mipEqfC    = scal_[i]->getMipEqfC()[thick_];
         avgMipEqfC = avg_mipfC_[i][thick_];
         isSci_     = false;
 
         //additional info
         layer_ = cellId.layer();
+        
         const HGCalDDDConstants &dddConst(i==0 ? dddConstCEE : dddConstCEH);
         const auto &xy(dddConst.locateCell(cellId.layer(), cellId.waferU(), cellId.waferV(), cellId.cellU(), cellId.cellV(), true, true));
         radius_ = sqrt(std::pow(xy.first, 2) + std::pow(xy.second, 2));  //in cm
@@ -246,6 +257,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       }
 
       //Sci-specific
+      //maybe here we could also add a ROC and ieta,iphi or s.th. like that not crucial for the moment
       if(i==2) {
 
         //simulated "charge" (in reality this is in MIP units)

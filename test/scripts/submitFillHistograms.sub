@@ -10,9 +10,9 @@ log         = submitFillHistograms_condor.sub.log
 
 samples_dir   = /eos/cms/store/cmst3/group/hgcal/CMG_studies/Production
 
-cmssw         = /afs/cern.ch/user/p/psilva/work/HGCal/CMSSW_11_2_0_HGCAL1/
+cmssw         = /afs/cern.ch/user/p/psilva/work/HGCal/CMSSW_11_2_0_pre9/
 
-maxevents     = 5000
+maxevents     = 1000
 #maxevents     = -1
 outdir        = /eos/cms/store/cmst3/user/psilva/HGCAL/EOL/2020-12-10
 
