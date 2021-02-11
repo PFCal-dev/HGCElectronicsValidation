@@ -19,6 +19,6 @@ for i in ${setups[@]}; do
     IFS=',' read tag useVanilla doseAlgo <<< "${i}"
     echo "*******************************************"
     echo "Starting with ${tag}"
-    cmsRun test/hgcdigitester_cfg.py input=${baseDir}/${tag}/GSD output=${tag}.root ${useVanilla} ${doseAlgo}; 
+    cmsRun test/hgcdigitester_cfg.py input=${baseDir}/${tag}/GSD output=${tag}.root ${useVanilla} ${doseAlgo} hardProcOnly=True; 
     mv -v ${tag}.root ${outDir}/${tag}.root
 done

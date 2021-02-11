@@ -44,6 +44,9 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     digisCEHSci_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","HEback")) ),
     genParticles_( consumes<std::vector<reco::GenParticle>>(edm::InputTag("genParticles")) )
 {   
+  hardProcOnly_=iConfig.getParameter<bool>("hardProcOnly");
+  onlyROCTree_=iConfig.getParameter<bool>("onlyROCTree");
+
   //configure noise map
   std::string digitizers[]={"hgceeDigitizer","hgcehDigitizer","hgcehsciDigitizer"};
   for(size_t i=0; i<3; i++) {
@@ -87,35 +90,47 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     vanilla_adcLSB_fC_[i] = feCfg.getParameter<double>("adcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("adcNbits") );
   }
   useVanillaCfg_ = iConfig.getParameter<bool>("useVanillaCfg");
-  
-  edm::Service<TFileService> fs;
-  tree_ = fs->make<TTree>("hits","hits");
+
   event_=0;
-  tree_->Branch("genergy",&genergy_,"genergy/F");
-  tree_->Branch("gpt",&gpt_,"gpt/F");
-  tree_->Branch("geta",&geta_,"geta/F");
-  tree_->Branch("gphi",&gphi_,"gphi/F");
-  tree_->Branch("gvradius",&gvradius_,"gvradius/F");
-  tree_->Branch("gvz",&gvz_,"gvz/F");
-  tree_->Branch("event",&event_,"event/I");
-  tree_->Branch("layer",&layer_,"layer/I");
-  tree_->Branch("u",&u_,"u/I");
-  tree_->Branch("v",&v_,"v/I");
-  tree_->Branch("roc",&roc_,"roc/I");
-  //tree_->Branch("qsim",&qsim_,"qsim/F");
-  // tree_->Branch("qrec",&qrec_,"qrec/F");
-  tree_->Branch("mipsim",&mipsim_,"mipsim/F");
-  tree_->Branch("miprec",&miprec_,"miprec/F");
-  tree_->Branch("avgmiprec",&avgmiprec_,"avgmiprec/F");
-  tree_->Branch("avgmipsim",&avgmipsim_,"avgmipsim/F");
-  tree_->Branch("cce",&cce_,"cce/F");
-  tree_->Branch("eta",&eta_,"eta/F");
-  tree_->Branch("radius",&radius_,"radius/F");
-  tree_->Branch("z",&z_,"z/F");
-  tree_->Branch("isSat",&isSat_,"isSat/I");
-  tree_->Branch("isTOT",&isToT_,"isTOT/I");
-  tree_->Branch("thick",&thick_,"thick/I");
-  tree_->Branch("isSci",&isSci_,"isSci/I");
+  edm::Service<TFileService> fs;
+  if(!onlyROCTree_) {
+    tree_ = fs->make<TTree>("hits","hits");
+    tree_->Branch("genergy",&genergy_,"genergy/F");
+    tree_->Branch("gpt",&gpt_,"gpt/F");
+    tree_->Branch("geta",&geta_,"geta/F");
+    tree_->Branch("gphi",&gphi_,"gphi/F");
+    tree_->Branch("gvradius",&gvradius_,"gvradius/F");
+    tree_->Branch("gvz",&gvz_,"gvz/F");
+    tree_->Branch("event",&event_,"event/I");
+    tree_->Branch("layer",&layer_,"layer/I");
+    tree_->Branch("u",&u_,"u/I");
+    tree_->Branch("v",&v_,"v/I");
+    tree_->Branch("roc",&roc_,"roc/I");
+    //tree_->Branch("qsim",&qsim_,"qsim/F");
+    // tree_->Branch("qrec",&qrec_,"qrec/F");
+    tree_->Branch("mipsim",&mipsim_,"mipsim/F");
+    tree_->Branch("miprec",&miprec_,"miprec/F");
+    tree_->Branch("avgmiprec",&avgmiprec_,"avgmiprec/F");
+    tree_->Branch("avgmipsim",&avgmipsim_,"avgmipsim/F");
+    tree_->Branch("cce",&cce_,"cce/F");
+    tree_->Branch("eta",&eta_,"eta/F");
+    tree_->Branch("radius",&radius_,"radius/F");
+    tree_->Branch("z",&z_,"z/F");
+    tree_->Branch("isSat",&isSat_,"isSat/I");
+    tree_->Branch("isTOT",&isToT_,"isTOT/I");
+    tree_->Branch("thick",&thick_,"thick/I");
+    tree_->Branch("isSci",&isSci_,"isSci/I");
+  }
+
+  rocTree_ = fs->make<TTree>("rocs","rocs");
+  rocTree_->Branch("event",&event_,"event/I");
+  rocTree_->Branch("layer",&layer_,"layer/I");
+  rocTree_->Branch("side",&side_,"side/O");
+  rocTree_->Branch("u",&u_,"u/I");
+  rocTree_->Branch("v",&v_,"v/I");
+  rocTree_->Branch("roc",&roc_,"roc/I");
+  rocTree_->Branch("nhits",&nhits_,"nhits/I");
+  rocTree_->Branch("miprec",&miprec_,"miprec/F");
 }
 
 //
@@ -127,7 +142,8 @@ void HGCDigiTester::endJob()
 void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iSetup)
 {
   event_++;
- 
+  rocDeposits_t rocs;
+
   edm::Handle<std::vector<reco::GenParticle> > genParticlesHandle;
   iEvent.getByToken(genParticles_, genParticlesHandle);
   std::map<int,LorentzVector> photons;
@@ -197,8 +213,11 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
       //check if it's matched to a simId
       uint32_t key( d.id().rawId() );
-      if(simE.find(key)==simE.end()) continue;
-
+      bool simEexists(true); 
+      if(simE.find(key)==simE.end()){
+        if(hardProcOnly_) continue;
+        simEexists=false;
+      }
       //read digi (in-time sample only)
       uint32_t adc(d.sample(itSample).data() );
       isToT_=d.sample(itSample).mode();
@@ -232,7 +251,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       if(i<2) {
 
         //simulated charge
-        qsim_ = simE[key] * 1.0e6 * 0.044259; // GeV -> fC  (1000 eV / 3.62 (eV per e) / 6.24150934e3 (e per fC))
+        qsim_ = simEexists ? simE[key] * 1.0e6 * 0.044259 : 0.; // GeV -> fC  (1000 eV / 3.62 (eV per e) / 6.24150934e3 (e per fC))
 
         //get the conditions for this det id
         HGCSiliconDetId cellId(d.id());
@@ -261,7 +280,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       if(i==2) {
 
         //simulated "charge" (in reality this is in MIP units)
-        qsim_ = simE[key] *1.0e+6 * sci_keV2MIP_; // keV to mip
+        qsim_ = simEexists ? simE[key] *1.0e+6 * sci_keV2MIP_ : 0.; // keV to mip
 
         //get the conditions for this det id
         //signal scaled by tile and sipm area + dose
@@ -314,9 +333,30 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       gvz_      = photonVertex[zside].z();
 
       //store hit
-      tree_->Fill();
+      if(!onlyROCTree_) tree_->Fill();
+
+      //increment energy for the ROC (Si only)
+      if(i==2) continue;
+      rocKey_t k(layer_,(z_>0),u_,v_,roc_);
+      if(rocs.find(k)==rocs.end()) rocs[k]=rocSummary_t(0.,0.);
+      rocs[k].first += 1;
+      rocs[k].second += miprec_/cce_;
     }
   }
+  
+  //save the summary of energy deposits in ROCs
+  for(auto r : rocs ){
+    layer_=std::get<0>(r.first) ;
+    side_=std::get<1>(r.first) ;
+    u_=std::get<2>(r.first) ;
+    v_=std::get<3>(r.first) ;
+    roc_=std::get<4>(r.first) ;
+    nhits_=r.second.first;
+    miprec_=r.second.second;
+    rocTree_->Fill();
+  }
+
+
 
 }
 

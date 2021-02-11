@@ -1,6 +1,8 @@
 #ifndef _HGCDigiTester_h_
 #define _HGCDigiTester_h_
 
+#include <tuple>
+
 #include "FWCore/Framework/interface/Frameworkfwd.h"
 #include "FWCore/Framework/interface/EDAnalyzer.h"
 
@@ -30,6 +32,7 @@
    @short to test energy -> digi -> energy conversion
 */
 
+
 class HGCDigiTester : public edm::EDAnalyzer 
 {
   
@@ -39,6 +42,10 @@ class HGCDigiTester : public edm::EDAnalyzer
   ~HGCDigiTester() {}
   virtual void analyze( const edm::Event&, const edm::EventSetup& );
   void endJob();
+
+  typedef std::tuple<int, bool, int, int, int> rocKey_t; //not the Balboa, though...
+  typedef std::pair<int,float> rocSummary_t;        
+  typedef std::map<const rocKey_t,rocSummary_t> rocDeposits_t;
 
  private:
   
@@ -59,7 +66,12 @@ class HGCDigiTester : public edm::EDAnalyzer
   Int_t event_,layer_,u_,v_,roc_,thick_,isSci_,isToT_,isSat_;
   Float_t gpt_,geta_,gphi_,genergy_,gvradius_,gvz_;
   Float_t qsim_,qrec_,mipsim_,avgmipsim_,miprec_,avgmiprec_,cce_,eta_,radius_,z_;
-  TTree *tree_;
+  Int_t nhits_; //only for the rocTree
+  Bool_t side_; //only for the rocTree
+  TTree *tree_,*rocTree_;
+    
+  bool hardProcOnly_;
+  bool onlyROCTree_;
 };
  
 

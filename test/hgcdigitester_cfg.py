@@ -20,6 +20,16 @@ options.register('useVanillaCfg',
                  VarParsing.multiplicity.singleton, 
                  VarParsing.varType.bool, 
                  'use vanilla fe parameters from the cfg')
+options.register('hardProcOnly', 
+                 False, 
+                 VarParsing.multiplicity.singleton, 
+                 VarParsing.varType.bool, 
+                 'filter hits for hard process only (matching SimHits')
+options.register('onlyROCTree', 
+                 False, 
+                 VarParsing.multiplicity.singleton, 
+                 VarParsing.varType.bool, 
+                 'save only the ROC summary tree')
 options.register('byDoseAlgo', 
                  0, 
                  VarParsing.multiplicity.singleton, 
@@ -70,7 +80,9 @@ process.ana = cms.EDAnalyzer("HGCDigiTester",
                              hgcee_fCPerMIP=process.HGCalRecHit.HGCEE_fCPerMIP,
                              hgceh_fCPerMIP=process.HGCalRecHit.HGCHEF_fCPerMIP,
                              hgcehsci_keV2DIGI=process.HGCalRecHit.HGCHEB_keV2DIGI,
-                             useVanillaCfg=cms.bool(options.useVanillaCfg)
+                             useVanillaCfg=cms.bool(options.useVanillaCfg),
+                             hardProcOnly=cms.bool(options.hardProcOnly),
+                             onlyROCTree=cms.bool(options.onlyROCTree)
                          )
 
 process.RandomNumberGeneratorService.ana = cms.PSet( initialSeed = cms.untracked.uint32(0),
