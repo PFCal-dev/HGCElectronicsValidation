@@ -16,6 +16,26 @@ git pull https://github.com/PFCal-dev/cmssw ${work_branch}
 git push https://github.com/PFCal-dev/cmssw HEAD:${work_branch}
 ```
 
+## Digi tester
+
+An extensive comparison of the digis and the sim hits can be performed using the HGCDigiTester.cc class.
+The files produced are large (approx. 6M hits per event) so don't be greedy running the tool.
+The option 'hardProcOnly' can be used to store only the hits associated to MC truth (i.e. not from pileup) 
+which greatly reduces the footprint in particular for particle guns.
+An example of how to run it is the following:
+
+```
+cmsRun test/hgcdigitester_cfg.py \
+       input=/eos/cms/store/cmst3/group/hgcal/CMG_studies/Production/ttbar_D49_1120pre1_PU200_eolupdate_qua_20200723/GSD \
+       output=test.root \                                                                                               
+       useVanillaCfg=False \
+       byDoseAlgo=0 \
+       hardProcOnly=False \
+       maxEvents=10
+```
+
+The output ROOT file will contain a tree with information about sim and digitized hits.
+
 ## Radiation map analysis
 
 A set of control plots for the noise, charge collection efficiency, fluence is produced based on a radiation map file

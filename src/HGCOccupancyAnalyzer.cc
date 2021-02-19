@@ -365,6 +365,7 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
       bool passTightThrBxm1(rawDatabxm1 > std::floor(2.0*mipADC/leak));
 
       HGCalWafer::HitInfo_t h;
+      h.mip= isTDC ? 10000. : float(rawData)/float(mipADC); //just saturate it for the moment FIXME
       h.adc=rawData;
       h.adcbxm1=rawDatabxm1;
       h.passThr=passThr;

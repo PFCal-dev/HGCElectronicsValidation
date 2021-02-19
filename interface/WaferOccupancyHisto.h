@@ -21,6 +21,7 @@ namespace HGCalWafer{
   */
   struct HitInfo_t {
     uint32_t adc,adcbxm1;
+    float mip;
     bool isTOA,isTDC,isBusy;
     bool passThr,passLZSThr,passMZSThr,passTZSThr,passThrBxm1,passTightThrBxm1;
   };
@@ -116,6 +117,7 @@ namespace HGCalWafer{
       //book histos and counters (nominal threshold, loose and tight ZS)
       busyCounts_=0;
       histos_["busycounts"] = mySubDir.make<TH1F>(myID_+"_busycounts",";Busy cells;",ncells_+1,0,ncells_+1);    
+      histos_["mip"]        = mySubDir.make<TH1F>(myID_+"_mip",";q [MIP];",200,0,100);
       for(auto &v : vars_) {
         
         //adc spectra
@@ -177,6 +179,8 @@ namespace HGCalWafer{
           histos_["rejadcbxm1"+v]->Fill(h.adcbxm1);
           continue;
         }
+
+        histos_["mip"]->Fill(h.mip);
 
         //adc spectra
         if(!h.isTDC) {
