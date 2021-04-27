@@ -4,9 +4,6 @@ import os
 
 colors=[ROOT.kBlack, ROOT.kMagenta, ROOT.kMagenta+2, ROOT.kMagenta-9,ROOT.kRed+1,ROOT.kAzure+7, ROOT.kBlue-7]
 markers=[20,24,21,25,22,26]
-plots    = ['sn','cce','noise','ileak','fluence','gain','mippeak']
-rangeMin = [ 0,   0,    0,      0,      0,        0.5,   3,      ]
-rangeMax = [ 12,  1.1,  0.7,    15,     10e15,    3.5,   20,     ]
 
 def drawHeader(title=None):
 
@@ -23,10 +20,53 @@ def drawHeader(title=None):
     if title:
         txt.DrawLatex(0.5,0.97,title)
 
+def makeSciPlotsFrom(fIn,outName):
+
+    """receives a TDirectoryFile with the plots from an analyzer and saves them in png/pdf"""
+
+    c=ROOT.TCanvas('c','c',500,500)
+    c.SetLeftMargin(0.12)
+    c.SetBottomMargin(0.11)
+
+    #2d maps
+    plots=['doseMap',
+           'fluenceMap',
+           'scaleByDoseMap',
+           'scaleByTileAreaMap',
+           'scaleByDoseAreaMap',
+           'noiseByFluenceMap', 
+           'probNoiseAboveHalfMip',
+           'signalToNoiseFlatAreaMap',
+           'signalToNoiseDoseMap',
+           'signalToNoiseAreaMap',
+           'signalToNoiseDoseAreaMap',
+           'signalToNoiseDoseAreaSipmMap',
+           'saturationMap']
+
+    for p in plots:
+        
+        c.Clear()
+        c.SetTopMargin(0.05)
+        c.SetRightMargin(0.12)
+        h=fIn.Get('plotter/{}'.format(p))
+        h.Draw('colz')
+        h.GetZaxis().SetTitleOffset(-0.3)
+        drawHeader(h.GetTitle())
+        c.Modified()
+        c.Update()
+        for ext in ['png','pdf']:
+            c.SaveAs(outName+'/sipontile_%s.%s'%(p,ext))
+
+
+
 def makePlotsFrom(key,outName):
 
     """receives a TDirectoryFile with the plots from an analyzer and saves them in png/pdf"""
 
+    plots    = ['sn','cce','noise','ileak','fluence','gain','mippeak']
+    rangeMin = [ 0,   0,    0,      0,      0,        0.5,   3,      ]
+    rangeMax = [ 12,  1.1,  0.7,    15,     10e15,    3.5,   20,     ]
+    
     c=ROOT.TCanvas('c','c',500,500)
     c.SetLeftMargin(0.12)
     c.SetBottomMargin(0.11)
@@ -107,12 +147,19 @@ def main():
     url='dosemap_output.root'
     if len(sys.argv)>1 :
         url=str(sys.argv[1])
+    isSci=False
+    if len(sys.argv)>2 and sys.argv[2]=='sci':
+        isSci=True
     outName=url[:-5]
     if not os.path.isdir(outName):
         os.mkdir(outName)
 
     fIn=ROOT.TFile.Open(url)
-    for key in fIn.GetListOfKeys(): makePlotsFrom(key.ReadObj(),outName)
+    if isSci:
+        makeSciPlotsFrom(fIn,outName)
+    else:
+        for key in fIn.GetListOfKeys(): 
+            makePlotsFrom(key.ReadObj(),outName)
 
 if __name__ == "__main__":
     main()
