@@ -5,6 +5,16 @@ These tools are used to debug the development on the main cmssw repository.
 On top of your current CMSSW work area do
 
 ```
+export SCRAM_ARCH=slc7_amd64_gcc900
+cmsrel CMSSW_11_3_0_pre6
+cd CMSSW_11_3_0_pre6/src/
+cmsenv
+
+#OPTIONAL (mostly if you need to do some development in the base code)
+git cms-addkpg SimCalorimetry/HGCalSimProducers
+git cms-addkpg SimCalorimetry/HGCalSimAlgos
+#END OPTIONAL
+
 git clone https://github.com/PFCal-dev/HGCElectronicsValidation.git UserCode/HGCElectronicsValidation
 scram b -j 8
 ```

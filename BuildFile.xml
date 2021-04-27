@@ -4,6 +4,7 @@
 <use name="hepmc"/>
 <use name="heppdt"/>
 <use name="boost"/>
+<use name="Geometry/Records"/>
 <use name="FWCore/Framework"/>
 <use name="SimDataFormats/GeneratorProducts"/>
 <use name="CommonTools/UtilAlgos"/>

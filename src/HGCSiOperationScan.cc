@@ -93,13 +93,13 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
   unsigned int doseMapAlgo(iConfig.getParameter<unsigned int>("doseMapAlgo"));
   std::vector<double> ileakParam(iConfig.getParameter<std::vector<double>>("ileakParam"));
 
-  noiseMaps_["CEE"] = std::unique_ptr<HGCalSiNoiseMap>(new HGCalSiNoiseMap);
+  noiseMaps_["CEE"] = std::unique_ptr<HGCalSiNoiseMap<HGCSiliconDetId>>(new HGCalSiNoiseMap<HGCSiliconDetId>);
   noiseMaps_["CEE"]->setDoseMap(doseMapURL,doseMapAlgo);
   noiseMaps_["CEE"]->setIleakParam(ileakParam);
   noiseMaps_["CEE"]->setENCCommonNoiseSubScale(encCommonNoiseSub_);
   noiseMaps_["CEE"]->setFluenceScaleFactor(fluenceSF_);
 
-  noiseMaps_["CEH"] = std::unique_ptr<HGCalSiNoiseMap>(new HGCalSiNoiseMap);
+  noiseMaps_["CEH"] = std::unique_ptr<HGCalSiNoiseMap<HGCSiliconDetId>>(new HGCalSiNoiseMap<HGCSiliconDetId>);
   noiseMaps_["CEH"]->setDoseMap(doseMapURL,doseMapAlgo);
   noiseMaps_["CEH"]->setIleakParam(ileakParam);
   noiseMaps_["CEH"]->setENCCommonNoiseSubScale(encCommonNoiseSub_);
@@ -328,7 +328,7 @@ void HGCSiOperationScan::analyze(const edm::Event &iEvent, const edm::EventSetup
         std::pair<int,int> cellUV=detId.cellUV();
         GlobalPoint pt=it.second->getPosition(detId);
         double radius = sqrt(std::pow(pt.x(), 2) + std::pow(pt.y(), 2));  //in cm
-        HGCalSiNoiseMap::GainRange_t gain(HGCalSiNoiseMap::AUTO);
+        HGCalSiNoiseMap<HGCSiliconDetId>::GainRange_t gain(HGCalSiNoiseMap<HGCSiliconDetId>::AUTO);
         
         layerCellUVColl_[layKey][waferUV].push_back( cellUV );
         layerCellXYColl_[layKey][waferUV].push_back( std::pair<double,double>(pt.x(),pt.y()) );

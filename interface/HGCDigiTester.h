@@ -19,10 +19,9 @@
 #include "DataFormats/ForwardDetId/interface/HGCalDetId.h"
 #include "DataFormats/HGCDigi/interface/HGCDigiCollections.h"
 
+#include "SimCalorimetry/HGCalSimAlgos/interface/HGCalSiNoiseMap.h"  
+#include "SimCalorimetry/HGCalSimAlgos/interface/HGCalSciNoiseMap.h"  
 #include "SimCalorimetry/HGCalSimProducers/interface/HGCDigitizerBase.h"  
-#include "SimCalorimetry/HGCalSimProducers/interface/HGCEEDigitizer.h"
-#include "SimCalorimetry/HGCalSimProducers/interface/HGCHEfrontDigitizer.h"
-#include "SimCalorimetry/HGCalSimProducers/interface/HGCHEbackDigitizer.h"
 #include "Geometry/HGCalGeometry/interface/HGCalGeometry.h"
 
 #include "TTree.h"
@@ -53,7 +52,7 @@ class HGCDigiTester : public edm::EDAnalyzer
   edm::EDGetTokenT<HGCalDigiCollection> digisCEE_,digisCEH_,digisCEHSci_;
   edm::EDGetTokenT<std::vector<reco::GenParticle>> genParticles_;
 
-  std::vector<HGCalSiNoiseMap *>scal_;
+  std::vector< HGCalSiNoiseMap<HGCSiliconDetId> *> scal_;
   HGCalSciNoiseMap *scalSci_;
 
   uint32_t mipTarget_[3];

@@ -56,7 +56,7 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
 
     //Si specific
     if(i<2) {
-      HGCalSiNoiseMap *scal=new HGCalSiNoiseMap;
+      HGCalSiNoiseMap<HGCSiliconDetId> *scal=new HGCalSiNoiseMap<HGCSiliconDetId>;
       scal->setDoseMap(digiCfg.getParameter<edm::ParameterSet>("noise_fC").template getParameter<std::string>("doseMap"),
                              digiCfg.getParameter<edm::ParameterSet>("noise_fC").template getParameter<uint32_t>("scaleByDoseAlgo"));
       scal->setFluenceScaleFactor(digiCfg.getParameter<edm::ParameterSet>("noise_fC").getParameter<double>("scaleByDoseFactor"));
@@ -199,8 +199,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
   // const HGCalDDDConstants &dddConstCEHSci=topoCEHSci.dddConstants();
 
   //set the geometry
-  scal_[0]->setGeometry(geoCEE, HGCalSiNoiseMap::AUTO, mipTarget_[0]);
-  scal_[1]->setGeometry(geoCEH, HGCalSiNoiseMap::AUTO, mipTarget_[1]);
+  scal_[0]->setGeometry(geoCEE, HGCalSiNoiseMap<HGCSiliconDetId>::AUTO, mipTarget_[0]);
+  scal_[1]->setGeometry(geoCEH, HGCalSiNoiseMap<HGCSiliconDetId>::AUTO, mipTarget_[1]);
   scalSci_->setGeometry(geoCEHSci);
 
   //loop over digis
@@ -240,7 +240,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       z_=0;
       int zside=0;
 
-      HGCalSiNoiseMap::GainRange_t gain = (HGCalSiNoiseMap::GainRange_t)d.sample(itSample).gain();
+      HGCalSiNoiseMap<HGCSiliconDetId>::GainRange_t gain = (HGCalSiNoiseMap<HGCSiliconDetId>::GainRange_t)d.sample(itSample).gain();
 
       //scintillator does not yet attribute different gains
       if(!useVanillaCfg_ && i!=2) {
@@ -258,7 +258,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         u_ = cellId.waferUV().first;
         v_ = cellId.waferUV().second;
         roc_    = sid2roc.getROCNumber(cellId);
-        HGCalSiNoiseMap::SiCellOpCharacteristics siop=scal_[i]->getSiCellOpCharacteristics(cellId);
+        HGCalSiNoiseMap<HGCSiliconDetId>::SiCellOpCharacteristics siop 
+          = scal_[i]->getSiCellOpCharacteristics(cellId);
         cce_       = siop.core.cce;
         thick_     = cellId.type();
         mipEqfC    = scal_[i]->getMipEqfC()[thick_];
