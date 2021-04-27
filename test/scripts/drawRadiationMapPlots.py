@@ -140,9 +140,6 @@ def makePlotsFrom(key,outName):
                 c.SaveAs(outName+'/%s_%s_perlayer_%s.%s'%(p,d,tag,ext))
 
 def main():
-    ROOT.gStyle.SetOptStat(0)
-    ROOT.gStyle.SetOptTitle(0)
-    ROOT.gROOT.SetBatch(True)
 
     url='dosemap_output.root'
     if len(sys.argv)>1 :
@@ -153,6 +150,10 @@ def main():
     outName=url[:-5]
     if not os.path.isdir(outName):
         os.mkdir(outName)
+
+    ROOT.gStyle.SetOptStat(0)
+    ROOT.gStyle.SetOptTitle(0)
+    ROOT.gROOT.SetBatch(True)
 
     fIn=ROOT.TFile.Open(url)
     if isSci:
