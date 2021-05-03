@@ -11,8 +11,8 @@ cd CMSSW_11_3_0_pre6/src/
 cmsenv
 
 #OPTIONAL (mostly if you need to do some development in the base code)
-git cms-addkpg SimCalorimetry/HGCalSimProducers
-git cms-addkpg SimCalorimetry/HGCalSimAlgos
+git cms-addpkg SimCalorimetry/HGCalSimProducers
+git cms-addpkg SimCalorimetry/HGCalSimAlgos
 #END OPTIONAL
 
 git clone https://github.com/PFCal-dev/HGCElectronicsValidation.git UserCode/HGCElectronicsValidation -b 113x
