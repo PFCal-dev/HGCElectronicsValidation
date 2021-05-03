@@ -75,6 +75,7 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
 
       scaleByTileArea_ = digiCfg.getParameter<bool>("scaleByTileArea");
       scaleBySipmArea_ = digiCfg.getParameter<bool>("scaleBySipmArea");
+      pxFiringRate_    = digiCfg.getParameter<double>("pxFiringRate");
 
       scalSci_ = new HGCalSciNoiseMap;
       scalSci_->setDoseMap(digiCfg.getParameter<edm::ParameterSet>("noise").template getParameter<std::string>("doseMap"),
@@ -293,7 +294,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         GlobalPoint global = geoCEHSci->getPosition(cellId);
         radius_ = scalSci_->computeRadius(cellId);
         if(!useVanillaCfg_ && scalSci_->algo()==0) {
-          double signal_scale( scalSci_->scaleByDose(cellId,radius_).first );
+          double signal_scale( scalSci_->scaleByDose(cellId,radius_,pxFiringRate_).first );
           if(scaleBySipmArea_) signal_scale *= scalSci_->scaleBySipmArea(cellId,radius_);
           if(scaleByTileArea_) signal_scale *= scalSci_->scaleByTileArea(cellId,radius_);
           cce_ = signal_scale;

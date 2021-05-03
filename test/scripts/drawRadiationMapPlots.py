@@ -29,12 +29,14 @@ def makeSciPlotsFrom(fIn,outName):
     c.SetBottomMargin(0.11)
 
     #2d maps
-    plots=['doseMap',
+    plots=['tilecount',
+           'doseMap',
            'fluenceMap',
            'scaleByDoseMap',
            'scaleByTileAreaMap',
            'scaleByDoseAreaMap',
            'noiseByFluenceMap', 
+           'expNoiseMap',
            'probNoiseAboveHalfMip',
            'signalToNoiseFlatAreaMap',
            'signalToNoiseDoseMap',
@@ -49,6 +51,7 @@ def makeSciPlotsFrom(fIn,outName):
         c.SetTopMargin(0.05)
         c.SetRightMargin(0.12)
         h=fIn.Get('plotter/{}'.format(p))
+        h.SetTitle('')
         h.Draw('colz')
         h.GetZaxis().SetTitleOffset(-0.3)
         drawHeader(h.GetTitle())
@@ -151,9 +154,9 @@ def main():
     if not os.path.isdir(outName):
         os.mkdir(outName)
 
+    ROOT.gROOT.SetBatch(True)
     ROOT.gStyle.SetOptStat(0)
     ROOT.gStyle.SetOptTitle(0)
-    ROOT.gROOT.SetBatch(True)
 
     fIn=ROOT.TFile.Open(url)
     if isSci:
