@@ -58,7 +58,8 @@ python test/scripts/drawRadiationMapPlots.py dosemap_output.root
 cmsRun ../../SimCalorimetry/HGCalSimAlgos/test/hgchebacksignalscaler_cfg.py \
        doseMap=SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.7.20.txt \
        sipmMap=SimCalorimetry/HGCalSimProducers/data/sipmParams_geom-10.txt \
-       nPEperMIP=21
+       nPEperMIP=21 pxFiringRate=-1 
+python test/scripts/drawRadiationMapPlots.py dosemap_output_sci.root sci
 ```
 
 ## Wafer map
