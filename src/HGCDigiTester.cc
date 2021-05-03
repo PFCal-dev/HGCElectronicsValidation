@@ -103,8 +103,8 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     tree_->Branch("gvz",&gvz_,"gvz/F");
     tree_->Branch("event",&event_,"event/I");
     tree_->Branch("layer",&layer_,"layer/I");
-    tree_->Branch("u",&u_,"u/I");
-    tree_->Branch("v",&v_,"v/I");
+    tree_->Branch("u",&u_,"u/I");  //u or iphi
+    tree_->Branch("v",&v_,"v/I");  //v or ieta
     tree_->Branch("roc",&roc_,"roc/I");
     //tree_->Branch("qsim",&qsim_,"qsim/F");
     // tree_->Branch("qrec",&qrec_,"qrec/F");
@@ -277,8 +277,12 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       }
 
       //Sci-specific
-      //maybe here we could also add a ROC and ieta,iphi or s.th. like that not crucial for the moment
+      //maybe here we could also add a ROC ?
       if(i==2) {
+
+        HGCScintillatorDetId scId(d.id());
+        u_=scId.iphi();
+        v_=scId.ieta();
 
         //simulated "charge" (in reality this is in MIP units)
         qsim_ = simEexists ? simE[key] *1.0e+6 * sci_keV2MIP_ : 0.; // keV to mip

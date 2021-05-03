@@ -6,8 +6,8 @@ On top of your current CMSSW work area do
 
 ```
 export SCRAM_ARCH=slc7_amd64_gcc900
-cmsrel CMSSW_11_3_0_pre5
-cd CMSSW_11_3_0_pre5/src/
+cmsrel CMSSW_11_3_0_pre6
+cd CMSSW_11_3_0_pre6/src/
 cmsenv
 
 #OPTIONAL (mostly if you need to do some development in the base code)
