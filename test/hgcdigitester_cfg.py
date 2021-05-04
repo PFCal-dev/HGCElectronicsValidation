@@ -15,6 +15,11 @@ options.register('geometry',
                  VarParsing.multiplicity.singleton, 
                  VarParsing.varType.string, 
                  'geometry to use')
+options.register('sipmMap', 
+                 'SimCalorimetry/HGCalSimProducers/data/sipmParams_geom-10.txt', 
+                 VarParsing.multiplicity.singleton, 
+                 VarParsing.varType.string, 
+                 'geometry to use')
 options.register('useVanillaCfg', 
                  False, 
                  VarParsing.multiplicity.singleton, 
@@ -35,6 +40,11 @@ options.register('byDoseAlgo',
                  VarParsing.multiplicity.singleton, 
                  VarParsing.varType.int, 
                  'dose algorithm to use')
+options.register('pxFiringRate', 
+                 -1, 
+                 VarParsing.multiplicity.singleton, 
+                 VarParsing.varType.float, 
+                 'SiPM pixel firing rate')
 
 options.parseArguments()
 
@@ -71,6 +81,9 @@ process.load('SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi')
 process.load('RecoLocalCalo.HGCalRecProducers.HGCalRecHit_cfi')
 from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import HGCal_setEndOfLifeNoise
 HGCal_setEndOfLifeNoise(process,byDoseAlgo=options.byDoseAlgo)
+
+process.HGCAL_noise_heback.pxFiringRate  = cms.double(options.pxFiringRate)
+process.hgchebackDigitizer.digiCfg.sipmMap = cms.string(options.sipmMap)
 
 #analyzer
 process.ana = cms.EDAnalyzer("HGCDigiTester",
