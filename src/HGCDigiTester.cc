@@ -75,7 +75,7 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
 
       scaleByTileArea_ = digiCfg.getParameter<bool>("scaleByTileArea");
       scaleBySipmArea_ = digiCfg.getParameter<bool>("scaleBySipmArea");
-      pxFiringRate_    = digiCfg.getParameter<double>("pxFiringRate");
+      pxFiringRate_    = digiCfg.getParameter<edm::ParameterSet>("noise").template getParameter<double>("pxFiringRate");
 
       scalSci_ = new HGCalSciNoiseMap;
       scalSci_->setDoseMap(digiCfg.getParameter<edm::ParameterSet>("noise").template getParameter<std::string>("doseMap"),
