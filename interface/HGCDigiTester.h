@@ -72,6 +72,7 @@ class HGCDigiTester : public edm::EDAnalyzer
     
   bool hardProcOnly_;
   bool onlyROCTree_;
+  bool doHGCEE_,doHGCHESi_,doHGCHESci_;
 };
  
 

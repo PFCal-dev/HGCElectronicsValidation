@@ -5,6 +5,7 @@ process = cms.Process("ANALYSIS", Phase2C9)
 
 from FWCore.ParameterSet.VarParsing import VarParsing
 options = VarParsing ('standard')
+
 options.register('input', 
                  '/eos/cms/store/cmst3/group/hgcal/CMG_studies/Production/CloseByParticleGunProducer_aged3iab_20201117/GSD/',
                  VarParsing.multiplicity.singleton, 
@@ -45,6 +46,11 @@ options.register('pxFiringRate',
                  VarParsing.multiplicity.singleton, 
                  VarParsing.varType.float, 
                  'SiPM pixel firing rate')
+options.register('processDigis', 
+                 7, 
+                 VarParsing.multiplicity.singleton, 
+                 VarParsing.varType.int, 
+                 'process digis bit1-EE bit2-HEsi bit3-HESci')
 
 options.parseArguments()
 
@@ -95,7 +101,8 @@ process.ana = cms.EDAnalyzer("HGCDigiTester",
                              hgcehsci_keV2DIGI=process.HGCalRecHit.HGCHEB_keV2DIGI,
                              useVanillaCfg=cms.bool(options.useVanillaCfg),
                              hardProcOnly=cms.bool(options.hardProcOnly),
-                             onlyROCTree=cms.bool(options.onlyROCTree)
+                             onlyROCTree=cms.bool(options.onlyROCTree),
+                             processDigis=cms.uint32(options.processDigis)
                          )
 
 process.RandomNumberGeneratorService.ana = cms.PSet( initialSeed = cms.untracked.uint32(0),

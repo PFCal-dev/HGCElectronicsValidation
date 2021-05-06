@@ -42,10 +42,19 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     digisCEE_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","EE")) ),
     digisCEH_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","HEfront")) ),
     digisCEHSci_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","HEback")) ),
-    genParticles_( consumes<std::vector<reco::GenParticle>>(edm::InputTag("genParticles")) )
+    genParticles_( consumes<std::vector<reco::GenParticle>>(edm::InputTag("genParticles")) ),
+    doHGCEE_(true),
+    doHGCHESi_(true),
+    doHGCHESci_(true)
 {   
   hardProcOnly_=iConfig.getParameter<bool>("hardProcOnly");
+  uint32_t processDigis=iConfig.getParameter<uint32_t>("processDigis");
+  doHGCEE_ = ((processDigis >> 0) &0x1);
+  doHGCHESi_ = ((processDigis >> 1) &0x1);
+  doHGCHESci_ = ((processDigis >> 2) &0x1);
   onlyROCTree_=iConfig.getParameter<bool>("onlyROCTree");
+
+
 
   //configure noise map
   std::string digitizers[]={"hgceeDigitizer","hgcehDigitizer","hgcehsciDigitizer"};
@@ -207,6 +216,10 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
   //loop over digis
   size_t itSample(2);
   for(size_t i=0; i<3; i++) {
+
+    if(i==0 && !doHGCEE_) continue;
+    if(i==1 && !doHGCHESi_) continue;
+    if(i==2 && !doHGCHESci_) continue;
 
     const HGCalDigiCollection &digis(i==0 ? *digisCEE : (i==1 ? *digisCEH : *digisCEHSci) );
 
