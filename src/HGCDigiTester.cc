@@ -107,6 +107,7 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     tree_->Branch("u",&u_,"u/I");  //u or iphi
     tree_->Branch("v",&v_,"v/I");  //v or ieta
     tree_->Branch("roc",&roc_,"roc/I");
+    tree_->Branch("adc",&adc_,"adc/I");
     //tree_->Branch("qsim",&qsim_,"qsim/F");
     // tree_->Branch("qrec",&qrec_,"qrec/F");
     tree_->Branch("mipsim",&mipsim_,"mipsim/F");
@@ -221,6 +222,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       }
       //read digi (in-time sample only)
       uint32_t adc(d.sample(itSample).data() );
+      adc_=adc;
       isToT_=d.sample(itSample).mode();
 
       isSat_=false;

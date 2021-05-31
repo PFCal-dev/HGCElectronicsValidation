@@ -65,6 +65,7 @@ class HGCDigiTester : public edm::EDAnalyzer
 
   Int_t event_,layer_,u_,v_,roc_,thick_,isSci_,isToT_,isSat_;
   Float_t gpt_,geta_,gphi_,genergy_,gvradius_,gvz_;
+  uint32_t adc_;
   Float_t qsim_,qrec_,mipsim_,avgmipsim_,miprec_,avgmiprec_,cce_,eta_,radius_,z_;
   Int_t nhits_; //only for the rocTree
   Bool_t side_; //only for the rocTree
