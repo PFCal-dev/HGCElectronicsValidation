@@ -60,12 +60,13 @@ class HGCDigiTester : public edm::EDAnalyzer
   std::vector<double> avg_mipfC_[2];
   double sci_keV2MIP_;
   double tdcOnset_fC_[3];
+  bool useTDCOnsetAuto_;
   bool useVanillaCfg_,scaleByTileArea_,scaleBySipmArea_;
   double pxFiringRate_;
 
   Int_t event_,layer_,u_,v_,roc_,thick_,isSci_,isToT_,isSat_;
   Float_t gpt_,geta_,gphi_,genergy_,gvradius_,gvz_;
-  uint32_t adc_;
+  uint32_t adc_, gain_;
   Float_t qsim_,qrec_,mipsim_,avgmipsim_,miprec_,avgmiprec_,cce_,eta_,radius_,z_;
   Int_t nhits_; //only for the rocTree
   Bool_t side_; //only for the rocTree

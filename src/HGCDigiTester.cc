@@ -90,6 +90,7 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     tdcLSB_[i]=feCfg.getParameter<double>("tdcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("tdcNbits") );
     vanilla_adcLSB_fC_[i] = feCfg.getParameter<double>("adcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("adcNbits") );
   }
+  useTDCOnsetAuto_ = iConfig.getParameter<bool>("useTDCOnsetAuto");
   useVanillaCfg_ = iConfig.getParameter<bool>("useVanillaCfg");
 
   event_=0;
@@ -108,6 +109,7 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     tree_->Branch("v",&v_,"v/I");  //v or ieta
     tree_->Branch("roc",&roc_,"roc/I");
     tree_->Branch("adc",&adc_,"adc/I");
+    tree_->Branch("gain",&gain_,"gain/I");
     //tree_->Branch("qsim",&qsim_,"qsim/F");
     // tree_->Branch("qrec",&qrec_,"qrec/F");
     tree_->Branch("mipsim",&mipsim_,"mipsim/F");
@@ -244,6 +246,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       int zside=0;
 
       HGCalSiNoiseMap<HGCSiliconDetId>::GainRange_t gain = (HGCalSiNoiseMap<HGCSiliconDetId>::GainRange_t)d.sample(itSample).gain();
+      gain_ = gain;
 
       //scintillator does not yet attribute different gains
       if(!useVanillaCfg_ && i!=2) {
@@ -277,6 +280,11 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         radius_ = sqrt(std::pow(xy.first, 2) + std::pow(xy.second, 2));  //in cm
         zside=cellId.zside();
         z_ = zside*dddConst.waferZ(layer_,true);
+
+        // get tdcOnset from gain
+        if (useTDCOnsetAuto_) {
+          tdcOnset_fC_[i] = scal_[i]->getTDCOnsetAuto(gain);
+        }
       }
 
       //Sci-specific
