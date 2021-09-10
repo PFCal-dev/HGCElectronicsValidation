@@ -21,8 +21,8 @@
 
 #include <fstream>
 #include <iostream>
-
 #include <cassert>
+#include <math.h> 
 
 using namespace std;
 
@@ -335,7 +335,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       avgmipsim_  = qsim_/avgMipEqfC;
 
       //additional info
-      eta_    = TMath::ATanH(z_/sqrt(radius_*radius_+z_*z_));
+      //eta_    = TMath::ATanH(z_/sqrt(radius_*radius_+z_*z_));
+      eta_    = atanh(z_/sqrt(radius_*radius_+z_*z_));
 
       //for CEH shift by CEE layers
       if(i>0) layer_+=28;

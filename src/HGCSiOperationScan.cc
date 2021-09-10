@@ -125,6 +125,8 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
   shapeToInt["dm"]=5;
   shapeToInt["gm"]=6;
 
+  int total_layers(-1);
+  std::vector<int> layerRotation;
   while(inF) {
 
     std::string buf;
@@ -135,20 +137,59 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
     while (ss >> buf)
       if(buf.size()>0)
         tokens.push_back(buf);
-    if(tokens.size()!=8) continue;
-  
+
+    //header
+    if(tokens.size()!=8) {
+      
+      //number of layers
+      if(tokens.size()==1) total_layers=atoi(tokens[0].c_str());
+
+      //rotation index for the layers
+      if(tokens.size()==(size_t)total_layers)
+        for(int j=0; j<total_layers; j++) 
+          layerRotation.push_back(atoi(tokens[j].c_str()));
+
+      continue;
+    }
+
+    //decode layer and compartment
     int ilay(atoi(tokens[0].c_str()));
-    std::string subdet(ilay<=28 ? "CEE" : "CEH");
-    if(ilay>28) ilay-=28;
-    int sens(atoi(tokens[2].c_str()));
-    int wafType(0);
-    if(sens==120) wafType=0; // 120, 0.5cm^2
-    if(sens==200) wafType=1; // 200, 1 cm^2
-    if(sens==300) wafType=2; // 300, 1 cm^2
-    int waferShape( shapeToInt[tokens[1].c_str()] );
-    int waferRot(atoi(tokens[5].c_str()));
+    std::string subdet("");
+    if(total_layers==47){
+      subdet=(ilay<=26 ? "CEE" : "CEH");
+      if(ilay>26) ilay-=26;
+    }else {
+      subdet=(ilay<=28 ? "CEE" : "CEH");
+      if(ilay>28) ilay-=28;
+    }
+
+    //decode wafer type
+    int ndigits=std::count_if(tokens[1].begin(), tokens[1].end(), 
+                              [](unsigned char c){ return std::isdigit(c); } // correct
+                              );
+    int waferShape(-1),wafType(-1);
+    if(ndigits==0){
+
+      waferShape = shapeToInt[tokens[1].c_str()];
+
+      int sens(atoi(tokens[2].c_str()));
+      wafType=0;
+      if(sens==120) wafType=0; // 120, 0.5cm^2
+      if(sens==200) wafType=1; // 200, 1 cm^2
+      if(sens==300) wafType=2; // 300, 1 cm^2
+    }
+    else{
+      
+      waferShape=atoi(tokens[1].c_str());
+
+      if(tokens[2]=="h120") wafType=0;
+      if(tokens[2]=="l200") wafType=1;
+      if(tokens[2]=="l300") wafType=2;
+    }
+
     float waferX(atof(tokens[3].c_str()));
     float waferY(atof(tokens[4].c_str()));
+    int waferRot(atoi(tokens[5].c_str()));
     int waferU(atoi(tokens[6].c_str()));
     int waferV(atoi(tokens[7].c_str()));
                  
@@ -166,6 +207,7 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
     waferGeom_[layKey][waferKey]=waferKey_t(waferShape,waferRot);
 
     //start the helper map to save uv of the pads belonging to each wafer
+    //place the new layer (subdet,layer)
     if(layerCellUVColl_.find(layKey)==layerCellUVColl_.end()) {
       std::map<waferKey_t,std::vector<waferKey_t> > layerBase;
       layerCellUVColl_[layKey]=layerBase;
@@ -174,6 +216,8 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
       std::map<waferKey_t,std::vector<int> > rocBase;
       layerCellROCColl_[layKey]=rocBase;
     }
+
+    //place the new wafer (u,v)
     if(layerCellUVColl_[layKey].find(waferKey)==layerCellUVColl_[layKey].end()) {
       std::vector<waferKey_t> waferBase;
       layerCellUVColl_[layKey][waferKey]=waferBase;
@@ -186,6 +230,81 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
 
   inF.close();
 }
+
+  
+//
+void HGCSiOperationScan::analyze(const edm::Event &iEvent, const edm::EventSetup &iSetup)
+{
+
+  //the geometries
+  edm::ESHandle<HGCalGeometry> ceeGeoHandle;
+  iSetup.get<IdealGeometryRecord>().get(geoCEE_,ceeGeoHandle);
+  hgcGeometries_["CEE"]=ceeGeoHandle.product();
+  edm::ESHandle<HGCalGeometry> cehGeoHandle;
+  iSetup.get<IdealGeometryRecord>().get(geoCEH_,cehGeoHandle);
+  hgcGeometries_["CEH"]=cehGeoHandle.product();
+  HGCSiliconDetIdToROC d2roc;
+
+  //Si parameters
+  std::string tag( siType_.getParameter<std::string>("tag") );
+  double mipEqfC( siType_.getParameter<double>("mipEqfC") );
+  double cellVol( siType_.getParameter<double>("cellVol") );
+  double cellCap( siType_.getParameter<double>("cellCap") );
+  std::vector<double> cceParam( siType_.getParameter<std::vector<double> >("cceParam") );
+
+  for(auto &it : hgcGeometries_ )
+    {
+
+      //get ddd constants to get cell properties     
+      const HGCalDDDConstants &ddd=it.second->topology().dddConstants();
+
+      noiseMaps_[it.first]->setGeometry( it.second );
+      const std::vector<DetId> &validDetIds = it.second->getValidDetIds();
+      
+      for(auto &didIt : validDetIds) {
+        unsigned int rawId(didIt.rawId());
+        HGCSiliconDetId detId(rawId);
+        if(detId.zside()<0) continue;
+
+        //decode detid info
+        int layer( detId.layer() );
+        int subdet( detId.subdet() );
+        std::pair<std::string,int> layKey(it.first,layer);
+        std::pair<int,int> waferUV=detId.waferUV();
+        std::pair<int,int> cellUV=detId.cellUV();
+        GlobalPoint pt=it.second->getPosition(detId);
+        double radius = sqrt(std::pow(pt.x(), 2) + std::pow(pt.y(), 2));  //in cm
+        HGCalSiNoiseMap<HGCSiliconDetId>::GainRange_t gain(HGCalSiNoiseMap<HGCSiliconDetId>::AUTO);
+        
+        if(layerCellUVColl_.find(layKey)==layerCellUVColl_.end()) {
+          std::cout << "Could not find: subdet,lay=" << it.first << "," << layer << "? " <<std::endl;
+          continue;
+        }
+        if(layerCellUVColl_[layKey].find(waferUV)==layerCellUVColl_[layKey].end()) {
+          std::cout << "Could not find (u,v)=" << waferUV.first << "," << waferUV.second
+                    << " for subdet,lay=" << it.first << "," << layer << "? " << std::endl;
+          continue;
+        }
+        
+
+        layerCellUVColl_[layKey][waferUV].push_back( cellUV );
+        layerCellXYColl_[layKey][waferUV].push_back( std::pair<double,double>(pt.x(),pt.y()) );
+        layerCellROCColl_[layKey][waferUV].push_back( d2roc.getROCNumber(detId) );
+               
+        //override default assignment with the one from CMSSW
+        if(setPreassignedWafersFromCMSSW_){
+          int waferTypeL = std::get<0>(ddd.waferType(detId));
+          waferPreChoice_[layKey][waferUV] = waferTypeL;
+        }
+
+        layerOp_[layKey][waferUV].push_back(
+                                            noiseMaps_[it.first]->getSiCellOpCharacteristics(cellCap,cellVol,mipEqfC,cceParam,
+                                                                                             subdet,layer,radius,
+                                                                                             gain,aimMIPtoADC_) );
+      }
+    }    
+}
+
 
 //
 HGCSiOperationScan::~HGCSiOperationScan()
@@ -212,8 +331,10 @@ void HGCSiOperationScan::endJob()
       std::vector< int> cellROCs(layerCellROCColl_[layKey][waferKey]);
 
       if(cellUVs.size()==0) {
-        std::cout << "Missing (u,v)=(" << waferKey.first << "," << waferKey.second << ") " 
-                  << " " << subdet << " " << layKey.second << std::endl;
+        std::cout << "Found wafer in " << subdet << " layer=" << layKey.second 
+                  << " (u,v)=(" << waferKey.first << "," << waferKey.second << ") "
+                  << " which has 0 cells"
+                  <<  std::endl;
         continue;
       }
       
@@ -287,67 +408,6 @@ void HGCSiOperationScan::endJob()
   }//end layer
 
 }
-
-  
-//
-void HGCSiOperationScan::analyze(const edm::Event &iEvent, const edm::EventSetup &iSetup)
-{
-  edm::ESHandle<HGCalGeometry> ceeGeoHandle;
-  iSetup.get<IdealGeometryRecord>().get(geoCEE_,ceeGeoHandle);
-  hgcGeometries_["CEE"]=ceeGeoHandle.product();
-  edm::ESHandle<HGCalGeometry> cehGeoHandle;
-  iSetup.get<IdealGeometryRecord>().get(geoCEH_,cehGeoHandle);
-  hgcGeometries_["CEH"]=cehGeoHandle.product();
-  HGCSiliconDetIdToROC d2roc;
-
-  std::string tag( siType_.getParameter<std::string>("tag") );
-  double mipEqfC( siType_.getParameter<double>("mipEqfC") );
-  double cellVol( siType_.getParameter<double>("cellVol") );
-  double cellCap( siType_.getParameter<double>("cellCap") );
-  std::vector<double> cceParam( siType_.getParameter<std::vector<double> >("cceParam") );
-
-  for(auto &it : hgcGeometries_ )
-    {
-
-      //get ddd constants to get cell properties     
-      const HGCalDDDConstants &ddd=it.second->topology().dddConstants();
-
-      noiseMaps_[it.first]->setGeometry( it.second );
-      const std::vector<DetId> &validDetIds = it.second->getValidDetIds();
-      
-      for(auto &didIt : validDetIds) {
-        unsigned int rawId(didIt.rawId());
-        HGCSiliconDetId detId(rawId);
-        if(detId.zside()<0) continue;
-
-        //decode detid info
-        int layer( detId.layer() );
-        int subdet( detId.subdet() );
-        std::pair<std::string,int> layKey(it.first,layer);
-        std::pair<int,int> waferUV=detId.waferUV();
-        std::pair<int,int> cellUV=detId.cellUV();
-        GlobalPoint pt=it.second->getPosition(detId);
-        double radius = sqrt(std::pow(pt.x(), 2) + std::pow(pt.y(), 2));  //in cm
-        HGCalSiNoiseMap<HGCSiliconDetId>::GainRange_t gain(HGCalSiNoiseMap<HGCSiliconDetId>::AUTO);
-        
-        layerCellUVColl_[layKey][waferUV].push_back( cellUV );
-        layerCellXYColl_[layKey][waferUV].push_back( std::pair<double,double>(pt.x(),pt.y()) );
-        layerCellROCColl_[layKey][waferUV].push_back( d2roc.getROCNumber(detId) );
-               
-        //override default assignment with the one from CMSSW
-        if(setPreassignedWafersFromCMSSW_){
-          int waferTypeL = std::get<0>(ddd.waferType(detId));
-          waferPreChoice_[layKey][waferUV] = waferTypeL;
-        }
-
-        layerOp_[layKey][waferUV].push_back(
-                                            noiseMaps_[it.first]->getSiCellOpCharacteristics(cellCap,cellVol,mipEqfC,cceParam,
-                                                                                             subdet,layer,radius,
-                                                                                             gain,aimMIPtoADC_) );
-      }
-    }    
-}
-
 
 //define this as a plug-in
 DEFINE_FWK_MODULE(HGCSiOperationScan);

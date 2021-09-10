@@ -5,26 +5,26 @@ process = cms.Process("ANALYSIS")
 #parse command line arguments
 from FWCore.ParameterSet.VarParsing import VarParsing
 options = VarParsing ('standard')
-options.register('geometry', 'Extended2026D49', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'geometry to use')
-options.register("doseMap", "",  VarParsing.multiplicity.singleton, VarParsing.varType.string)
-options.register("scenario", "startup_600V",  VarParsing.multiplicity.singleton, VarParsing.varType.string)
-options.register("uvmapfile", "UserCode/HGCElectronicsValidation/data/geomnew_corrected_360.txt",  VarParsing.multiplicity.singleton, VarParsing.varType.string)
+options.register('geometry', 'Extended2026D86', VarParsing.multiplicity.singleton, VarParsing.varType.string, 'geometry to use')
+options.register("doseMap", "SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-6.2.0.1.txt",  VarParsing.multiplicity.singleton, VarParsing.varType.string)
+options.register("scenario", "3iab_120-600V_200-300-600V",  VarParsing.multiplicity.singleton, VarParsing.varType.string)
+options.register("uvmapfile", "UserCode/HGCElectronicsValidation/data/geomCMSSW10052021_corrected.txt",  VarParsing.multiplicity.singleton, VarParsing.varType.string)
 options.register("savePadInfo", False,  VarParsing.multiplicity.singleton, VarParsing.varType.bool)
 options.register("wafersFromCMSSW", False,  VarParsing.multiplicity.singleton, VarParsing.varType.bool)
 options.parseArguments()
+
+from Configuration.Eras.Era_Phase2C11I13M9_cff import Phase2C11I13M9
+process = cms.Process('demo',Phase2C11I13M9)
 
 #set geometry/global tag
 process.load('Configuration.StandardSequences.Services_cff')
 process.load('Configuration.StandardSequences.MagneticField_cff')
 process.load('Configuration.EventContent.EventContent_cff')
-process.load("FWCore.MessageService.MessageLogger_cfi")
 process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
 process.load('Configuration.Geometry.Geometry%sReco_cff'%options.geometry)
-process.load('Configuration.Geometry.Geometry%s_cff'%options.geometry)
+#process.load('Configuration.Geometry.Geometry%s_cff'%options.geometry)
 from Configuration.AlCa.GlobalTag import GlobalTag
 process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:phase2_realistic', '')
-process.MessageLogger.cerr.threshold = ''
-process.MessageLogger.cerr.FwkReport.reportEvery = 500
 
 #source/number events to process
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1) )
@@ -121,7 +121,7 @@ for s in ['epi','ddfz']:
     for t in thicknesses:
         for d in ['fine','coarse']:
             sitag='{0}{1}{2}'.format(s,t,d)
-            print "Init scan for",sitag
+            print("Init scan for",sitag)
             
             setattr(process,
                     "siop_{0}_startup_600V".format(sitag),
@@ -130,7 +130,7 @@ for s in ['epi','ddfz']:
                                                 siType            = cms.PSet(siat600V[sitag]),
                                                 encCommonNoiseSub = cms.double(1.0),
                                                 fluenceSF         = cms.double(1.0)))
-            
+
             setattr(process,
                     "siop_{0}_3iab_600V".format(sitag),
                     process.siop_template.clone(doseMapAlgo       = cms.uint32(0),
