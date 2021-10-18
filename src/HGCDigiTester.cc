@@ -300,12 +300,16 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
         //get the conditions for this det id
         //signal scaled by tile and sipm area + dose
+        double signal_scale(1.0);
         HGCScintillatorDetId cellId(d.id());
         GlobalPoint global = geoCEHSci->getPosition(cellId);
         radius_ = scalSci_->computeRadius(cellId);
         if(!useVanillaCfg_ && scalSci_->algo()==0) {
-          double signal_scale( scalSci_->scaleByDose(cellId,radius_).first );
-          if(scaleBySipmArea_) signal_scale *= scalSci_->scaleBySipmArea(cellId,radius_);
+          std::pair<double, HGCalSciNoiseMap::GainRange_t> sipmScaling(scalSci_->scaleBySipmArea(cellId,radius_));
+          if(scaleBySipmArea_) {
+            signal_scale *= sipmScaling.first;
+            //rocGain = sipmScaling.second;
+          }
           if(scaleByTileArea_) signal_scale *= scalSci_->scaleByTileArea(cellId,radius_);
           cce_ = signal_scale;
         }
