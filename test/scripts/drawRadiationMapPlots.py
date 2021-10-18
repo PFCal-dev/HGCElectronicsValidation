@@ -98,14 +98,23 @@ def makePlotsFrom(key,outName):
             #per layer overview
             c.SetRightMargin(0.03)
             c.SetTopMargin(0.3)
-            layers=range(1,29) if d==8 else range(1,23)
+            layers=range(1,29) if d==8 else range(1,23)            
             grs=[]
             mg=ROOT.TMultiGraph()
+            xtitle,ytitle='',''
             for l in layers:
 
                 pname='d%d_layer%d_%s'%(d,l,p)
                 h=key.Get(pname)
                 cellh=key.Get('d%d_layer%d_ncells'%(d,l))
+                try:
+                    cellh.Integral()
+                except:
+                    print(f'Could not get count for layer={l} det={d}')
+                    continue
+
+                xtitle=h.GetXaxis().GetTitle()
+                ytitle=h.GetYaxis().GetTitle()
 
                 #use only points where there were some sensors
                 grs.append( ROOT.TGraphErrors( ) )
@@ -126,8 +135,9 @@ def makePlotsFrom(key,outName):
                 mg.Add(grs[-1],'p')
 
             mg.Draw('ap')
-            mg.GetXaxis().SetTitle(h.GetXaxis().GetTitle())
-            mg.GetYaxis().SetTitle(h.GetYaxis().GetTitle())
+
+            mg.GetXaxis().SetTitle(xtitle)
+            mg.GetYaxis().SetTitle(ytitle)
             mg.GetYaxis().SetTitleOffset(1.2)
             mg.GetYaxis().SetRangeUser(rangeMin[n],rangeMax[n])
             leg=c.BuildLegend(0.12,0.72,0.95,0.92)
