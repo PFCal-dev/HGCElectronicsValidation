@@ -1,11 +1,12 @@
 import ROOT
 import sys
 import os
+import itertools
 
 colors=[ROOT.kBlack, ROOT.kMagenta, ROOT.kMagenta+2, ROOT.kMagenta-9,ROOT.kRed+1,ROOT.kAzure+7, ROOT.kBlue-7]
 markers=[20,24,21,25,22,26]
 
-def drawHeader(title=None):
+def drawHeader(title=None,doCMS=True):
 
     """ a lazy header for the plots """
 
@@ -13,11 +14,12 @@ def drawHeader(title=None):
     txt.SetNDC(True)
     txt.SetTextFont(42)
     txt.SetTextSize(0.04)
-    txt.SetTextAlign(ROOT.kHAlignLeft+ROOT.kVAlignCenter)
-    txt.DrawLatex(0.12,0.97,'#bf{CMS} #it{preliminary}')
-    txt.SetTextAlign(ROOT.kHAlignCenter+ROOT.kVAlignCenter)
-    txt.SetTextSize(0.035)
+    if doCMS:
+        txt.SetTextAlign(ROOT.kHAlignLeft+ROOT.kVAlignCenter)
+        txt.DrawLatex(0.12,0.97,'#bf{CMS} #it{preliminary}')
     if title:
+        txt.SetTextAlign(ROOT.kHAlignCenter+ROOT.kVAlignCenter)
+        txt.SetTextSize(0.035)
         txt.DrawLatex(0.5,0.97,title)
 
 def makeSciPlotsFrom(fIn,outName):
@@ -29,36 +31,96 @@ def makeSciPlotsFrom(fIn,outName):
     c.SetBottomMargin(0.11)
 
     #2d maps
-    plots=['tilecount',
-           'doseMap',
-           'fluenceMap',
-           'scaleByDoseMap',
-           'scaleByTileAreaMap',
-           'scaleByDoseAreaMap',
-           'noiseByFluenceMap', 
-           'expNoiseMap',
-           'probNoiseAboveHalfMip',
-           'signalToNoiseFlatAreaMap',
-           'signalToNoiseDoseMap',
-           'signalToNoiseAreaMap',
-           'signalToNoiseDoseAreaMap',
-           'signalToNoiseDoseAreaSipmMap',
-           'saturationMap']
-
-    for p in plots:
+    plots=['count',
+           'radius',
+           'dose',
+           'fluence',
+           's',
+           'n',
+           'sn', 
+           'lysf',
+           'thr',
+           'gain'
+           ]
+    vprof='ieta'
+    for scenario,p in itertools.product(['startup','eol'],plots):
         
-        c.Clear()
-        c.SetTopMargin(0.05)
-        c.SetRightMargin(0.12)
-        h=fIn.Get('plotter/{}'.format(p))
-        h.SetTitle('')
+        c=ROOT.TCanvas('c','c',1200,500)
+        c.cd()
+    
+        #2D profile goes on the first pad
+        p1=ROOT.TPad('p1','p1',0,0,0.5,1)
+        p1.Draw()
+        p1.cd()
+        p1.SetTopMargin(0.06)
+        p1.SetBottomMargin(0.1)
+        p1.SetLeftMargin(0.12)
+        hname='{}/{}_{}'.format(scenario,p,vprof)
+        h=fIn.Get(hname)
+        print(hname,h)
         h.Draw('colz')
-        h.GetZaxis().SetTitleOffset(-0.3)
-        drawHeader(h.GetTitle())
+        p1.SetRightMargin(0.13)
+        h.GetZaxis().SetTitleOffset(-0.5)
+        p1.SetGridx()
+        p1.SetGridy()
+        p1.RedrawAxis()
+        drawHeader()
+    
+        #1D projections go on the second pad
+        c.cd()
+        p2=ROOT.TPad('p2','p2',0.5,0,1,1)
+        p2.Draw()
+        p2.cd()
+        p2.SetTopMargin(0.06)
+        p2.SetBottomMargin(0.1)
+        p2.SetLeftMargin(0.12)
+        p2.SetRightMargin(0.05)
+
+        stack=[]
+        colors=[ROOT.kBlack, ROOT.kMagenta, ROOT.kMagenta+2, ROOT.kMagenta-9,ROOT.kRed+1,ROOT.kAzure+7, ROOT.kBlue-7]
+        markers=[20,24,22,26]
+        minY,maxY=1e33,-1e33
+        for xbin in range(h.GetNbinsX()):
+            lay=int(h.GetXaxis().GetBinLowEdge(xbin+1))        
+            hname='{}/{}_lay{}_{}'.format(scenario,p,lay,vprof)
+            stack.append( fIn.Get(hname) )
+            
+            ci=colors[ xbin % len(colors) ]
+            mk=markers[ xbin % len(markers) ]
+            stack[-1].SetMarkerStyle(mk)
+            stack[-1].SetLineColor(ci)
+            stack[-1].SetMarkerColor(ci)
+            stack[-1].SetFillStyle(0)
+            stack[-1].SetTitle(str(lay))        
+            minY=min(stack[-1].GetMinimum(),minY)
+            maxY=max(stack[-1].GetMaximum(),maxY)
+
+        frame=stack[0].Clone('frame')
+        frame.Reset('ICE')
+        frame.GetYaxis().SetRangeUser(minY*0.8,maxY*1.2)
+        frame.Draw()
+        leg=ROOT.TLegend(0.8,0.9,0.95,0.9-0.04*len(stack))
+        leg.SetTextFont(42)
+        leg.SetBorderSize(0)
+        leg.SetFillStyle(0)
+        leg.SetTextSize(0.04)
+        leg.SetHeader('Layer')    
+        for s in stack: 
+            s.Draw('e1same' if p!='count' else 'psame')
+            leg.AddEntry(s,s.GetTitle(),'lp')
+        leg.Draw()
+    
+        p2.SetGridx()
+        p2.SetGridy()
+        drawHeader(scenario,doCMS=False)
+        p2.RedrawAxis()
+    
+        c.cd()
         c.Modified()
         c.Update()
+
         for ext in ['png','pdf']:
-            c.SaveAs(outName+'/sipontile_%s.%s'%(p,ext))
+            c.SaveAs(outName+'/sipmontile_{}_{}_{}.{}'.format(scenario,p,vprof,ext))
 
 
 
@@ -167,6 +229,8 @@ def main():
     ROOT.gROOT.SetBatch(True)
     ROOT.gStyle.SetOptStat(0)
     ROOT.gStyle.SetOptTitle(0)
+    ROOT.gStyle.SetPalette(55)
+    ROOT.TColor.InvertPalette()
 
     fIn=ROOT.TFile.Open(url)
     if isSci:
