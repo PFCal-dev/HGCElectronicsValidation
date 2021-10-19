@@ -56,12 +56,12 @@ cmsRun ../../SimCalorimetry/HGCalSimAlgos/test/hgcsiNoiseMapTester_cfg.py \
        doseMap=SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-6.2.0.1.txt \
        geometry=GeometryExtended2026D86Reco \
        conditions=TDR_600V
-python test/scripts/drawRadiationMapPlots.py dosemap_output_GeometryExtended2026D86Reco_TDR_600V.root 
+python3 test/scripts/drawRadiationMapPlots.py dosemap_output_GeometryExtended2026D86Reco_TDR_600V.root 
 cmsRun ../../SimCalorimetry/HGCalSimAlgos/test/hgchebacksignalscaler_cfg.py \
        doseMap=SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.7.20.txt \
        sipmMap=SimCalorimetry/HGCalSimProducers/data/sipmParams_geom-10.txt \
        nPEperMIP=21 pxFiringRate=-1 
-python test/scripts/drawRadiationMapPlots.py dosemap_output_sci.root sci
+python3 test/scripts/drawRadiationMapPlots.py dosemap_output_sci.root sci
 ```
 
 You can also run `test/scanRadiationMaps.sh` for all the scenarios.
