@@ -104,6 +104,7 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     tree_->Branch("gvradius",&gvradius_,"gvradius/F");
     tree_->Branch("gvz",&gvz_,"gvz/F");
     tree_->Branch("event",&event_,"event/I");
+    tree_->Branch("detid",&detid_,"detid/i");
     tree_->Branch("layer",&layer_,"layer/I");
     tree_->Branch("u",&u_,"u/I");  //u or iphi
     tree_->Branch("v",&v_,"v/I");  //v or ieta
@@ -217,6 +218,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
       //check if it's matched to a simId
       uint32_t key( d.id().rawId() );
+      detid_=key;
       bool simEexists(true); 
       if(simE.find(key)==simE.end()){
         if(hardProcOnly_) continue;

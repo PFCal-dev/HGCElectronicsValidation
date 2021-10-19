@@ -64,6 +64,7 @@ class HGCDigiTester : public edm::EDAnalyzer
   bool useVanillaCfg_,scaleByTileArea_,scaleBySipmArea_;
   double pxFiringRate_;
 
+  uint32_t detid_;
   Int_t event_,layer_,u_,v_,roc_,thick_,isSci_,isToT_,isSat_;
   Float_t gpt_,geta_,gphi_,genergy_,gvradius_,gvz_;
   uint32_t adc_, gain_;
