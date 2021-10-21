@@ -72,16 +72,12 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
 
     //Sci-specific
     if(i==2) {
-
-      scaleByTileArea_ = digiCfg.getParameter<bool>("scaleByTileArea");
-      scaleBySipmArea_ = digiCfg.getParameter<bool>("scaleBySipmArea");
-      //pxFiringRate_    = digiCfg.getParameter<edm::ParameterSet>("noise").template getParameter<double>("pxFiringRate");
-
       scalSci_ = new HGCalSciNoiseMap;
       scalSci_->setDoseMap(digiCfg.getParameter<edm::ParameterSet>("noise").template getParameter<std::string>("doseMap"),
                            digiCfg.getParameter<edm::ParameterSet>("noise").template getParameter<uint32_t>("scaleByDoseAlgo"));
+      scalSci_->setReferenceDarkCurrent(digiCfg.getParameter<edm::ParameterSet>("noise").template getParameter<double>("referenceIdark"));
       scalSci_->setFluenceScaleFactor(digiCfg.getParameter<edm::ParameterSet>("noise").getParameter<double>("scaleByDoseFactor"));
-      scalSci_->setSipmMap(digiCfg.getParameter<std::string>("sipmMap"));
+      scalSci_->setSipmMap(digiCfg.getParameter<edm::ParameterSet>("noise").template getParameter<std::string>("sipmMap"));
       sci_keV2MIP_ = iConfig.getParameter<double>("hgcehsci_keV2DIGI");
     }
 
@@ -307,14 +303,11 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         GlobalPoint global = geoCEHSci->getPosition(cellId);
         radius_ = scalSci_->computeRadius(cellId);
         if(!useVanillaCfg_ && scalSci_->algo()==0) {
-          std::pair<double, HGCalSciNoiseMap::GainRange_t> sipmScaling(scalSci_->scaleBySipmArea(cellId,radius_));
-          if(scaleBySipmArea_) {
-            signal_scale *= sipmScaling.first;
-            //rocGain = sipmScaling.second;
-          }
-          if(scaleByTileArea_) signal_scale *= scalSci_->scaleByTileArea(cellId,radius_);
-          cce_ = signal_scale;
+          HGCalSciNoiseMap::SiPMonTileCharacteristics sipmOP(scalSci_->scaleByDose(cellId,radius_));
+          signal_scale *= sipmOP.lySF;
         }
+        cce_ = signal_scale;
+      
 
         mipEqfC    = 1.0;     //the digis are already in MIP units
         avgMipEqfC = 1.0;

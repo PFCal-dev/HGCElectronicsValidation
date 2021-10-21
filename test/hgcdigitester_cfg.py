@@ -73,7 +73,9 @@ import os
 if os.path.isdir(options.input):
     fList = ['file:'+os.path.join(options.input,f) for f in os.listdir(options.input) if '.root' in f]
 else:
-    fList = ['file:'+x for x in options.input.split(',')]
+    fList = ['file:'+x if not x.find('/store')==0 else x for x in options.input.split(',')]
+print(fList)
+
 
 process.source = cms.Source("PoolSource",
                             fileNames = cms.untracked.vstring(fList),

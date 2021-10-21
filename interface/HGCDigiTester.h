@@ -61,7 +61,7 @@ class HGCDigiTester : public edm::EDAnalyzer
   double sci_keV2MIP_;
   double tdcOnset_fC_[3];
   bool useTDCOnsetAuto_;
-  bool useVanillaCfg_,scaleByTileArea_,scaleBySipmArea_;
+  bool useVanillaCfg_;
   double pxFiringRate_;
 
   uint32_t detid_;
