@@ -35,17 +35,11 @@ typedef math::XYZPoint Point;
 
 
 //
-HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig ) 
-  : simHitsCEE_( consumes<std::vector<PCaloHit>>(edm::InputTag("g4SimHits", "HGCHitsEE")) ),
-    simHitsCEH_( consumes<std::vector<PCaloHit>>(edm::InputTag("g4SimHits", "HGCHitsHEfront")) ),
-    simHitsCEHSci_( consumes<std::vector<PCaloHit>>(edm::InputTag("g4SimHits", "HGCHitsHEback")) ),
-    digisCEE_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","EE")) ),
-    digisCEH_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","HEfront")) ),
-    digisCEHSci_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","HEback")) ),
-    genParticles_( consumes<std::vector<reco::GenParticle>>(edm::InputTag("genParticles")) )
+HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
 {   
   hardProcOnly_=iConfig.getParameter<bool>("hardProcOnly");
   onlyROCTree_=iConfig.getParameter<bool>("onlyROCTree");
+  genParticles_ = consumes<std::vector<reco::GenParticle>>(iConfig.getParameter<edm::InputTag>("genParticleSrc"));
 
   //configure noise map
   std::string digitizers[]={"hgceeDigitizer","hgcehDigitizer","hgcehsciDigitizer"};
@@ -84,6 +78,9 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
       scalSci_->setSipmMap(digiCfg.getParameter<std::string>("sipmMap"));
       sci_keV2MIP_ = iConfig.getParameter<double>("hgcehsci_keV2DIGI");
     }
+
+    simHitsColls_[i] = consumes<std::vector<PCaloHit>>(cfg.getParameter<edm::InputTag>("hitCollection"));
+    digisColls_[i] = consumes<HGCalDigiCollection>(cfg.getParameter<edm::InputTag>("digiCollection"));
 
     mipTarget_[i]=feCfg.getParameter<uint32_t>("targetMIPvalue_ADC");
     tdcOnset_fC_[i]=feCfg.getParameter<double>("tdcOnset_fC");
@@ -163,9 +160,9 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
   //read sim hits
   //acumulate total energy deposited in each DetId
   edm::Handle<edm::PCaloHitContainer> simHitsCEE,simHitsCEH,simHitsCEHSci;
-  iEvent.getByToken(simHitsCEE_,    simHitsCEE);
-  iEvent.getByToken(simHitsCEH_,    simHitsCEH);
-  iEvent.getByToken(simHitsCEHSci_, simHitsCEHSci);
+  iEvent.getByToken(simHitsColls_[0],    simHitsCEE);
+  iEvent.getByToken(simHitsColls_[1],    simHitsCEH);
+  iEvent.getByToken(simHitsColls_[2], simHitsCEHSci);
 
   std::map<uint32_t,double> simE;
   for(size_t i=0; i<3; i++) {
@@ -180,9 +177,9 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
   //read digis
   edm::Handle<HGCalDigiCollection> digisCEE,digisCEH,digisCEHSci;
-  iEvent.getByToken(digisCEE_,digisCEE);
-  iEvent.getByToken(digisCEH_,digisCEH);
-  iEvent.getByToken(digisCEHSci_,digisCEHSci);
+  iEvent.getByToken(digisColls_[0],digisCEE);
+  iEvent.getByToken(digisColls_[1],digisCEH);
+  iEvent.getByToken(digisColls_[2],digisCEHSci);
 
   //read geometry components for HGCAL
   edm::ESHandle<HGCalGeometry> geoHandleCEE,geoHandleCEH,geoHandleCEHSci;

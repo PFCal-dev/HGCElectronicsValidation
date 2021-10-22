@@ -92,7 +92,7 @@ process.hgchebackDigitizer.digiCfg.sipmMap = cms.string(options.sipmMap)
 
 #analyzer
 process.ana = cms.EDAnalyzer("HGCDigiTester",
-                             hgceeDigitizer=process.hgceeDigitizer,                             
+                             hgceeDigitizer=process.hgceeDigitizer,
                              hgcehDigitizer=process.hgchefrontDigitizer,
                              hgcehsciDigitizer=process.hgchebackDigitizer,
                              hgcee_fCPerMIP=process.HGCalRecHit.HGCEE_fCPerMIP,
@@ -101,8 +101,15 @@ process.ana = cms.EDAnalyzer("HGCDigiTester",
                              useTDCOnsetAuto=cms.bool(options.useTDCOnsetAuto),
                              useVanillaCfg=cms.bool(options.useVanillaCfg),
                              hardProcOnly=cms.bool(options.hardProcOnly),
-                             onlyROCTree=cms.bool(options.onlyROCTree)
+                             onlyROCTree=cms.bool(options.onlyROCTree),
+                             genParticleSrc = cms.InputTag("genParticles")
                          )
+process.ana.hgceeDigitizer.hitCollection = cms.InputTag("g4SimHits","HGCHitsEE")
+process.ana.hgcehDigitizer.hitCollection = cms.InputTag("g4SimHits","HGCHitsHEfront")
+process.ana.hgcehsciDigitizer.hitCollection = cms.InputTag("g4SimHits","HGCHitsHEback")
+process.ana.hgceeDigitizer.digiCollection = cms.InputTag("simHGCalUnsuppressedDigis","EE")
+process.ana.hgcehDigitizer.digiCollection = cms.InputTag("simHGCalUnsuppressedDigis","HEfront")
+process.ana.hgcehsciDigitizer.digiCollection = cms.InputTag("simHGCalUnsuppressedDigis","HEback")
 
 process.RandomNumberGeneratorService.ana = cms.PSet( initialSeed = cms.untracked.uint32(0),
                                                      engineName = cms.untracked.string('TRandom3')

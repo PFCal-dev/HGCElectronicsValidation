@@ -48,8 +48,8 @@ class HGCDigiTester : public edm::EDAnalyzer
 
  private:
   
-  edm::EDGetTokenT<edm::PCaloHitContainer> simHitsCEE_,simHitsCEH_,simHitsCEHSci_;
-  edm::EDGetTokenT<HGCalDigiCollection> digisCEE_,digisCEH_,digisCEHSci_;
+  edm::EDGetTokenT<edm::PCaloHitContainer> simHitsColls_[3];
+  edm::EDGetTokenT<HGCalDigiCollection> digisColls_[3];
   edm::EDGetTokenT<std::vector<reco::GenParticle>> genParticles_;
 
   std::vector< HGCalSiNoiseMap<HGCSiliconDetId> *> scal_;
