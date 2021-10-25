@@ -307,7 +307,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
         // get tdcOnset from gain
         if (useTDCOnsetAuto_) {
-          //tdcOnset_fC_[i] = scal_[i]->getTDCOnsetAuto(gain);
+          tdcOnset_fC_[i] = scal_[i]->getTDCOnsetAuto(gain);
         }
       }
 
