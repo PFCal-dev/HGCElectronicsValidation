@@ -37,6 +37,8 @@ typedef math::XYZPoint Point;
 //
 HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
 {   
+  refSpeed_ = 0.1 * CLHEP::c_light;
+
   hardProcOnly_=iConfig.getParameter<bool>("hardProcOnly");
   onlyROCTree_=iConfig.getParameter<bool>("onlyROCTree");
   genParticles_ = consumes<std::vector<reco::GenParticle>>(iConfig.getParameter<edm::InputTag>("genParticleSrc"));
@@ -82,6 +84,9 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     simHitsColls_[i] = consumes<std::vector<PCaloHit>>(cfg.getParameter<edm::InputTag>("hitCollection"));
     digisColls_[i] = consumes<HGCalDigiCollection>(cfg.getParameter<edm::InputTag>("digiCollection"));
 
+    bxTime_[i]=cfg.getParameter<double>("bxTime");
+    tofDelay_[i]=cfg.getParameter<double>("tofDelay");
+
     mipTarget_[i]=feCfg.getParameter<uint32_t>("targetMIPvalue_ADC");
     tdcOnset_fC_[i]=feCfg.getParameter<double>("tdcOnset_fC");
     tdcLSB_[i]=feCfg.getParameter<double>("tdcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("tdcNbits") );
@@ -111,6 +116,7 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     //tree_->Branch("qsim",&qsim_,"qsim/F");
     // tree_->Branch("qrec",&qrec_,"qrec/F");
     tree_->Branch("mipsim",&mipsim_,"mipsim/F");
+    tree_->Branch("mipsimInBX",&mipsimInBX_,"mipsimInBX/F");
     tree_->Branch("miprec",&miprec_,"miprec/F");
     tree_->Branch("avgmiprec",&avgmiprec_,"avgmiprec/F");
     tree_->Branch("avgmipsim",&avgmipsim_,"avgmipsim/F");
@@ -157,53 +163,70 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
     photonVertex[idx]=p.vertex();
   }
 
+  //read geometry components for HGCAL
+  edm::ESHandle<HGCalGeometry> geoHandleCEE,geoHandleCEH,geoHandleCEHSci;
+
+  const HGCalGeometry *geoList[3];
+
+  iSetup.get<IdealGeometryRecord>().get("HGCalEESensitive",geoHandleCEE);
+  //const HGCalGeometry *geoCEE=geoHandleCEE.product();
+  geoList[0]=geoHandleCEE.product();
+  const HGCalTopology &topoCEE=geoList[0]->topology();
+  const HGCalDDDConstants &dddConstCEE=topoCEE.dddConstants();
+
+  iSetup.get<IdealGeometryRecord>().get("HGCalHESiliconSensitive",geoHandleCEH);
+  //const HGCalGeometry *geoCEH=geoHandleCEH.product();
+  geoList[1]=geoHandleCEH.product();
+  const HGCalTopology &topoCEH=geoList[1]->topology();
+  const HGCalDDDConstants &dddConstCEH=topoCEH.dddConstants();
+  HGCSiliconDetIdToROC sid2roc;
+
+  iSetup.get<IdealGeometryRecord>().get("HGCalHEScintillatorSensitive",geoHandleCEHSci);
+  //const HGCalGeometry *geoCEHSci=geoHandleCEHSci.product();
+  geoList[2]=geoHandleCEHSci.product();
+  // const HGCalTopology &topoCEHSci=geoCEHSci->topology();
+  // const HGCalDDDConstants &dddConstCEHSci=topoCEHSci.dddConstants();
+
+  //set the geometry
+  scal_[0]->setGeometry(geoList[0], HGCalSiNoiseMap<HGCSiliconDetId>::AUTO, mipTarget_[0]);
+  scal_[1]->setGeometry(geoList[1], HGCalSiNoiseMap<HGCSiliconDetId>::AUTO, mipTarget_[1]);
+  scalSci_->setGeometry(geoList[2]);
+
   //read sim hits
   //acumulate total energy deposited in each DetId
   edm::Handle<edm::PCaloHitContainer> simHitsCEE,simHitsCEH,simHitsCEHSci;
-  iEvent.getByToken(simHitsColls_[0],    simHitsCEE);
-  iEvent.getByToken(simHitsColls_[1],    simHitsCEH);
+  iEvent.getByToken(simHitsColls_[0], simHitsCEE);
+  iEvent.getByToken(simHitsColls_[1], simHitsCEH);
   iEvent.getByToken(simHitsColls_[2], simHitsCEHSci);
 
   std::map<uint32_t,double> simE;
+  std::map<uint32_t,double> simEinBX;
   for(size_t i=0; i<3; i++) {
     const std::vector<PCaloHit> &simHits((i==0 ? *simHitsCEE : (i==1 ? *simHitsCEH : *simHitsCEHSci)));
     for(auto sh : simHits) {
       //assign a reco-id
       uint32_t key(sh.id());
       if(simE.find(key)==simE.end()) simE[key]=0.;
-      simE[key]=simE[key]+sh.energy();
+      double hitEnergy = sh.energy();
+      simE[key]=simE[key]+hitEnergy;
+
+      // Following the setup in https://github.com/cms-sw/cmssw/blob/8fdeed6c37e3a53c53f7ff2d8f9303867f37a2c1/SimCalorimetry/HGCalSimProducers/plugins/HGCDigitizer.cc#L601-L602
+      float toa = (float)sh.time();
+      float dist2center = geoList[i]->getPosition(key).mag();
+      float tof = toa - dist2center / refSpeed_ + tofDelay_[i];
+      int itime = std::floor(tof / bxTime_[i]);
+      if (itime == 0) { // in-time BX
+        if(simEinBX.find(key)==simEinBX.end()) simEinBX[key]=0.;
+        simEinBX[key]=simEinBX[key]+hitEnergy;
+      }
     }
-  }    
+  }
 
   //read digis
   edm::Handle<HGCalDigiCollection> digisCEE,digisCEH,digisCEHSci;
   iEvent.getByToken(digisColls_[0],digisCEE);
   iEvent.getByToken(digisColls_[1],digisCEH);
   iEvent.getByToken(digisColls_[2],digisCEHSci);
-
-  //read geometry components for HGCAL
-  edm::ESHandle<HGCalGeometry> geoHandleCEE,geoHandleCEH,geoHandleCEHSci;
-
-  iSetup.get<IdealGeometryRecord>().get("HGCalEESensitive",geoHandleCEE);
-  const HGCalGeometry *geoCEE=geoHandleCEE.product();
-  const HGCalTopology &topoCEE=geoCEE->topology();
-  const HGCalDDDConstants &dddConstCEE=topoCEE.dddConstants();
-
-  iSetup.get<IdealGeometryRecord>().get("HGCalHESiliconSensitive",geoHandleCEH);
-  const HGCalGeometry *geoCEH=geoHandleCEH.product();
-  const HGCalTopology &topoCEH=geoCEH->topology();
-  const HGCalDDDConstants &dddConstCEH=topoCEH.dddConstants();
-  HGCSiliconDetIdToROC sid2roc;
-
-  iSetup.get<IdealGeometryRecord>().get("HGCalHEScintillatorSensitive",geoHandleCEHSci);
-  const HGCalGeometry *geoCEHSci=geoHandleCEHSci.product();
-  // const HGCalTopology &topoCEHSci=geoCEHSci->topology();
-  // const HGCalDDDConstants &dddConstCEHSci=topoCEHSci.dddConstants();
-
-  //set the geometry
-  scal_[0]->setGeometry(geoCEE, HGCalSiNoiseMap<HGCSiliconDetId>::AUTO, mipTarget_[0]);
-  scal_[1]->setGeometry(geoCEH, HGCalSiNoiseMap<HGCSiliconDetId>::AUTO, mipTarget_[1]);
-  scalSci_->setGeometry(geoCEHSci);
 
   //loop over digis
   size_t itSample(2);
@@ -233,6 +256,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       //reset common variables
       double adcLSB(vanilla_adcLSB_fC_[i]),mipEqfC(1.0),avgMipEqfC(1.0);
       qsim_=0;
+      qsimInBX_=0;
       qrec_=0.;
       cce_=1.;
       thick_=-1;
@@ -257,6 +281,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
         //simulated charge
         qsim_ = simEexists ? simE[key] * 1.0e6 * 0.044259 : 0.; // GeV -> fC  (1000 eV / 3.62 (eV per e) / 6.24150934e3 (e per fC))
+        qsimInBX_ = simEexists ? simEinBX[key] * 1.0e6 * 0.044259 : 0.;
 
         //get the conditions for this det id
         HGCSiliconDetId cellId(d.id());
@@ -282,7 +307,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
         // get tdcOnset from gain
         if (useTDCOnsetAuto_) {
-          tdcOnset_fC_[i] = scal_[i]->getTDCOnsetAuto(gain);
+          //tdcOnset_fC_[i] = scal_[i]->getTDCOnsetAuto(gain);
         }
       }
 
@@ -296,11 +321,12 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
         //simulated "charge" (in reality this is in MIP units)
         qsim_ = simEexists ? simE[key] *1.0e+6 * sci_keV2MIP_ : 0.; // keV to mip
+        qsimInBX_ = simEexists ? simEinBX[key] * 1.0e6 * sci_keV2MIP_ : 0.;
 
         //get the conditions for this det id
         //signal scaled by tile and sipm area + dose
         HGCScintillatorDetId cellId(d.id());
-        GlobalPoint global = geoCEHSci->getPosition(cellId);
+        GlobalPoint global = geoList[2]->getPosition(cellId);
         radius_ = scalSci_->computeRadius(cellId);
         if(!useVanillaCfg_ && scalSci_->algo()==0) {
           double signal_scale( scalSci_->scaleByDose(cellId,radius_).first );
@@ -330,6 +356,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       //convert charge to #MIPs
       miprec_     = qrec_/mipEqfC;
       mipsim_     = qsim_/mipEqfC;
+      mipsimInBX_ = qsimInBX_/mipEqfC;
       avgmiprec_  = qrec_/avgMipEqfC;
       avgmipsim_  = qsim_/avgMipEqfC;
 

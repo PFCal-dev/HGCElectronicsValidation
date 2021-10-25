@@ -55,6 +55,10 @@ class HGCDigiTester : public edm::EDAnalyzer
   std::vector< HGCalSiNoiseMap<HGCSiliconDetId> *> scal_;
   HGCalSciNoiseMap *scalSci_;
 
+  float refSpeed_;
+  double bxTime_[3];
+  double tofDelay_[3];
+
   uint32_t mipTarget_[3];
   double tdcLSB_[3],vanilla_adcLSB_fC_[3];
   std::vector<double> avg_mipfC_[2];
@@ -69,6 +73,7 @@ class HGCDigiTester : public edm::EDAnalyzer
   Float_t gpt_,geta_,gphi_,genergy_,gvradius_,gvz_;
   uint32_t adc_, gain_;
   Float_t qsim_,qrec_,mipsim_,avgmipsim_,miprec_,avgmiprec_,cce_,eta_,radius_,z_;
+  Float_t qsimInBX_,mipsimInBX_; // in-time BX
   Int_t nhits_; //only for the rocTree
   Bool_t side_; //only for the rocTree
   TTree *tree_,*rocTree_;
