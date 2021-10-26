@@ -117,6 +117,8 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     // tree_->Branch("qrec",&qrec_,"qrec/F");
     tree_->Branch("mipsim",&mipsim_,"mipsim/F");
     tree_->Branch("mipsimInBX",&mipsimInBX_,"mipsimInBX/F");
+    tree_->Branch("mipsimPreBX",&mipsimPreBX_,"mipsimPreBX/F");
+    tree_->Branch("mipsimPostBX",&mipsimPostBX_,"mipsimPostBX/F");
     tree_->Branch("miprec",&miprec_,"miprec/F");
     tree_->Branch("avgmiprec",&avgmiprec_,"avgmiprec/F");
     tree_->Branch("avgmipsim",&avgmipsim_,"avgmipsim/F");
@@ -201,6 +203,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
   std::map<uint32_t,double> simE;
   std::map<uint32_t,double> simEinBX;
+  std::map<uint32_t,double> simEpreBX;
+  std::map<uint32_t,double> simEpostBX;
   for(size_t i=0; i<3; i++) {
     const std::vector<PCaloHit> &simHits((i==0 ? *simHitsCEE : (i==1 ? *simHitsCEH : *simHitsCEHSci)));
     for(auto sh : simHits) {
@@ -218,6 +222,14 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       if (itime == 0) { // in-time BX
         if(simEinBX.find(key)==simEinBX.end()) simEinBX[key]=0.;
         simEinBX[key]=simEinBX[key]+hitEnergy;
+      }
+      else if (itime >= -9 && itime < 0) { // preceding BX
+        if(simEpreBX.find(key)==simEpreBX.end()) simEpreBX[key]=0.;
+        simEpreBX[key]=simEpreBX[key]+hitEnergy;
+      }
+      else if (itime > 0 && itime <= 5) { // following BX
+        if(simEpostBX.find(key)==simEpostBX.end()) simEpostBX[key]=0.;
+        simEpostBX[key]=simEpostBX[key]+hitEnergy;
       }
     }
   }
@@ -257,6 +269,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       double adcLSB(vanilla_adcLSB_fC_[i]),mipEqfC(1.0),avgMipEqfC(1.0);
       qsim_=0;
       qsimInBX_=0;
+      qsimPreBX_=0;
+      qsimPostBX_=0;
       qrec_=0.;
       cce_=1.;
       thick_=-1;
@@ -282,6 +296,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         //simulated charge
         qsim_ = simEexists ? simE[key] * 1.0e6 * 0.044259 : 0.; // GeV -> fC  (1000 eV / 3.62 (eV per e) / 6.24150934e3 (e per fC))
         qsimInBX_ = simEexists ? simEinBX[key] * 1.0e6 * 0.044259 : 0.;
+        qsimPreBX_ = simEexists ? simEpreBX[key] * 1.0e6 * 0.044259 : 0.;
+        qsimPostBX_ = simEexists ? simEpostBX[key] * 1.0e6 * 0.044259 : 0.;
 
         //get the conditions for this det id
         HGCSiliconDetId cellId(d.id());
@@ -322,6 +338,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         //simulated "charge" (in reality this is in MIP units)
         qsim_ = simEexists ? simE[key] *1.0e+6 * sci_keV2MIP_ : 0.; // keV to mip
         qsimInBX_ = simEexists ? simEinBX[key] * 1.0e6 * sci_keV2MIP_ : 0.;
+        qsimPreBX_ = simEexists ? simEpreBX[key] * 1.0e6 * sci_keV2MIP_ : 0.;
+        qsimPostBX_ = simEexists ? simEpostBX[key] * 1.0e6 * sci_keV2MIP_ : 0.;
 
         //get the conditions for this det id
         //signal scaled by tile and sipm area + dose
@@ -357,6 +375,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       miprec_     = qrec_/mipEqfC;
       mipsim_     = qsim_/mipEqfC;
       mipsimInBX_ = qsimInBX_/mipEqfC;
+      mipsimPreBX_ = qsimPreBX_/mipEqfC;
+      mipsimPostBX_ = qsimPostBX_/mipEqfC;
       avgmiprec_  = qrec_/avgMipEqfC;
       avgmipsim_  = qsim_/avgMipEqfC;
 

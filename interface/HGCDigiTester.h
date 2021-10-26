@@ -74,6 +74,8 @@ class HGCDigiTester : public edm::EDAnalyzer
   uint32_t adc_, gain_;
   Float_t qsim_,qrec_,mipsim_,avgmipsim_,miprec_,avgmiprec_,cce_,eta_,radius_,z_;
   Float_t qsimInBX_,mipsimInBX_; // in-time BX
+  Float_t qsimPreBX_,mipsimPreBX_; // before BX
+  Float_t qsimPostBX_,mipsimPostBX_; // after BX
   Int_t nhits_; //only for the rocTree
   Bool_t side_; //only for the rocTree
   TTree *tree_,*rocTree_;
