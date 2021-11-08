@@ -76,6 +76,7 @@ class HGCDigiTester : public edm::EDAnalyzer
   Float_t qsimInBX_,mipsimInBX_; // in-time BX
   Float_t qsimPreBX_,mipsimPreBX_; // before BX
   Float_t qsimPostBX_,mipsimPostBX_; // after BX
+  std::vector<float> qsimPerBX_,mipsimPerBX_;
   Int_t nhits_; //only for the rocTree
   Bool_t side_; //only for the rocTree
   TTree *tree_,*rocTree_;

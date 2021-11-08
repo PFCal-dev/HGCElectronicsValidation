@@ -119,6 +119,7 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     tree_->Branch("mipsimInBX",&mipsimInBX_,"mipsimInBX/F");
     tree_->Branch("mipsimPreBX",&mipsimPreBX_,"mipsimPreBX/F");
     tree_->Branch("mipsimPostBX",&mipsimPostBX_,"mipsimPostBX/F");
+    tree_->Branch("mipsimPerBX", &mipsimPerBX_);
     tree_->Branch("miprec",&miprec_,"miprec/F");
     tree_->Branch("avgmiprec",&avgmiprec_,"avgmiprec/F");
     tree_->Branch("avgmipsim",&avgmipsim_,"avgmipsim/F");
@@ -205,6 +206,9 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
   std::map<uint32_t,double> simEinBX;
   std::map<uint32_t,double> simEpreBX;
   std::map<uint32_t,double> simEpostBX;
+  std::map<uint32_t,std::vector<double>> simEperBX;
+  const int indexInBX = 9;
+  const int nBXs = 15;
   for(size_t i=0; i<3; i++) {
     const std::vector<PCaloHit> &simHits((i==0 ? *simHitsCEE : (i==1 ? *simHitsCEH : *simHitsCEHSci)));
     for(auto sh : simHits) {
@@ -219,17 +223,28 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       float dist2center = geoList[i]->getPosition(key).mag();
       float tof = toa - dist2center / refSpeed_ + tofDelay_[i];
       int itime = std::floor(tof / bxTime_[i]);
+
       if (itime == 0) { // in-time BX
         if(simEinBX.find(key)==simEinBX.end()) simEinBX[key]=0.;
         simEinBX[key]=simEinBX[key]+hitEnergy;
       }
-      else if (itime >= -9 && itime < 0) { // preceding BX
+      else if (itime >= -1*indexInBX && itime < 0) { // preceding BX
         if(simEpreBX.find(key)==simEpreBX.end()) simEpreBX[key]=0.;
         simEpreBX[key]=simEpreBX[key]+hitEnergy;
       }
       else if (itime > 0 && itime <= 5) { // following BX
         if(simEpostBX.find(key)==simEpostBX.end()) simEpostBX[key]=0.;
         simEpostBX[key]=simEpostBX[key]+hitEnergy;
+      }
+
+      int iBX = itime + indexInBX;
+      if (iBX < nBXs)
+      {
+        if (simEperBX.find(key) == simEperBX.end()) {
+          simEperBX[key].clear();
+          simEperBX[key].resize(nBXs, 0);
+        }
+        simEperBX[key][iBX] += hitEnergy;
       }
     }
   }
@@ -271,6 +286,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       qsimInBX_=0;
       qsimPreBX_=0;
       qsimPostBX_=0;
+      qsimPerBX_.clear();
       qrec_=0.;
       cce_=1.;
       thick_=-1;
@@ -298,6 +314,11 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         qsimInBX_ = simEexists ? simEinBX[key] * 1.0e6 * 0.044259 : 0.;
         qsimPreBX_ = simEexists ? simEpreBX[key] * 1.0e6 * 0.044259 : 0.;
         qsimPostBX_ = simEexists ? simEpostBX[key] * 1.0e6 * 0.044259 : 0.;
+        qsimPerBX_.clear();
+        for (std::vector<double>::iterator itBX = simEperBX[key].begin(); itBX != simEperBX[key].end(); ++itBX) {
+          float qtmp = simEexists ? (*itBX) * 1.0e6 * 0.044259 : 0.;
+          qsimPerBX_.push_back( qtmp );
+        }
 
         //get the conditions for this det id
         HGCSiliconDetId cellId(d.id());
@@ -340,6 +361,11 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         qsimInBX_ = simEexists ? simEinBX[key] * 1.0e6 * sci_keV2MIP_ : 0.;
         qsimPreBX_ = simEexists ? simEpreBX[key] * 1.0e6 * sci_keV2MIP_ : 0.;
         qsimPostBX_ = simEexists ? simEpostBX[key] * 1.0e6 * sci_keV2MIP_ : 0.;
+        qsimPerBX_.clear();
+        for (std::vector<double>::iterator itBX = simEperBX[key].begin(); itBX != simEperBX[key].end(); ++itBX) {
+          float qtmp = simEexists ? (*itBX) * 1.0e6 * sci_keV2MIP_ : 0.;
+          qsimPerBX_.push_back( qtmp );
+        }
 
         //get the conditions for this det id
         //signal scaled by tile and sipm area + dose
@@ -377,6 +403,10 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       mipsimInBX_ = qsimInBX_/mipEqfC;
       mipsimPreBX_ = qsimPreBX_/mipEqfC;
       mipsimPostBX_ = qsimPostBX_/mipEqfC;
+      mipsimPerBX_.clear();
+      for (std::vector<float>::iterator itqsim = qsimPerBX_.begin(); itqsim != qsimPerBX_.end(); ++itqsim) {
+        mipsimPerBX_.push_back( (*itqsim)/mipEqfC );
+      }
       avgmiprec_  = qrec_/avgMipEqfC;
       avgmipsim_  = qsim_/avgMipEqfC;
 
