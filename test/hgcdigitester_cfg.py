@@ -72,6 +72,11 @@ process.MessageLogger.cerr.FwkReport.reportEvery = 500
 import os
 if os.path.isdir(options.input):
     fList = ['file:'+os.path.join(options.input,f) for f in os.listdir(options.input) if '.root' in f]
+elif options.input.endswith('.txt') or options.input.endswith('.list'):
+    fList=[]
+    with open(options.input) as f:
+        for line in f:
+          fList.append(line.strip())
 else:
     fList = ['file:'+x for x in options.input.split(',')]
 
