@@ -66,6 +66,8 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
   data_->Branch("npads",          &t_npads,          "npads/I");
 
   TString tag( (siType_.getParameter<std::string>("tag")).c_str() );
+  data_->Branch("mincce_"+tag,  &t_mincce,  "mincce_"+tag+"/F");
+  data_->Branch("medcce_"+tag,  &t_medcce,  "medcce_"+tag+"/F");
   data_->Branch("minsn_"+tag,  &t_minsn,  "minsn_"+tag+"/F");
   data_->Branch("q10sn_"+tag,  &t_q10sn,  "q10sn_"+tag+"/F");
   data_->Branch("medsn_"+tag,  &t_medsn,  "medsn_"+tag+"/F");
@@ -84,6 +86,7 @@ HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :
     data_->Branch("pads_"+tag,    t_pads,     "pads_"+tag+"[npads]/F");
     data_->Branch("padn_"+tag,    t_padn,     "padn_"+tag+"[npads]/F");
     data_->Branch("padsn_"+tag,   t_padsn,    "padsn_"+tag+"[npads]/F");
+    data_->Branch("padcce_"+tag,   t_padcce,    "padcce_"+tag+"[npads]/F");
     data_->Branch("padencs_"+tag, t_padencs,  "padencs_"+tag+"[npads]/F");  
     data_->Branch("padileak_"+tag, t_padileak,  "padileak_"+tag+"[npads]/D");  
   }
@@ -363,7 +366,8 @@ void HGCSiOperationScan::endJob()
       memset(t_padsn,    0, t_npads); 
       memset(t_padencs,  0, t_npads); 
       memset(t_padileak, 0, t_npads); 
-      
+      memset(t_padcce,   0, t_npads);
+
       const cellOp_t &cellOp=layerOp_[layKey][waferKey];
       for(int icell=0; icell<t_npads; icell++) {
         waferKey_t padUV=cellUVs[icell];
@@ -379,11 +383,15 @@ void HGCSiOperationScan::endJob()
         t_padencs[icell] = cellOp[icell].enc_s; 
         t_padileak[icell] = cellOp[icell].ileak;
         t_padsn[icell]   = t_padn[icell] > 0 ? t_pads[icell]/t_padn[icell] : -1;
+        t_padcce[icell]  = cellOp[icell].core.cce;
       }
       
       t_minf     = TMath::MinElement<float>(t_npads,t_padf);
       t_medf     = TMath::Median<float>    (t_npads,t_padf);
       t_maxf     = TMath::MaxElement<float>(t_npads,t_padf);
+
+      t_mincce    = TMath::MinElement<float>(t_npads,t_padcce);
+      t_medcce    = TMath::Median<float>(t_npads,t_padcce);
 
       t_minsn    = TMath::MinElement<float>(t_npads,t_padsn);
      

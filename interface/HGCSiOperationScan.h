@@ -81,9 +81,9 @@ class HGCSiOperationScan : public edm::EDAnalyzer
   Int_t t_section,t_layer,t_waferU,t_waferV,t_waferPreChoice,t_waferShape,t_waferRot,t_npads;
   Float_t t_waferX,t_waferY,t_minf,t_medf,t_maxf;
   Bool_t t_isHDWafer;
-  Float_t t_minsn, t_q10sn, t_medsn, t_meds, t_medn,t_medencs,t_medileak;
+  Float_t t_minsn, t_q10sn, t_medsn, t_meds, t_medn,t_medencs,t_medileak,t_mincce,t_medcce;
   Int_t t_padU[500],t_padV[500], t_padROC[500];
-  Float_t t_padX[500],t_padY[500],t_padf[500],t_pads[500],t_padn[500],t_padsn[500],t_padencs[500];
+  Float_t t_padX[500],t_padY[500],t_padf[500],t_pads[500],t_padn[500],t_padsn[500],t_padencs[500],t_padcce[500];
   Double_t t_padileak[500];
   bool savePadInfo_;
 };
