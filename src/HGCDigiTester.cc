@@ -85,6 +85,7 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     tdcOnset_fC_[i]=feCfg.getParameter<double>("tdcOnset_fC");
     tdcLSB_[i]=feCfg.getParameter<double>("tdcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("tdcNbits") );
     vanilla_adcLSB_fC_[i] = feCfg.getParameter<double>("adcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("adcNbits") );
+    toaLSB_ns_[i] = feCfg.getParameter<double>("toaLSB_ns");
   }
   useTDCOnsetAuto_ = iConfig.getParameter<bool>("useTDCOnsetAuto");
   useVanillaCfg_ = iConfig.getParameter<bool>("useVanillaCfg");
@@ -106,6 +107,8 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     tree_->Branch("v",&v_,"v/I");  //v or ieta
     tree_->Branch("roc",&roc_,"roc/I");
     tree_->Branch("adc",&adc_,"adc/I");
+    tree_->Branch("toa",&toa_,"toa/I");
+    tree_->Branch("toarec",&toarec_,"toarec/F");
     tree_->Branch("gain",&gain_,"gain/I");
     //tree_->Branch("qsim",&qsim_,"qsim/F");
     // tree_->Branch("qrec",&qrec_,"qrec/F");
@@ -223,6 +226,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       //read digi (in-time sample only)
       uint32_t adc(d.sample(itSample).data() );
       adc_=adc;
+      toa_=d.sample(itSample).getToAValid() ? d.sample(itSample).toa() : 0;
+      toarec_=(toa_+0.5)*toaLSB_ns_[i];
       isToT_=d.sample(itSample).mode();
 
       isSat_=false;
