@@ -15,6 +15,16 @@ options.register('geometry',
                  VarParsing.multiplicity.singleton, 
                  VarParsing.varType.string, 
                  'geometry to use')
+options.register('sipmMap', 
+                 'SimCalorimetry/HGCalSimProducers/data/sipmParams_geom-10.txt', 
+                 VarParsing.multiplicity.singleton, 
+                 VarParsing.varType.string, 
+                 'geometry to use')
+options.register('useTDCOnsetAuto',
+                 False,
+                 VarParsing.multiplicity.singleton,
+                 VarParsing.varType.bool,
+                 'use tdcOnset values that were automatically set instead of the externally specified tdcOnset_fC')
 options.register('useVanillaCfg', 
                  False, 
                  VarParsing.multiplicity.singleton, 
@@ -35,6 +45,11 @@ options.register('byDoseAlgo',
                  VarParsing.multiplicity.singleton, 
                  VarParsing.varType.int, 
                  'dose algorithm to use')
+options.register('pxFiringRate', 
+                 -1, 
+                 VarParsing.multiplicity.singleton, 
+                 VarParsing.varType.float, 
+                 'SiPM pixel firing rate')
 
 options.parseArguments()
 
@@ -58,7 +73,9 @@ import os
 if os.path.isdir(options.input):
     fList = ['file:'+os.path.join(options.input,f) for f in os.listdir(options.input) if '.root' in f]
 else:
-    fList = ['file:'+x for x in options.input.split(',')]
+    fList = ['file:'+x if not x.find('/store')==0 else x for x in options.input.split(',')]
+print(fList)
+
 
 process.source = cms.Source("PoolSource",
                             fileNames = cms.untracked.vstring(fList),
@@ -72,6 +89,9 @@ process.load('RecoLocalCalo.HGCalRecProducers.HGCalRecHit_cfi')
 from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import HGCal_setEndOfLifeNoise
 HGCal_setEndOfLifeNoise(process,byDoseAlgo=options.byDoseAlgo)
 
+process.HGCAL_noise_heback.pxFiringRate  = cms.double(options.pxFiringRate)
+process.hgchebackDigitizer.digiCfg.sipmMap = cms.string(options.sipmMap)
+
 #analyzer
 process.ana = cms.EDAnalyzer("HGCDigiTester",
                              hgceeDigitizer=process.hgceeDigitizer,                             
@@ -80,6 +100,7 @@ process.ana = cms.EDAnalyzer("HGCDigiTester",
                              hgcee_fCPerMIP=process.HGCalRecHit.HGCEE_fCPerMIP,
                              hgceh_fCPerMIP=process.HGCalRecHit.HGCHEF_fCPerMIP,
                              hgcehsci_keV2DIGI=process.HGCalRecHit.HGCHEB_keV2DIGI,
+                             useTDCOnsetAuto=cms.bool(options.useTDCOnsetAuto),
                              useVanillaCfg=cms.bool(options.useVanillaCfg),
                              hardProcOnly=cms.bool(options.hardProcOnly),
                              onlyROCTree=cms.bool(options.onlyROCTree)

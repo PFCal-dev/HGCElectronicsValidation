@@ -42,7 +42,7 @@ class HGCTestRadiationMap : public edm::EDAnalyzer
 //
 void HGCTestRadiationMap::analyze( const edm::Event &iEvent, const edm::EventSetup &iSetup) {
 
-  HGCalSiNoiseMap::GainRange_t gain(HGCalSiNoiseMap::AUTO);
+  HGCalSiNoiseMap<HGCSiliconDetId>::GainRange_t gain(HGCalSiNoiseMap<HGCSiliconDetId>::AUTO);
   int aimMIPtoADC(10);
   std::string doseMapURL("SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.7.20.txt");
   std::vector<double> ileakParam={0.993,-42.668};
@@ -65,7 +65,7 @@ void HGCTestRadiationMap::analyze( const edm::Event &iEvent, const edm::EventSet
     const std::vector<DetId> &validDetIds = geo->getValidDetIds();
 
     //start alternative noise maps
-    HGCalSiNoiseMap sectorEqMap;
+    HGCalSiNoiseMap<HGCSiliconDetId> sectorEqMap;
     uint32_t doseMapAlgo(0);
     sectorEqMap.setDoseMap(doseMapURL,doseMapAlgo);
     sectorEqMap.setIleakParam(ileakParam);
@@ -74,8 +74,8 @@ void HGCTestRadiationMap::analyze( const edm::Event &iEvent, const edm::EventSet
     sectorEqMap.setGeometry(geo);
     sectorEqMap.setCceParam(cceParsFine,cceParsThin,cceParsThick);
 
-    HGCalSiNoiseMap noSectorEqMap;
-    doseMapAlgo |= (1 << HGCalSiNoiseMap::CACHEDOP);
+    HGCalSiNoiseMap<HGCSiliconDetId> noSectorEqMap;
+    doseMapAlgo |= (1 << HGCalSiNoiseMap<HGCSiliconDetId>::CACHEDOP);
     noSectorEqMap.setDoseMap(doseMapURL,doseMapAlgo);
     noSectorEqMap.setIleakParam(ileakParam);
     noSectorEqMap.setENCCommonNoiseSubScale(encCommonNoiseSub);
@@ -86,8 +86,8 @@ void HGCTestRadiationMap::analyze( const edm::Event &iEvent, const edm::EventSet
     //loop over detIds and compare
     int nfaulty(0);
     for(auto &didIt : validDetIds) {
-      HGCalSiNoiseMap::SiCellOpCharacteristics a(sectorEqMap.getSiCellOpCharacteristics(didIt,gain,aimMIPtoADC));
-      HGCalSiNoiseMap::SiCellOpCharacteristics b(noSectorEqMap.getSiCellOpCharacteristics(didIt,gain,aimMIPtoADC));
+      HGCalSiNoiseMap<HGCSiliconDetId>::SiCellOpCharacteristics a(sectorEqMap.getSiCellOpCharacteristics(didIt,gain,aimMIPtoADC));
+      HGCalSiNoiseMap<HGCSiliconDetId>::SiCellOpCharacteristics b(noSectorEqMap.getSiCellOpCharacteristics(didIt,gain,aimMIPtoADC));
       if(a.fluence!=b.fluence || a.ileak!=b.ileak || a.core.cce!=b.core.cce || a.core.gain!=b.core.gain) {
         nfaulty++;
         std::cout << std::hex << "[WARN] difference found for 0x" << didIt.rawId() << std::dec << std::endl;       

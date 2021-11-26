@@ -77,7 +77,7 @@ HGCOccupancyAnalyzer::HGCOccupancyAnalyzer( const edm::ParameterSet &iConfig ) :
 
   //start the noise map tools
   for(size_t subdet=0; subdet<2; subdet++){
-    noiseMaps_[subdet]=new HGCalSiNoiseMap;
+    noiseMaps_[subdet]=new HGCalSiNoiseMap<HGCSiliconDetId>;
     noiseMaps_[subdet]->setDoseMap(iConfig.getParameter<std::string>("doseMap"),
                                    iConfig.getParameter<uint32_t>("scaleByDoseAlgo"));
     noiseMaps_[subdet]->setFluenceScaleFactor(iConfig.getParameter<double>("scaleByDoseFactor"));
@@ -212,7 +212,7 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
     const HGCalDDDConstants &ddd=geo->topology().dddConstants();
 
     //configure noise map
-    noiseMaps_[subdet]->setGeometry(geo, HGCalSiNoiseMap::AUTO, 10);
+    noiseMaps_[subdet]->setGeometry(geo, HGCalSiNoiseMap<HGCSiliconDetId>::AUTO, 10);
 
     //instantiate occupancy histograms first time around
     if(nevts_==1) {
@@ -245,7 +245,7 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
 
 	}
 
-        HGCalSiNoiseMap::SiCellOpCharacteristics siop=noiseMaps_[subdet]->getSiCellOpCharacteristics(detId);
+        HGCalSiNoiseMap<HGCSiliconDetId>::SiCellOpCharacteristics siop=noiseMaps_[subdet]->getSiCellOpCharacteristics(detId);
         std::tuple<int, int, int> wafType = ddd.waferType(detId); //type,partial,orientation
         waferHistos_[key]->addPad( std::get<0>(wafType), siop );
 
@@ -322,7 +322,7 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
       HGCalWafer::WaferKey_t key(std::make_tuple(subdet,layer,waferUV.first,waferUV.second));
 
       //re-compute the thresholds
-      HGCalSiNoiseMap::SiCellOpCharacteristics siop=noiseMaps_[subdet]->getSiCellOpCharacteristics(detId);
+      HGCalSiNoiseMap<HGCSiliconDetId>::SiCellOpCharacteristics siop=noiseMaps_[subdet]->getSiCellOpCharacteristics(detId);
       int mipADC=siop.mipADC;
       
       //in-time BX info
@@ -340,9 +340,9 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
 
       //ZS algos
       uint32_t lbshift(4), tbshift(3);  //fixed gain has ~20% leakage
-      if(siop.core.gain==HGCalSiNoiseMap::q80fC)   { lbshift=5; tbshift=4; }
-      if(siop.core.gain==HGCalSiNoiseMap::q160fC)  { lbshift=4; tbshift=3; }
-      if(siop.core.gain==HGCalSiNoiseMap::q320fC)  { lbshift=5; tbshift=4; }
+      if(siop.core.gain==HGCalSiNoiseMap<HGCSiliconDetId>::q80fC)   { lbshift=5; tbshift=4; }
+      if(siop.core.gain==HGCalSiNoiseMap<HGCSiliconDetId>::q160fC)  { lbshift=4; tbshift=3; }
+      if(siop.core.gain==HGCalSiNoiseMap<HGCSiliconDetId>::q320fC)  { lbshift=5; tbshift=4; }
       uint32_t lzsCorr( (rawDatabxm1>>lbshift) ),tzsCorr( (rawDatabxm1>>tbshift) );
       uint32_t mzsCorr( (rawDatabxm1>>lbshift) + (rawDatabxm1>>(lbshift+1)) + (rawDatabxm1>>(lbshift+2)) ); 
       bool passLZS=( isTDC || rawData > lzsCorr+thr );
@@ -352,9 +352,9 @@ void HGCOccupancyAnalyzer::analyzeDigis(int subdet,edm::Handle<HGCalDigiCollecti
       //fixed threhsold to keep BX-1 data in the event (if negative use the same as BX)
       //in both cases correct by leakage expected from gain choice
       float leak(0.20);
-      if(siop.core.gain==HGCalSiNoiseMap::q80fC)   leak=0.066;
-      if(siop.core.gain==HGCalSiNoiseMap::q160fC)  leak=0.153;
-      if(siop.core.gain==HGCalSiNoiseMap::q320fC)  leak=0.096;
+      if(siop.core.gain==HGCalSiNoiseMap<HGCSiliconDetId>::q80fC)   leak=0.066;
+      if(siop.core.gain==HGCalSiNoiseMap<HGCSiliconDetId>::q160fC)  leak=0.153;
+      if(siop.core.gain==HGCalSiNoiseMap<HGCSiliconDetId>::q320fC)  leak=0.096;
       uint32_t thrbxm1( std::floor(adcThrMIPbxm1_*mipADC/leak) );
       if(adcThrMIPbxm1_<0) {
         thrbxm1=std::floor(adcThrMIP_*mipADC/leak);

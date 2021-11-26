@@ -5,7 +5,17 @@ These tools are used to debug the development on the main cmssw repository.
 On top of your current CMSSW work area do
 
 ```
-git clone https://github.com/PFCal-dev/HGCElectronicsValidation.git UserCode/HGCElectronicsValidation
+export SCRAM_ARCH=slc7_amd64_gcc900
+cmsrel CMSSW_12_2_0_pre2
+cd CMSSW_12_2_0_pre2/src/
+cmsenv
+
+#OPTIONAL (mostly if you need to do some development in the base code)
+git cms-addpkg SimCalorimetry/HGCalSimProducers
+git cms-addpkg SimCalorimetry/HGCalSimAlgos
+#END OPTIONAL
+
+git clone https://github.com/PFCal-dev/HGCElectronicsValidation.git UserCode/HGCElectronicsValidation -b 113x
 scram b -j 8
 ```
 
@@ -43,9 +53,18 @@ and on a geometry. These analyzers can be found in SimCalorimetry/HGCalSimAlgos/
 
 ```
 cmsRun ../../SimCalorimetry/HGCalSimAlgos/test/hgcsiNoiseMapTester_cfg.py \
-       doseMap=SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-3.7.20.txt
-python test/scripts/drawRadiationMapPlots.py dosemap_output.root 
+       doseMap=SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-6.2.0.1.txt \
+       geometry=GeometryExtended2026D86Reco \
+       conditions=TDR_600V
+python3 test/scripts/drawRadiationMapPlots.py dosemap_output_GeometryExtended2026D86Reco_TDR_600V.root 
+cmsRun ../../SimCalorimetry/HGCalSimAlgos/test/hgchebacksignalscaler_cfg.py \
+       doseMap=SimCalorimetry/HGCalSimProducers/data/doseParams_3000fb_fluka-6.2.0.1.txt \
+       sipmMap=SimCalorimetry/HGCalSimProducers/data/sipmParams_geom-10.txt \
+       geometry=GeometryExtended2026D86Reco
+python3 test/scripts/drawRadiationMapPlots.py sipmontile_dosemap_GeometryExtended2026D86Reco.root sci
 ```
+
+You can also run `test/scanRadiationMaps.sh` for all the scenarios.
 
 ## Wafer map
 

@@ -21,8 +21,8 @@
 
 #include <fstream>
 #include <iostream>
-
 #include <cassert>
+#include <math.h> 
 
 using namespace std;
 
@@ -56,7 +56,7 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
 
     //Si specific
     if(i<2) {
-      HGCalSiNoiseMap *scal=new HGCalSiNoiseMap;
+      HGCalSiNoiseMap<HGCSiliconDetId> *scal=new HGCalSiNoiseMap<HGCSiliconDetId>;
       scal->setDoseMap(digiCfg.getParameter<edm::ParameterSet>("noise_fC").template getParameter<std::string>("doseMap"),
                              digiCfg.getParameter<edm::ParameterSet>("noise_fC").template getParameter<uint32_t>("scaleByDoseAlgo"));
       scal->setFluenceScaleFactor(digiCfg.getParameter<edm::ParameterSet>("noise_fC").getParameter<double>("scaleByDoseFactor"));
@@ -72,15 +72,12 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
 
     //Sci-specific
     if(i==2) {
-
-      scaleByTileArea_ = digiCfg.getParameter<bool>("scaleByTileArea");
-      scaleBySipmArea_ = digiCfg.getParameter<bool>("scaleBySipmArea");
-
       scalSci_ = new HGCalSciNoiseMap;
       scalSci_->setDoseMap(digiCfg.getParameter<edm::ParameterSet>("noise").template getParameter<std::string>("doseMap"),
                            digiCfg.getParameter<edm::ParameterSet>("noise").template getParameter<uint32_t>("scaleByDoseAlgo"));
+      scalSci_->setReferenceDarkCurrent(digiCfg.getParameter<edm::ParameterSet>("noise").template getParameter<double>("referenceIdark"));
       scalSci_->setFluenceScaleFactor(digiCfg.getParameter<edm::ParameterSet>("noise").getParameter<double>("scaleByDoseFactor"));
-      scalSci_->setSipmMap(digiCfg.getParameter<std::string>("sipmMap"));
+      scalSci_->setSipmMap(digiCfg.getParameter<edm::ParameterSet>("noise").template getParameter<std::string>("sipmMap"));
       sci_keV2MIP_ = iConfig.getParameter<double>("hgcehsci_keV2DIGI");
     }
 
@@ -88,7 +85,9 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     tdcOnset_fC_[i]=feCfg.getParameter<double>("tdcOnset_fC");
     tdcLSB_[i]=feCfg.getParameter<double>("tdcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("tdcNbits") );
     vanilla_adcLSB_fC_[i] = feCfg.getParameter<double>("adcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("adcNbits") );
+    toaLSB_ns_[i] = feCfg.getParameter<double>("toaLSB_ns");
   }
+  useTDCOnsetAuto_ = iConfig.getParameter<bool>("useTDCOnsetAuto");
   useVanillaCfg_ = iConfig.getParameter<bool>("useVanillaCfg");
 
   event_=0;
@@ -102,10 +101,15 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     tree_->Branch("gvradius",&gvradius_,"gvradius/F");
     tree_->Branch("gvz",&gvz_,"gvz/F");
     tree_->Branch("event",&event_,"event/I");
+    tree_->Branch("detid",&detid_,"detid/i");
     tree_->Branch("layer",&layer_,"layer/I");
-    tree_->Branch("u",&u_,"u/I");
-    tree_->Branch("v",&v_,"v/I");
+    tree_->Branch("u",&u_,"u/I");  //u or iphi
+    tree_->Branch("v",&v_,"v/I");  //v or ieta
     tree_->Branch("roc",&roc_,"roc/I");
+    tree_->Branch("adc",&adc_,"adc/I");
+    tree_->Branch("toa",&toa_,"toa/I");
+    tree_->Branch("toarec",&toarec_,"toarec/F");
+    tree_->Branch("gain",&gain_,"gain/I");
     //tree_->Branch("qsim",&qsim_,"qsim/F");
     // tree_->Branch("qrec",&qrec_,"qrec/F");
     tree_->Branch("mipsim",&mipsim_,"mipsim/F");
@@ -199,8 +203,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
   // const HGCalDDDConstants &dddConstCEHSci=topoCEHSci.dddConstants();
 
   //set the geometry
-  scal_[0]->setGeometry(geoCEE, HGCalSiNoiseMap::AUTO, mipTarget_[0]);
-  scal_[1]->setGeometry(geoCEH, HGCalSiNoiseMap::AUTO, mipTarget_[1]);
+  scal_[0]->setGeometry(geoCEE, HGCalSiNoiseMap<HGCSiliconDetId>::AUTO, mipTarget_[0]);
+  scal_[1]->setGeometry(geoCEH, HGCalSiNoiseMap<HGCSiliconDetId>::AUTO, mipTarget_[1]);
   scalSci_->setGeometry(geoCEHSci);
 
   //loop over digis
@@ -213,6 +217,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
       //check if it's matched to a simId
       uint32_t key( d.id().rawId() );
+      detid_=key;
       bool simEexists(true); 
       if(simE.find(key)==simE.end()){
         if(hardProcOnly_) continue;
@@ -220,6 +225,9 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       }
       //read digi (in-time sample only)
       uint32_t adc(d.sample(itSample).data() );
+      adc_=adc;
+      toa_=d.sample(itSample).getToAValid() ? d.sample(itSample).toa() : 0;
+      toarec_=(toa_+0.5)*toaLSB_ns_[i];
       isToT_=d.sample(itSample).mode();
 
       isSat_=false;
@@ -240,7 +248,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       z_=0;
       int zside=0;
 
-      HGCalSiNoiseMap::GainRange_t gain = (HGCalSiNoiseMap::GainRange_t)d.sample(itSample).gain();
+      HGCalSiNoiseMap<HGCSiliconDetId>::GainRange_t gain = (HGCalSiNoiseMap<HGCSiliconDetId>::GainRange_t)d.sample(itSample).gain();
+      gain_ = gain;
 
       //scintillator does not yet attribute different gains
       if(!useVanillaCfg_ && i!=2) {
@@ -258,7 +267,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         u_ = cellId.waferUV().first;
         v_ = cellId.waferUV().second;
         roc_    = sid2roc.getROCNumber(cellId);
-        HGCalSiNoiseMap::SiCellOpCharacteristics siop=scal_[i]->getSiCellOpCharacteristics(cellId);
+        HGCalSiNoiseMap<HGCSiliconDetId>::SiCellOpCharacteristics siop 
+          = scal_[i]->getSiCellOpCharacteristics(cellId);
         cce_       = siop.core.cce;
         thick_     = cellId.type();
         mipEqfC    = scal_[i]->getMipEqfC()[thick_];
@@ -273,26 +283,36 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         radius_ = sqrt(std::pow(xy.first, 2) + std::pow(xy.second, 2));  //in cm
         zside=cellId.zside();
         z_ = zside*dddConst.waferZ(layer_,true);
+
+        // get tdcOnset from gain
+        if (useTDCOnsetAuto_) {
+          tdcOnset_fC_[i] = scal_[i]->getTDCOnsetAuto(gain);
+        }
       }
 
       //Sci-specific
-      //maybe here we could also add a ROC and ieta,iphi or s.th. like that not crucial for the moment
+      //maybe here we could also add a ROC ?
       if(i==2) {
+
+        HGCScintillatorDetId scId(d.id());
+        u_=scId.iphi();
+        v_=scId.ieta();
 
         //simulated "charge" (in reality this is in MIP units)
         qsim_ = simEexists ? simE[key] *1.0e+6 * sci_keV2MIP_ : 0.; // keV to mip
 
         //get the conditions for this det id
         //signal scaled by tile and sipm area + dose
+        double signal_scale(1.0);
         HGCScintillatorDetId cellId(d.id());
         GlobalPoint global = geoCEHSci->getPosition(cellId);
         radius_ = scalSci_->computeRadius(cellId);
         if(!useVanillaCfg_ && scalSci_->algo()==0) {
-          double signal_scale( scalSci_->scaleByDose(cellId,radius_).first );
-          if(scaleBySipmArea_) signal_scale *= scalSci_->scaleBySipmArea(cellId,radius_);
-          if(scaleByTileArea_) signal_scale *= scalSci_->scaleByTileArea(cellId,radius_);
-          cce_ = signal_scale;
+          HGCalSciNoiseMap::SiPMonTileCharacteristics sipmOP(scalSci_->scaleByDose(cellId,radius_));
+          signal_scale *= sipmOP.lySF;
         }
+        cce_ = signal_scale;
+      
 
         mipEqfC    = 1.0;     //the digis are already in MIP units
         avgMipEqfC = 1.0;
@@ -319,7 +339,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       avgmipsim_  = qsim_/avgMipEqfC;
 
       //additional info
-      eta_    = TMath::ATanH(z_/sqrt(radius_*radius_+z_*z_));
+      //eta_    = TMath::ATanH(z_/sqrt(radius_*radius_+z_*z_));
+      eta_    = atanh(z_/sqrt(radius_*radius_+z_*z_));
 
       //for CEH shift by CEE layers
       if(i>0) layer_+=28;

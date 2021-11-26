@@ -116,7 +116,7 @@ class HGCOccupancyAnalyzer : public edm::EDAnalyzer
 
   //
   std::string doseMap_;
-  std::map<int,HGCalSiNoiseMap *> noiseMaps_;
+  std::map<int,HGCalSiNoiseMap<HGCSiliconDetId> *> noiseMaps_;
 };
  
 

@@ -47,7 +47,7 @@ class HGCSiOperationScan : public edm::EDAnalyzer
   
   typedef std::pair<std::string,int> layKey_t;
   typedef std::pair<int,int> waferKey_t;
-  typedef std::vector<HGCalSiNoiseMap::SiCellOpCharacteristics> cellOp_t;
+  typedef std::vector<HGCalSiNoiseMap<HGCSiliconDetId>::SiCellOpCharacteristics> cellOp_t;
   typedef std::map<waferKey_t,cellOp_t> waferOp_t;
   typedef std::map<waferKey_t, waferKey_t> waferGeom_t;
   typedef std::map<waferKey_t, std::pair<double,double> > waferPos_t;
@@ -68,7 +68,7 @@ class HGCSiOperationScan : public edm::EDAnalyzer
   bool setPreassignedWafersFromCMSSW_;
 
   //radiation map
-  std::map<std::string, std::unique_ptr<HGCalSiNoiseMap>> noiseMaps_;
+  std::map<std::string, std::unique_ptr<HGCalSiNoiseMap<HGCSiliconDetId>>> noiseMaps_;
   
   //si characteristics
   edm::ParameterSet siType_;

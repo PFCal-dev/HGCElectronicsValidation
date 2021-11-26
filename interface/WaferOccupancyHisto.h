@@ -67,7 +67,7 @@ namespace HGCalWafer{
     /**
        increments pad counts
     */
-    void addPad(int waferType,HGCalSiNoiseMap::SiCellOpCharacteristics &siop) { 
+    void addPad(int waferType,HGCalSiNoiseMap<HGCSiliconDetId>::SiCellOpCharacteristics &siop) { 
       waferType_=waferType; 
 
       avgNoise_ += siop.core.noise;
