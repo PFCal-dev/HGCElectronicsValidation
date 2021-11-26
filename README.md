@@ -15,7 +15,7 @@ git cms-addpkg SimCalorimetry/HGCalSimProducers
 git cms-addpkg SimCalorimetry/HGCalSimAlgos
 #END OPTIONAL
 
-git clone https://github.com/PFCal-dev/HGCElectronicsValidation.git UserCode/HGCElectronicsValidation -b 113x
+git clone https://github.com/PFCal-dev/HGCElectronicsValidation.git UserCode/HGCElectronicsValidation
 scram b -j 8
 ```
 
