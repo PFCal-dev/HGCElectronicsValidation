@@ -42,7 +42,8 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     digisCEE_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","EE")) ),
     digisCEH_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","HEfront")) ),
     digisCEHSci_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","HEback")) ),
-    genParticles_( consumes<std::vector<reco::GenParticle>>(edm::InputTag("genParticles")) )
+    genParticles_( consumes<std::vector<reco::GenParticle>>(edm::InputTag("genParticles")) ),
+    genT0_( consumes<float>(edm::InputTag("genParticles:t0")) )
 {   
   hardProcOnly_=iConfig.getParameter<bool>("hardProcOnly");
   onlyROCTree_=iConfig.getParameter<bool>("onlyROCTree");
@@ -81,6 +82,9 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
       sci_keV2MIP_ = iConfig.getParameter<double>("hgcehsci_keV2DIGI");
     }
 
+    bxTime_[i]=cfg.getParameter<double>("bxTime");
+    tofDelay_[i]=cfg.getParameter<double>("tofDelay");
+
     mipTarget_[i]=feCfg.getParameter<uint32_t>("targetMIPvalue_ADC");
     tdcOnset_fC_[i]=feCfg.getParameter<double>("tdcOnset_fC");
     tdcLSB_[i]=feCfg.getParameter<double>("tdcSaturation_fC") / pow(2., feCfg.getParameter<uint32_t>("tdcNbits") );
@@ -100,6 +104,8 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     tree_->Branch("gphi",&gphi_,"gphi/F");
     tree_->Branch("gvradius",&gvradius_,"gvradius/F");
     tree_->Branch("gvz",&gvz_,"gvz/F");
+    tree_->Branch("gvt",&gvt_,"gvt/F");
+    tree_->Branch("gbeta",&gbeta_,"gbeta/F");
     tree_->Branch("event",&event_,"event/I");
     tree_->Branch("detid",&detid_,"detid/i");
     tree_->Branch("layer",&layer_,"layer/I");
@@ -109,9 +115,10 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     tree_->Branch("adc",&adc_,"adc/I");
     tree_->Branch("toa",&toa_,"toa/I");
     tree_->Branch("toarec",&toarec_,"toarec/F");
+    tree_->Branch("toasim",&toasim_,"toasim/F");
     tree_->Branch("gain",&gain_,"gain/I");
-    //tree_->Branch("qsim",&qsim_,"qsim/F");
-    // tree_->Branch("qrec",&qrec_,"qrec/F");
+    tree_->Branch("qsim",&qsim_,"qsim/F");
+    tree_->Branch("qrec",&qrec_,"qrec/F");
     tree_->Branch("mipsim",&mipsim_,"mipsim/F");
     tree_->Branch("miprec",&miprec_,"miprec/F");
     tree_->Branch("avgmiprec",&avgmiprec_,"avgmiprec/F");
@@ -148,12 +155,14 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
   event_++;
   rocDeposits_t rocs;
 
+  const auto& genT0 = iEvent.get(genT0_);
   edm::Handle<std::vector<reco::GenParticle> > genParticlesHandle;
   iEvent.getByToken(genParticles_, genParticlesHandle);
   std::map<int,LorentzVector> photons;
   std::map<int,Point> photonVertex;
   for(size_t i = 0; i < genParticlesHandle->size(); ++i )  {    
     const reco::GenParticle &p = (*genParticlesHandle)[i];
+    if (p.status()!=1) continue;
     int idx(p.pz()>0 ? 1 : -1);
     photons[idx]=p.p4();
     photonVertex[idx]=p.vertex();
@@ -212,6 +221,21 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
   for(size_t i=0; i<3; i++) {
 
     const HGCalDigiCollection &digis(i==0 ? *digisCEE : (i==1 ? *digisCEH : *digisCEHSci) );
+    const std::vector<PCaloHit> &simHits(i==0 ? *simHitsCEE : (i==1 ? *simHitsCEH : *simHitsCEHSci) );
+    const auto geo = (i==0 ? geoCEE : (i==1 ? geoCEH : geoCEHSci) );
+
+    std::map<uint32_t,double> simToA, simTE;
+    constexpr double c_cm_ns = CLHEP::c_light * CLHEP::ns / CLHEP::cm;
+    for(auto sh : simHits) {
+      uint32_t key(sh.id());
+      const auto ene = sh.energy();
+      const auto tHGCAL = sh.time();
+      const auto dist2center = geo->getPosition(key).mag();
+      const auto toa = tHGCAL - dist2center/c_cm_ns + tofDelay_[i];
+      if (std::floor(toa / bxTime_[i]) != 0) continue;
+      simToA[key] += toa*ene;
+      simTE[key] += ene;
+    }
 
     for(auto d : digis) {
 
@@ -227,7 +251,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       uint32_t adc(d.sample(itSample).data() );
       adc_=adc;
       toa_=d.sample(itSample).getToAValid() ? d.sample(itSample).toa() : 0;
-      toarec_=(toa_+0.5)*toaLSB_ns_[i];
+      toarec_=d.sample(itSample).getToAValid() ? ((toa_+0.5)*toaLSB_ns_[i] - tofDelay_[i]) : -999;
+      toasim_=simToA.find(key)!=simToA.end() ? (simToA[key]/simTE[key] - tofDelay_[i]) : -999;
       isToT_=d.sample(itSample).mode();
 
       isSat_=false;
@@ -352,6 +377,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       gphi_     = photons[zside].phi();
       gvradius_ = sqrt(pow(photonVertex[zside].x(),2)+pow(photonVertex[zside].y(),2));
       gvz_      = photonVertex[zside].z();
+      gvt_      = genT0;
+      gbeta_    = 1./sqrt(1. + pow(photons[zside].mass()/photons[zside].P(), 2));
 
       //store hit
       if(!onlyROCTree_) tree_->Fill();
