@@ -51,6 +51,7 @@ class HGCDigiTester : public edm::EDAnalyzer
   edm::EDGetTokenT<edm::PCaloHitContainer> simHitsCEE_,simHitsCEH_,simHitsCEHSci_;
   edm::EDGetTokenT<HGCalDigiCollection> digisCEE_,digisCEH_,digisCEHSci_;
   edm::EDGetTokenT<std::vector<reco::GenParticle>> genParticles_;
+  edm::EDGetTokenT<float> genT0_;
 
   std::vector< HGCalSiNoiseMap<HGCSiliconDetId> *> scal_;
   HGCalSciNoiseMap *scalSci_;
@@ -59,16 +60,16 @@ class HGCDigiTester : public edm::EDAnalyzer
   double tdcLSB_[3],vanilla_adcLSB_fC_[3];
   std::vector<double> avg_mipfC_[2];
   double sci_keV2MIP_;
-  double tdcOnset_fC_[3],toaLSB_ns_[3];
+  double tdcOnset_fC_[3],toaLSB_ns_[3],bxTime_[3],tofDelay_[3];
   bool useTDCOnsetAuto_;
   bool useVanillaCfg_;
   double pxFiringRate_;
 
   uint32_t detid_;
   Int_t event_,layer_,u_,v_,roc_,thick_,isSci_,isToT_,isSat_;
-  Float_t gpt_,geta_,gphi_,genergy_,gvradius_,gvz_;
+  Float_t gpt_,geta_,gphi_,genergy_,gvradius_,gvz_,gvt_,gbeta_;
   uint32_t adc_, gain_, toa_;
-  Float_t qsim_,qrec_,mipsim_,avgmipsim_,miprec_,avgmiprec_,cce_,eta_,radius_,z_, toarec_;
+  Float_t qsim_,qrec_,mipsim_,avgmipsim_,miprec_,avgmiprec_,cce_,eta_,radius_,z_, toarec_,toasim_;
   Int_t nhits_; //only for the rocTree
   Bool_t side_; //only for the rocTree
   TTree *tree_,*rocTree_;
