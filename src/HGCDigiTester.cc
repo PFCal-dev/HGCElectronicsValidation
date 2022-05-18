@@ -19,13 +19,16 @@
 #include "CLHEP/Geometry/Vector3D.h"
 #include "FWCore/ParameterSet/interface/FileInPath.h"
 #include "CommonTools/UtilAlgos/interface/TFileService.h"
+#include "fastjet/ClusterSequence.hh"
 
 #include <fstream>
 #include <iostream>
 #include <cassert>
-#include <math.h> 
+#include <math.h>
+#include <TVector3.h>
 
 using namespace std;
+using namespace fastjet;
 
 typedef math::XYZTLorentzVector LorentzVector;
 typedef math::XYZPoint Point;
@@ -43,6 +46,8 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     digisCEE_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","EE")) ),
     digisCEH_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","HEfront")) ),
     digisCEHSci_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","HEback")) ),
+    caloParticlesToken_(consumes<CaloParticleCollection>(edm::InputTag("mix:MergedCaloTruth"))),
+    clusters_token_( consumes<std::vector<reco::CaloCluster> >(edm::InputTag("hgcalLayerClusters",""))),
     genParticles_( consumes<std::vector<reco::GenParticle>>(edm::InputTag("genParticles")) ),
     genT0_( consumes<float>(edm::InputTag("genParticles:t0")) ),
     caloGeomToken_(esConsumes<CaloGeometry, CaloGeometryRecord>())
@@ -96,6 +101,9 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
   useTDCOnsetAuto_ = iConfig.getParameter<bool>("useTDCOnsetAuto");
   useVanillaCfg_ = iConfig.getParameter<bool>("useVanillaCfg");
 
+  maxDeltaR_ = iConfig.getParameter<double>("maxDeltaR");
+  clustJetAlgo_ =iConfig.getParameter<int>("clustJetAlgo");
+
   event_=0;
   edm::Service<TFileService> fs;
   if(!onlyROCTree_) {
@@ -133,6 +141,8 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     tree_->Branch("isTOT",&isToT_,"isTOT/I");
     tree_->Branch("thick",&thick_,"thick/I");
     tree_->Branch("isSci",&isSci_,"isSci/I");
+    tree_->Branch("crossCalo",&crossCalo_,"crossCalo/I");
+    tree_->Branch("inShower",&inShower_,"inShower/I");
   }
 
   rocTree_ = fs->make<TTree>("rocs","rocs");
@@ -169,6 +179,46 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
     int idx(p.pz()>0 ? 1 : -1);
     photons[idx]=p.p4();
     photonVertex[idx]=p.vertex();
+  }
+
+  //flag if particle interacted before calorimeter
+  crossCalo_ = -1;
+  edm::Handle<CaloParticleCollection> caloParticlesHandle;
+  iEvent.getByToken(caloParticlesToken_, caloParticlesHandle);
+  if(caloParticlesHandle.isValid() && caloParticlesHandle->size()==1) {
+    auto const& cp = (*caloParticlesHandle)[0];
+    crossCalo_ = std::abs(cp.pdgId()) != 11 ? cp.g4Tracks()[0].crossedBoundary() : 1;
+  }
+
+  //read the layer clusters and build the pseudoparticles to cluster
+  std::set<uint32_t> showerDetIds;
+  edm::Handle<std::vector<reco::CaloCluster>> clusterHandle;
+  iEvent.getByToken(clusters_token_, clusterHandle);
+  if(clusterHandle.isValid()) {
+    std::vector<PseudoJet> pseudoParticles;
+    for(size_t ic=0; ic<clusterHandle->size(); ic++) {
+      const auto &c = clusterHandle->at(ic);
+      if(c.algo()!=8) continue; //HGCAL clusters
+      //save as pseudo-jet for the clustering
+      const auto& en = c.energy();
+      const auto evec = TVector3(c.x(),c.y(),c.z()).Unit();
+      auto ip = PseudoJet(en*evec.X(), en*evec.Y(), en*evec.Z(), en);
+      ip.set_user_index(ic);
+      pseudoParticles.push_back( ip );
+    }
+    //run a jet algorithm
+    JetDefinition jet_def( (JetAlgorithm)(clustJetAlgo_), maxDeltaR_);
+    ClusterSequence cs(pseudoParticles, jet_def);
+    const auto jets = sorted_by_pt(cs.inclusive_jets());
+    if(jets.size()>0) {
+      for(auto jconst :  jets[0].constituents()) {
+        const auto& ic = jconst.user_index();
+        const auto& c = clusterHandle->at(ic);
+        const auto& hf = c.hitsAndFractions();
+        for(auto hfp : hf)
+          showerDetIds.insert(hfp.first);
+      }
+    }
   }
 
   //read sim hits
@@ -251,6 +301,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       toarec_=d.sample(itSample).getToAValid() ? ((toa_+0.5)*toaLSB_ns_[i] - tofDelay_[i]) : -999;
       toasim_=simToA.find(key)!=simToA.end() ? (simToA[key]/simTE[key] - tofDelay_[i]) : -999;
       isToT_=d.sample(itSample).mode();
+      inShower_=!showerDetIds.empty() ? showerDetIds.find(key)!=showerDetIds.end() : -1;
 
       isSat_=false;
       //if(!isToT_ && adc>1020) isSat_=true; // never happens

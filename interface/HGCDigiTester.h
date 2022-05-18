@@ -18,6 +18,9 @@
 #include "SimDataFormats/CaloHit/interface/PCaloHit.h"
 #include "DataFormats/ForwardDetId/interface/HGCalDetId.h"
 #include "DataFormats/HGCDigi/interface/HGCDigiCollections.h"
+#include "DataFormats/CaloRecHit/interface/CaloCluster.h"
+#include "SimDataFormats/CaloAnalysis/interface/CaloParticleFwd.h"
+#include "SimDataFormats/CaloAnalysis/interface/CaloParticle.h"
 
 #include "SimCalorimetry/HGCalSimAlgos/interface/HGCalSiNoiseMap.h"  
 #include "SimCalorimetry/HGCalSimAlgos/interface/HGCalSciNoiseMap.h"  
@@ -54,6 +57,8 @@ class HGCDigiTester : public edm::one::EDAnalyzer<edm::one::SharedResources>
   
   edm::EDGetTokenT<edm::PCaloHitContainer> simHitsCEE_,simHitsCEH_,simHitsCEHSci_;
   edm::EDGetTokenT<HGCalDigiCollection> digisCEE_,digisCEH_,digisCEHSci_;
+  edm::EDGetTokenT<CaloParticleCollection> caloParticlesToken_;
+  edm::EDGetTokenT<std::vector<reco::CaloCluster>> clusters_token_;
   edm::EDGetTokenT<std::vector<reco::GenParticle>> genParticles_;
   edm::EDGetTokenT<float> genT0_;
 
@@ -63,14 +68,14 @@ class HGCDigiTester : public edm::one::EDAnalyzer<edm::one::SharedResources>
   uint32_t mipTarget_[3];
   double tdcLSB_[3],vanilla_adcLSB_fC_[3];
   std::vector<double> avg_mipfC_[2];
-  double sci_keV2MIP_;
+  double sci_keV2MIP_,maxDeltaR_;
   double tdcOnset_fC_[3],toaLSB_ns_[3],bxTime_[3],tofDelay_[3];
   bool useTDCOnsetAuto_;
   bool useVanillaCfg_;
   double pxFiringRate_;
 
   uint32_t detid_;
-  Int_t event_,layer_,u_,v_,roc_,thick_,isSci_,isToT_,isSat_;
+  Int_t event_,layer_,u_,v_,roc_,thick_,isSci_,isToT_,isSat_,crossCalo_,clustJetAlgo_,inShower_;
   Float_t gpt_,geta_,gphi_,genergy_,gvradius_,gvz_,gvt_,gbeta_;
   uint32_t adc_, gain_, toa_;
   Float_t qsim_,qrec_,mipsim_,avgmipsim_,miprec_,avgmiprec_,cce_,eta_,radius_,z_, toarec_,toasim_;
