@@ -5,9 +5,8 @@ These tools are used to debug the development on the main cmssw repository.
 On top of your current CMSSW work area do
 
 ```
-export SCRAM_ARCH=slc7_amd64_gcc900
-cmsrel CMSSW_12_2_0_pre2
-cd CMSSW_12_2_0_pre2/src/
+cmsrel CMSSW_12_3_0_pre5
+cd CMSSW_12_3_0_pre5/src/
 cmsenv
 
 #OPTIONAL (mostly if you need to do some development in the base code)
