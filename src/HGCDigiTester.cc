@@ -10,6 +10,7 @@
 #include "CLHEP/Units/GlobalSystemOfUnits.h"
 #include "FWCore/ServiceRegistry/interface/Service.h"
 #include "FWCore/Utilities/interface/Exception.h"
+#include "Geometry/HGCalGeometry/interface/HGCalGeometry.h"
 #include "DataFormats/ForwardDetId/interface/HGCSiliconDetIdToROC.h"
 #include "FWCore/Utilities/interface/RandomNumberGenerator.h"
 #include "FWCore/Utilities/interface/StreamID.h"
@@ -43,7 +44,8 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     digisCEH_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","HEfront")) ),
     digisCEHSci_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","HEback")) ),
     genParticles_( consumes<std::vector<reco::GenParticle>>(edm::InputTag("genParticles")) ),
-    genT0_( consumes<float>(edm::InputTag("genParticles:t0")) )
+    genT0_( consumes<float>(edm::InputTag("genParticles:t0")) ),
+    caloGeomToken_(esConsumes<CaloGeometry, CaloGeometryRecord>())
 {   
   hardProcOnly_=iConfig.getParameter<bool>("hardProcOnly");
   onlyROCTree_=iConfig.getParameter<bool>("onlyROCTree");
@@ -153,6 +155,7 @@ void HGCDigiTester::endJob()
 void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iSetup)
 {
   event_++;
+
   rocDeposits_t rocs;
 
   const auto& genT0 = iEvent.get(genT0_);
@@ -193,23 +196,17 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
   iEvent.getByToken(digisCEHSci_,digisCEHSci);
 
   //read geometry components for HGCAL
-  edm::ESHandle<HGCalGeometry> geoHandleCEE,geoHandleCEH,geoHandleCEHSci;
+  edm::ESHandle<CaloGeometry> geom = iSetup.getHandle(caloGeomToken_);
+  const HGCalGeometry *geoCEE = static_cast<const HGCalGeometry*>(geom->getSubdetectorGeometry(DetId::HGCalEE, ForwardSubdetector::ForwardEmpty));
+  const HGCalTopology &topoCEE = geoCEE->topology();
+  const HGCalDDDConstants &dddConstCEE = topoCEE.dddConstants();
+  const HGCalGeometry *geoCEH = static_cast<const HGCalGeometry*>(geom->getSubdetectorGeometry(DetId::HGCalHSi, ForwardSubdetector::ForwardEmpty));
+  const HGCalTopology &topoCEH = geoCEH->topology();
+  const HGCalDDDConstants &dddConstCEH = topoCEH.dddConstants();
+  const HGCalGeometry *geoCEHSci = static_cast<const HGCalGeometry*>(geom->getSubdetectorGeometry(DetId::HGCalHSc, ForwardSubdetector::ForwardEmpty));
 
-  iSetup.get<IdealGeometryRecord>().get("HGCalEESensitive",geoHandleCEE);
-  const HGCalGeometry *geoCEE=geoHandleCEE.product();
-  const HGCalTopology &topoCEE=geoCEE->topology();
-  const HGCalDDDConstants &dddConstCEE=topoCEE.dddConstants();
-
-  iSetup.get<IdealGeometryRecord>().get("HGCalHESiliconSensitive",geoHandleCEH);
-  const HGCalGeometry *geoCEH=geoHandleCEH.product();
-  const HGCalTopology &topoCEH=geoCEH->topology();
-  const HGCalDDDConstants &dddConstCEH=topoCEH.dddConstants();
+  //utility to map detid to ROC
   HGCSiliconDetIdToROC sid2roc;
-
-  iSetup.get<IdealGeometryRecord>().get("HGCalHEScintillatorSensitive",geoHandleCEHSci);
-  const HGCalGeometry *geoCEHSci=geoHandleCEHSci.product();
-  // const HGCalTopology &topoCEHSci=geoCEHSci->topology();
-  // const HGCalDDDConstants &dddConstCEHSci=topoCEHSci.dddConstants();
 
   //set the geometry
   scal_[0]->setGeometry(geoCEE, HGCalSiNoiseMap<HGCSiliconDetId>::AUTO, mipTarget_[0]);

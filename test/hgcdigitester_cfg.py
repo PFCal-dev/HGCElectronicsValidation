@@ -1,17 +1,18 @@
 import FWCore.ParameterSet.Config as cms
 
-from Configuration.Eras.Era_Phase2C9_cff import Phase2C9
-process = cms.Process("ANALYSIS", Phase2C9)
+from Configuration.Eras.Era_Phase2C11I13M9_cff import Phase2C11I13M9
+process = cms.Process("ANALYSIS", Phase2C11I13M9)
+
 
 from FWCore.ParameterSet.VarParsing import VarParsing
 options = VarParsing ('standard')
 options.register('input', 
-                 '/eos/cms/store/cmst3/group/hgcal/CMG_studies/Production/CloseByParticleGunProducer_aged3iab_20201117/GSD/',
+                 '/eos/cms/store/cmst3/group/hgcal/CMG_studies/Production/FlatEGunK0L_12_3_0_pre5_D86_noPU',
                  VarParsing.multiplicity.singleton, 
                  VarParsing.varType.string, 
                  "input directory")
 options.register('geometry', 
-                 'Extended2026D49', 
+                 'Extended2026D86', 
                  VarParsing.multiplicity.singleton, 
                  VarParsing.varType.string, 
                  'geometry to use')
@@ -86,6 +87,7 @@ process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(options.maxE
 #prepare digitization parameters fo the end of life
 process.load('SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi')
 process.load('RecoLocalCalo.HGCalRecProducers.HGCalRecHit_cfi')
+
 from SimCalorimetry.HGCalSimProducers.hgcalDigitizer_cfi import HGCal_setEndOfLifeNoise
 HGCal_setEndOfLifeNoise(process,byDoseAlgo=options.byDoseAlgo)
 
@@ -122,10 +124,13 @@ print('fcPerMIP or keV2DIGI')
 print(process.HGCalRecHit.HGCEE_fCPerMIP)
 print(process.HGCalRecHit.HGCHEF_fCPerMIP)
 print(process.HGCalRecHit.HGCHEB_keV2DIGI)
-print('thick corections')
-print(process.HGCalRecHit.thicknessCorrection)
-print('de/dx weights')
-print(process.HGCalRecHit.layerWeights)
+#from RecoLocalCalo.HGCalRecProducers.HGCalRecHit_cfi import calcWeights,weightsPerLayer_V16
+#weights=calcWeights(weightsPerLayer_V16)
+#thickness_weights=[0.75, 0.76, 0.75, 0.85, 0.85, 0.84, 0.69]
+#print('thick corections')
+#print(process.HGCalRecHit.thicknessCorrection)
+#print('de/dx weights')
+#print(process.HGCalRecHit.layerWeights)
 print('*'*50)
 
 process.p = cms.Path(process.ana)

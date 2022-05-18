@@ -4,7 +4,7 @@
 #include <tuple>
 
 #include "FWCore/Framework/interface/Frameworkfwd.h"
-#include "FWCore/Framework/interface/EDAnalyzer.h"
+#include "FWCore/Framework/interface/one/EDAnalyzer.h"
 
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/EventSetup.h"
@@ -22,7 +22,11 @@
 #include "SimCalorimetry/HGCalSimAlgos/interface/HGCalSiNoiseMap.h"  
 #include "SimCalorimetry/HGCalSimAlgos/interface/HGCalSciNoiseMap.h"  
 #include "SimCalorimetry/HGCalSimProducers/interface/HGCDigitizerBase.h"  
-#include "Geometry/HGCalGeometry/interface/HGCalGeometry.h"
+#include "Geometry/CaloGeometry/interface/CaloGeometry.h"
+#include "Geometry/CaloGeometry/interface/CaloSubdetectorGeometry.h"
+#include "Geometry/Records/interface/CaloGeometryRecord.h"
+#include "DetectorDescription/Core/interface/DDCompactView.h"
+
 
 #include "TTree.h"
 
@@ -32,7 +36,7 @@
 */
 
 
-class HGCDigiTester : public edm::EDAnalyzer 
+class HGCDigiTester : public edm::one::EDAnalyzer<edm::one::SharedResources>
 {
   
  public:
@@ -76,6 +80,8 @@ class HGCDigiTester : public edm::EDAnalyzer
     
   bool hardProcOnly_;
   bool onlyROCTree_;
+
+  edm::ESGetToken<CaloGeometry, CaloGeometryRecord> caloGeomToken_;
 };
  
 
