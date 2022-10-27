@@ -104,6 +104,34 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
   maxDeltaR_ = iConfig.getParameter<double>("maxDeltaR");
   clustJetAlgo_ =iConfig.getParameter<int>("clustJetAlgo");
 
+  //parse u-v equivalence map file and start the layer operation map
+  edm::FileInPath uvmapF("UserCode/HGCElectronicsValidation/data/v17-27102022-cmssw_flatfile.txt");
+  std::ifstream inF(uvmapF.fullPath());
+  while(inF) {
+
+    std::string buf;
+    getline(inF,buf);
+
+    std::stringstream ss(buf);
+    std::vector<std::string> tokens;
+    while (ss >> buf) {
+      if(buf.size()>0)
+        tokens.push_back(buf);
+    }      
+
+    //if not 11 this is not describing a new module    
+    if(tokens.size()!=11) continue;
+      
+    //add to the map
+    ModuleToBE mod(atoi(tokens[0].c_str()),
+                   atoi(tokens[6].c_str()),
+                   atoi(tokens[7].c_str()),
+                   atoi(tokens[9].c_str()),
+                   atoi(tokens[10].c_str()));
+    module2be_map_.push_back(mod);
+  }
+ 
+
   event_=0;
   edm::Service<TFileService> fs;
   if(!onlyROCTree_) {
@@ -118,6 +146,8 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     tree_->Branch("gbeta",&gbeta_,"gbeta/F");
     tree_->Branch("event",&event_,"event/I");
     tree_->Branch("detid",&detid_,"detid/i");
+    tree_->Branch("crate",&crate_,"crate/i");
+    tree_->Branch("slot",&slot_,"slot/i");
     tree_->Branch("layer",&layer_,"layer/I");
     tree_->Branch("u",&u_,"u/I");  //u or iphi
     tree_->Branch("v",&v_,"v/I");  //v or ieta
@@ -320,7 +350,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       radius_=0;
       z_=0;
       int zside=0;
-
+      crate_=0;
+      slot_=0;
       HGCalSiNoiseMap<HGCSiliconDetId>::GainRange_t gain = (HGCalSiNoiseMap<HGCSiliconDetId>::GainRange_t)d.sample(itSample).gain();
       gain_ = gain;
 
@@ -340,6 +371,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         u_ = cellId.waferUV().first;
         v_ = cellId.waferUV().second;
         roc_    = sid2roc.getROCNumber(cellId);
+      
         HGCalSiNoiseMap<HGCSiliconDetId>::SiCellOpCharacteristics siop 
           = scal_[i]->getSiCellOpCharacteristics(cellId);
         cce_       = siop.core.cce;
@@ -417,7 +449,16 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
       //for CEH shift by CEE layers
       if(i>0) layer_+=28;
-
+      if(!isSci_) {
+        ModuleToBE mod(layer_,u_,v_,0,0);
+        auto it = std::find(module2be_map_.begin(),module2be_map_.end(),mod);       
+        if(it!=module2be_map_.end()){
+          crate_=it->crate;
+          if(zside) crate+=10;
+          slot_=it->slot;
+        }
+      }
+      
       //MC truth
       genergy_  = photons[zside].energy();
       gpt_      = photons[zside].pt();

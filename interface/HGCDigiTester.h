@@ -38,6 +38,21 @@
    @short to test energy -> digi -> energy conversion
 */
 
+class ModuleToBE{
+public:
+  ModuleToBE(int32_t _l,int32_t _u,int32_t _v,int32_t _c,int32_t _s) : layer(_l), u(_u), v(_v), crate(_c), slot(_s) { }
+  ModuleToBE(const ModuleToBE& m) : layer(m.layer), u(m.u), v(m.v), crate(m.crate), slot(m.slot) { }
+  bool operator==(const ModuleToBE& m) const
+  {
+    if(m.layer != this->layer) return false;
+    if(m.u != this->u) return false;
+    if(m.v != this->v) return false;
+    return true;    
+  }
+  int32_t layer,u,v,crate,slot;
+};
+
+
 
 class HGCDigiTester : public edm::one::EDAnalyzer<edm::one::SharedResources>
 {
@@ -74,7 +89,7 @@ class HGCDigiTester : public edm::one::EDAnalyzer<edm::one::SharedResources>
   bool useVanillaCfg_;
   double pxFiringRate_;
 
-  uint32_t detid_;
+  uint32_t detid_,crate_,slot_;
   Int_t event_,layer_,u_,v_,roc_,thick_,isSci_,isToT_,isSat_,crossCalo_,clustJetAlgo_,inShower_;
   Float_t gpt_,geta_,gphi_,genergy_,gvradius_,gvz_,gvt_,gbeta_;
   uint32_t adc_, gain_, toa_;
@@ -86,6 +101,7 @@ class HGCDigiTester : public edm::one::EDAnalyzer<edm::one::SharedResources>
   bool hardProcOnly_;
   bool onlyROCTree_;
 
+  std::vector<ModuleToBE> module2be_map_;
   edm::ESGetToken<CaloGeometry, CaloGeometryRecord> caloGeomToken_;
 };
  

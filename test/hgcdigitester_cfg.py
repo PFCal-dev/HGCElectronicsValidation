@@ -105,7 +105,9 @@ process.ana = cms.EDAnalyzer("HGCDigiTester",
                              useTDCOnsetAuto=cms.bool(options.useTDCOnsetAuto),
                              useVanillaCfg=cms.bool(options.useVanillaCfg),
                              hardProcOnly=cms.bool(options.hardProcOnly),
-                             onlyROCTree=cms.bool(options.onlyROCTree)
+                             onlyROCTree=cms.bool(options.onlyROCTree),
+                             maxDeltaR=cms.double(0.4),
+                             clustJetAlgo=cms.int32(2)
                          )
 
 process.RandomNumberGeneratorService.ana = cms.PSet( initialSeed = cms.untracked.uint32(0),
