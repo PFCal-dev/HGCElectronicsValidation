@@ -454,7 +454,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         auto it = std::find(module2be_map_.begin(),module2be_map_.end(),mod);       
         if(it!=module2be_map_.end()){
           crate_=it->crate;
-          if(zside) crate+=10;
+          if(zside) crate_+=10;
           slot_=it->slot;
         }
       }

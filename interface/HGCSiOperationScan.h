@@ -2,7 +2,7 @@
 #define _HGCSiOperationScan_h_
 
 #include "FWCore/Framework/interface/Frameworkfwd.h"
-#include "FWCore/Framework/interface/EDAnalyzer.h"
+#include "FWCore/Framework/interface/one/EDAnalyzer.h"
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/EventSetup.h"
 #include "FWCore/Framework/interface/ESTransientHandle.h"
@@ -19,6 +19,11 @@
 #include "DataFormats/HGCDigi/interface/HGCDigiCollections.h"
 #include "SimCalorimetry/HGCalSimAlgos/interface/HGCalSiNoiseMap.h"
 
+#include "Geometry/CaloGeometry/interface/CaloGeometry.h"
+#include "Geometry/CaloGeometry/interface/CaloSubdetectorGeometry.h"
+#include "Geometry/Records/interface/CaloGeometryRecord.h"
+
+
 #include <map>
 #include <vector>
 #include <string>
@@ -33,7 +38,7 @@
    @short an EDAnalyzer to create a summary of the operation mode
 */
 
-class HGCSiOperationScan : public edm::EDAnalyzer 
+class HGCSiOperationScan : public edm::one::EDAnalyzer<edm::one::SharedResources>
 {
 
  public:
@@ -63,7 +68,7 @@ class HGCSiOperationScan : public edm::EDAnalyzer
   std::map<layKey_t,std::map<waferKey_t,std::vector<int> > > layerCellROCColl_;
 
   //geometry
-  std::string geoCEE_,geoCEH_;
+  edm::ESGetToken<CaloGeometry, CaloGeometryRecord> caloGeomToken_;
   std::map<std::string,const HGCalGeometry *> hgcGeometries_;
   bool setPreassignedWafersFromCMSSW_;
 

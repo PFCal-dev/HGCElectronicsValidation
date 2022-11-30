@@ -37,8 +37,7 @@ using namespace std;
 
 //
 HGCSiOperationScan::HGCSiOperationScan( const edm::ParameterSet &iConfig ) :   
-  geoCEE_("HGCalEESensitive"),
-  geoCEH_("HGCalHESiliconSensitive"),
+  caloGeomToken_(esConsumes<CaloGeometry, CaloGeometryRecord>()),
   setPreassignedWafersFromCMSSW_(iConfig.getParameter<bool>("setPreassignedWafersFromCMSSW")),
   siType_(iConfig.getParameter<edm::ParameterSet>("siType")),
   aimMIPtoADC_(iConfig.getParameter<int>("aimMIPtoADC")),  
@@ -240,12 +239,10 @@ void HGCSiOperationScan::analyze(const edm::Event &iEvent, const edm::EventSetup
 {
 
   //the geometries
-  edm::ESHandle<HGCalGeometry> ceeGeoHandle;
-  iSetup.get<IdealGeometryRecord>().get(geoCEE_,ceeGeoHandle);
-  hgcGeometries_["CEE"]=ceeGeoHandle.product();
-  edm::ESHandle<HGCalGeometry> cehGeoHandle;
-  iSetup.get<IdealGeometryRecord>().get(geoCEH_,cehGeoHandle);
-  hgcGeometries_["CEH"]=cehGeoHandle.product();
+  edm::ESHandle<CaloGeometry> geom = iSetup.getHandle(caloGeomToken_);
+  hgcGeometries_["CEE"] = static_cast<const HGCalGeometry*>(geom->getSubdetectorGeometry(DetId::HGCalEE, ForwardSubdetector::ForwardEmpty));
+  hgcGeometries_["CEH"] = static_cast<const HGCalGeometry*>(geom->getSubdetectorGeometry(DetId::HGCalHSi, ForwardSubdetector::ForwardEmpty));
+
   HGCSiliconDetIdToROC d2roc;
 
   //Si parameters
@@ -334,10 +331,12 @@ void HGCSiOperationScan::endJob()
       std::vector< int> cellROCs(layerCellROCColl_[layKey][waferKey]);
 
       if(cellUVs.size()==0) {
+        /*
         std::cout << "Found wafer in " << subdet << " layer=" << layKey.second 
                   << " (u,v)=(" << waferKey.first << "," << waferKey.second << ") "
                   << " which has 0 cells"
                   <<  std::endl;
+        */
         continue;
       }
       
@@ -379,8 +378,10 @@ void HGCSiOperationScan::endJob()
         t_padY[icell]    = padXY.second;                     
         t_padf[icell]    = cellOp[icell].fluence;          
         t_pads[icell]    = cellOp[icell].mipfC;
-        t_padn[icell]    = cellOp[icell].core.noise;          
-        t_padencs[icell] = cellOp[icell].enc_s; 
+        double enc_p = cellOp[icell].enc_p;
+        t_padencs[icell] = cellOp[icell].enc_s;
+        t_padn[icell] = hypot(enc_p * encCommonNoiseSub_, cellOp[icell].enc_s*1.25) * 1.60217646E-4;
+        //t_padn[icell]    = cellOp[icell].core.noise;          
         t_padileak[icell] = cellOp[icell].ileak;
         t_padsn[icell]   = t_padn[icell] > 0 ? t_pads[icell]/t_padn[icell] : -1;
         t_padcce[icell]  = cellOp[icell].core.cce;
