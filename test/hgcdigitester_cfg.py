@@ -1,18 +1,18 @@
 import FWCore.ParameterSet.Config as cms
 
-from Configuration.Eras.Era_Phase2C11I13M9_cff import Phase2C11I13M9
-process = cms.Process("ANALYSIS", Phase2C11I13M9)
+from Configuration.Eras.Era_Phase2C17I13M9_cff import Phase2C17I13M9 as Era_Phase2
+process = cms.Process("ANALYSIS", Era_Phase2)
 
 
 from FWCore.ParameterSet.VarParsing import VarParsing
 options = VarParsing ('standard')
 options.register('input', 
-                 '/eos/cms/store/cmst3/group/hgcal/CMG_studies/Production/FlatEGunK0L_12_3_0_pre5_D86_noPU',
+                 '/eos/cms/store/cmst3/group/hgcal/CMG_studies/Production/SingleK0LGun_eta2p5_13_0_0_pre4_D99',
                  VarParsing.multiplicity.singleton, 
                  VarParsing.varType.string, 
                  "input directory")
 options.register('geometry', 
-                 'Extended2026D86', 
+                 'Extended2026D99', 
                  VarParsing.multiplicity.singleton, 
                  VarParsing.varType.string, 
                  'geometry to use')
