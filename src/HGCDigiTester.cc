@@ -384,7 +384,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         layer_ = cellId.layer();
         
         const HGCalDDDConstants &dddConst(i==0 ? dddConstCEE : dddConstCEH);
-        const auto &xy(dddConst.locateCell(cellId.layer(), cellId.waferU(), cellId.waferV(), cellId.cellU(), cellId.cellV(), true, true));
+        const auto &xy(dddConst.locateCell(cellId,false)); //cellId.layer(), cellId.waferU(), cellId.waferV(), cellId.cellU(), cellId.cellV(), true, true));
         radius_ = sqrt(std::pow(xy.first, 2) + std::pow(xy.second, 2));  //in cm
         zside=cellId.zside();
         z_ = zside*dddConst.waferZ(layer_,true);

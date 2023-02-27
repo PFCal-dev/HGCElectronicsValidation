@@ -293,7 +293,7 @@ void HGCSiOperationScan::analyze(const edm::Event &iEvent, const edm::EventSetup
                
         //override default assignment with the one from CMSSW
         if(setPreassignedWafersFromCMSSW_){
-          int waferTypeL = std::get<0>(ddd.waferType(detId));
+          int waferTypeL = std::get<0>(ddd.waferType(detId,false));
           waferPreChoice_[layKey][waferUV] = waferTypeL;
         }
 

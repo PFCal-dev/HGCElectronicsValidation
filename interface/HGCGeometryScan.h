@@ -4,7 +4,7 @@
 #include "UserCode/HGCElectronicsValidation/interface/WaferOccupancyHisto.h"
 
 #include "FWCore/Framework/interface/Frameworkfwd.h"
-#include "FWCore/Framework/interface/EDAnalyzer.h"
+#include "FWCore/Framework/interface/one/EDAnalyzer.h"
 
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/EventSetup.h"
@@ -44,6 +44,9 @@
 #include "Geometry/TrackerGeometryBuilder/interface/TrackerGeometry.h"
 #include "MagneticField/Engine/interface/MagneticField.h"
 #include "Geometry/HGCalGeometry/interface/HGCalGeometry.h"
+#include "Geometry/CaloGeometry/interface/CaloGeometry.h"
+#include "Geometry/CaloGeometry/interface/CaloSubdetectorGeometry.h"
+#include "Geometry/Records/interface/CaloGeometryRecord.h"
 
 #include <string>
 
@@ -60,7 +63,7 @@ struct WaferEquivalentInfo_t {
 };
 
 
-class HGCGeometryScan : public edm::EDAnalyzer 
+class HGCGeometryScan : public edm::one::EDAnalyzer<edm::one::SharedResources>
 {
   
  public:
@@ -82,7 +85,7 @@ class HGCGeometryScan : public edm::EDAnalyzer
   std::map<std::pair<int,int>,int> uvSectorMap_;
 
   //geometry and digis to analyze
-  std::string geoCEE_,geoCEH_;
+  edm::ESGetToken<CaloGeometry, CaloGeometryRecord> caloGeomToken_;
   std::map<std::string,const HGCalGeometry *> hgcGeometries_;
 };
  

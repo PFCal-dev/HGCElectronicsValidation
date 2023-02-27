@@ -4,7 +4,7 @@
 #include "UserCode/HGCElectronicsValidation/interface/WaferOccupancyHisto.h"
 
 #include "FWCore/Framework/interface/Frameworkfwd.h"
-#include "FWCore/Framework/interface/EDAnalyzer.h"
+#include "FWCore/Framework/interface/one/EDAnalyzer.h"
 
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/EventSetup.h"
@@ -44,6 +44,9 @@
 #include "Geometry/TrackerGeometryBuilder/interface/TrackerGeometry.h"
 #include "MagneticField/Engine/interface/MagneticField.h"
 #include "Geometry/HGCalGeometry/interface/HGCalGeometry.h"
+#include "Geometry/CaloGeometry/interface/CaloGeometry.h"
+#include "Geometry/CaloGeometry/interface/CaloSubdetectorGeometry.h"
+#include "Geometry/Records/interface/CaloGeometryRecord.h"
 #include "SimDataFormats/PileupSummaryInfo/interface/PileupSummaryInfo.h"
 
 #include <string>
@@ -60,7 +63,7 @@
    @short an EDAnalyzer to readout the digis in the event and steer the filling of the occupancy histograms
 */
 
-class HGCOccupancyAnalyzer : public edm::EDAnalyzer 
+class HGCOccupancyAnalyzer : public edm::one::EDAnalyzer<edm::one::SharedResources>
 {
   
  public:
@@ -98,7 +101,7 @@ class HGCOccupancyAnalyzer : public edm::EDAnalyzer
   edm::EDGetTokenT<std::vector<reco::GenJet> > genJets_;
 
   //geometry and digis to analyze
-  std::string geoCEE_,geoCEH_;
+  edm::ESGetToken<CaloGeometry, CaloGeometryRecord> caloGeomToken_;
   edm::EDGetTokenT<HGCalDigiCollection> digisCEE_,digisCEH_;
 
   std::vector<int> tdcHits_, toaHits_,adcHits_;

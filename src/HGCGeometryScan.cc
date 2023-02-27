@@ -39,8 +39,7 @@ using namespace std;
 
 //
 HGCGeometryScan::HGCGeometryScan( const edm::ParameterSet &iConfig ) :   
-  geoCEE_("HGCalEESensitive"),
-  geoCEH_("HGCalHESiliconSensitive")
+  caloGeomToken_(esConsumes<CaloGeometry, CaloGeometryRecord>())
 {  
 }
 
@@ -84,7 +83,7 @@ void HGCGeometryScan::prepareAnalysis()
 
         int layer=detId.layer();
         std::pair<int,int> waferUV=detId.waferUV();        
-        int waferTypeL = ddd.waferType(layer,waferUV.first,waferUV.second);
+        int waferTypeL = ddd.waferType(layer,waferUV.first,waferUV.second,false);
         
         TString key(Form("%s_lay%d_xy",it.first.c_str(),layer));
         if(histos.find(key)==histos.end()) {
@@ -102,7 +101,7 @@ void HGCGeometryScan::prepareAnalysis()
         histos[key]->SetPoint(npts,pt.x(),pt.y(),ci);
  
         //find rotation to equivalence sector
-        std::pair<double, double> waferPos=ddd.waferPosition(layer,waferUV.first,waferUV.second,true);
+        std::pair<double, double> waferPos=ddd.waferPosition(detId,false);
         double waferPhi=atan2(waferPos.second,waferPos.first);
         double waferRadius=hypot(waferPos.first,waferPos.second);
         double z(ddd.waferZ(layer,true));
@@ -156,14 +155,11 @@ void HGCGeometryScan::prepareAnalysis()
 //
 void HGCGeometryScan::analyze( const edm::Event &iEvent, const edm::EventSetup &iSetup)
 {
-  //read geometry from event setup
-  edm::ESHandle<HGCalGeometry> ceeGeoHandle;
-  iSetup.get<IdealGeometryRecord>().get(geoCEE_,ceeGeoHandle);
-  hgcGeometries_["CEE"]=ceeGeoHandle.product();
-  edm::ESHandle<HGCalGeometry> cehGeoHandle;
-  iSetup.get<IdealGeometryRecord>().get(geoCEH_,cehGeoHandle);
-  hgcGeometries_["CEH"]=cehGeoHandle.product();
 
+  //read geometry components for HGCAL
+  edm::ESHandle<CaloGeometry> geom = iSetup.getHandle(caloGeomToken_);
+  hgcGeometries_["CEE"] = static_cast<const HGCalGeometry*>(geom->getSubdetectorGeometry(DetId::HGCalEE, ForwardSubdetector::ForwardEmpty));
+  hgcGeometries_["CEH"] = static_cast<const HGCalGeometry*>(geom->getSubdetectorGeometry(DetId::HGCalHSi, ForwardSubdetector::ForwardEmpty));
   prepareAnalysis();
 
 }

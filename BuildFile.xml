@@ -1,4 +1,3 @@
-<use name="IOMC/ParticleGuns"/>
 <use name="SimGeneral/HepPDTRecord"/>
 <use name="clhep"/>
 <use name="hepmc"/>

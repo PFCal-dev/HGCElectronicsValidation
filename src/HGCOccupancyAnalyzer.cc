@@ -39,8 +39,7 @@ using namespace std;
 HGCOccupancyAnalyzer::HGCOccupancyAnalyzer( const edm::ParameterSet &iConfig ) :   
   puToken_(consumes<std::vector<PileupSummaryInfo>>(edm::InputTag("addPileupInfo"))),
   genJets_( consumes<std::vector<reco::GenJet> >(edm::InputTag("ak8GenJetsNoNu")) ),
-  geoCEE_("HGCalEESensitive"),
-  geoCEH_("HGCalHESiliconSensitive"),
+  caloGeomToken_(esConsumes<CaloGeometry, CaloGeometryRecord>()),
   digisCEE_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","EE")) ),
   digisCEH_( consumes<HGCalDigiCollection>(edm::InputTag("simHGCalUnsuppressedDigis","HEfront")) ),
   nevts_(0),
@@ -202,14 +201,20 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
   //read geometry from event setup
   std::string subdets[]={"CEE","CEH"};
 
+  edm::ESHandle<CaloGeometry> geom = iSetup.getHandle(caloGeomToken_);
+
+  
   for(size_t subdet=0; subdet<2; subdet++) {
 
     //get the geometry
     std::string sd=subdets[subdet];
-    edm::ESHandle<HGCalGeometry> ceeGeoHandle;
-    iSetup.get<IdealGeometryRecord>().get(subdet==0 ? geoCEE_ : geoCEH_,ceeGeoHandle);
-    const HGCalGeometry *geo=ceeGeoHandle.product();
-    const HGCalDDDConstants &ddd=geo->topology().dddConstants();
+
+    const HGCalGeometry *geo =
+      subdet==0 ?
+      static_cast<const HGCalGeometry*>(geom->getSubdetectorGeometry(DetId::HGCalEE, ForwardSubdetector::ForwardEmpty)) :
+      static_cast<const HGCalGeometry*>(geom->getSubdetectorGeometry(DetId::HGCalHSi, ForwardSubdetector::ForwardEmpty));
+    const HGCalTopology &topo = geo->topology();
+    const HGCalDDDConstants &ddd = topo.dddConstants();
 
     //configure noise map
     noiseMaps_[subdet]->setGeometry(geo, HGCalSiNoiseMap<HGCSiliconDetId>::AUTO, 10);
@@ -246,7 +251,7 @@ void HGCOccupancyAnalyzer::analyze( const edm::Event &iEvent, const edm::EventSe
 	}
 
         HGCalSiNoiseMap<HGCSiliconDetId>::SiCellOpCharacteristics siop=noiseMaps_[subdet]->getSiCellOpCharacteristics(detId);
-        std::tuple<int, int, int> wafType = ddd.waferType(detId); //type,partial,orientation
+        std::tuple<int, int, int> wafType = ddd.waferType(detId,false);
         waferHistos_[key]->addPad( std::get<0>(wafType), siop );
 
         //global pad counter
