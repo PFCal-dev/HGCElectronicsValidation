@@ -203,8 +203,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
   iEvent.getByToken(genParticles_, genParticlesHandle);
   std::map<int,LorentzVector> photons;
   std::map<int,Point> photonVertex;
-  for(size_t i = 0; i < genParticlesHandle->size(); ++i )  {    
-    const reco::GenParticle &p = (*genParticlesHandle)[i];
+  for(const auto& p : *genParticlesHandle)  {
     if (p.status()!=1) continue;
     int idx(p.pz()>0 ? 1 : -1);
     photons[idx]=p.p4();
@@ -212,12 +211,14 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
   }
 
   //flag if particle interacted before calorimeter
-  crossCalo_ = -1;
+  std::map<int,int> crossCalo({{-1, -1}, {1, -1}});
   edm::Handle<CaloParticleCollection> caloParticlesHandle;
   iEvent.getByToken(caloParticlesToken_, caloParticlesHandle);
-  if(caloParticlesHandle.isValid() && caloParticlesHandle->size()==1) {
-    auto const& cp = (*caloParticlesHandle)[0];
-    crossCalo_ = std::abs(cp.pdgId()) != 11 ? cp.g4Tracks()[0].crossedBoundary() : 1;
+  if(caloParticlesHandle.isValid()) {
+    for(const auto& cp : *caloParticlesHandle)  {
+      int idx(cp.pz()>0 ? 1 : -1);
+      crossCalo[idx] = std::abs(cp.pdgId()) != 11 ? cp.g4Tracks()[0].crossedBoundary() : 1;
+    }
   }
 
   //read the layer clusters and build the pseudoparticles to cluster
@@ -302,13 +303,11 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
     const auto geo = (i==0 ? geoCEE : (i==1 ? geoCEH : geoCEHSci) );
 
     std::map<uint32_t,double> simToA, simTE;
-    constexpr double c_cm_ns = CLHEP::c_light * CLHEP::ns / CLHEP::cm;
     for(auto sh : simHits) {
       uint32_t key(sh.id());
       const auto ene = sh.energy();
       const auto tHGCAL = sh.time();
-      const auto dist2center = geo->getPosition(key).mag();
-      const auto toa = tHGCAL - dist2center/c_cm_ns + tofDelay_[i];
+      const auto toa = tHGCAL + tofDelay_[i];
       if (std::floor(toa / bxTime_[i]) != 0) continue;
       simToA[key] += toa*ene;
       simTE[key] += ene;
@@ -454,10 +453,11 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         auto it = std::find(module2be_map_.begin(),module2be_map_.end(),mod);       
         if(it!=module2be_map_.end()){
           crate_=it->crate;
-          if(zside) crate_+=10;
+          if(zside>0) crate_+=10;
           slot_=it->slot;
         }
       }
+
       
       //MC truth
       genergy_  = photons[zside].energy();
@@ -468,6 +468,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       gvz_      = photonVertex[zside].z();
       gvt_      = genT0;
       gbeta_    = 1./sqrt(1. + pow(photons[zside].mass()/photons[zside].P(), 2));
+      crossCalo_ = crossCalo[zside];
 
       //store hit
       if(!onlyROCTree_) tree_->Fill();
