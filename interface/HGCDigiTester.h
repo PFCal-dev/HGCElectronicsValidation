@@ -91,7 +91,7 @@ class HGCDigiTester : public edm::one::EDAnalyzer<edm::one::SharedResources>
 
   uint32_t detid_,crate_,slot_;
   Int_t event_,layer_,u_,v_,roc_,thick_,isSci_,isToT_,isSat_,crossCalo_,clustJetAlgo_,inShower_;
-  Float_t gpt_,geta_,gphi_,genergy_,gvradius_,gvz_,gvt_,gbeta_;
+  Float_t gpt_,geta_,gphi_,genergy_,gvradius_,gvz_,gvt_,gbeta_,gdradius_;
   uint32_t adc_, gain_, toa_;
   Float_t qsim_,qrec_,mipsim_,avgmipsim_,miprec_,avgmiprec_,cce_,eta_,radius_,z_, toarec_,toasim_;
   Int_t nhits_; //only for the rocTree

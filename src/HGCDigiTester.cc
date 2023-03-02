@@ -171,6 +171,7 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     tree_->Branch("isTOT",&isToT_,"isTOT/I");
     tree_->Branch("thick",&thick_,"thick/I");
     tree_->Branch("isSci",&isSci_,"isSci/I");
+    tree_->Branch("gdradius",&gdradius_,"gdradius/F");
     tree_->Branch("crossCalo",&crossCalo_,"crossCalo/I");
     tree_->Branch("inShower",&inShower_,"inShower/I");
   }
@@ -360,6 +361,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       }
 
       //Si-specific
+      float x(0.),y(0.);
       if(i<2) {
 
         //simulated charge
@@ -387,7 +389,9 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         radius_ = sqrt(std::pow(xy.first, 2) + std::pow(xy.second, 2));  //in cm
         zside=cellId.zside();
         z_ = zside*dddConst.waferZ(layer_,true);
-
+        x = xy.first;
+        y = xy.second;
+        
         // get tdcOnset from gain
         if (useTDCOnsetAuto_) {
           tdcOnset_fC_[i] = scal_[i]->getTDCOnsetAuto(gain);
@@ -423,6 +427,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
         //additional info
         layer_ = cellId.layer();
+        x      = global.x();
+        y      = global.y();
         z_     = global.z();
         zside  = cellId.zside();
         //zside  = (z_<0 ? -1 : 1);
@@ -457,7 +463,6 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
           slot_=it->slot;
         }
       }
-
       
       //MC truth
       genergy_  = photons[zside].energy();
@@ -470,6 +475,13 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       gbeta_    = 1./sqrt(1. + pow(photons[zside].mass()/photons[zside].P(), 2));
       crossCalo_ = crossCalo[zside];
 
+      //projected
+      float projRho = (z_-gvz_)/tanh(geta_);
+      float projX = projRho*cos(gphi_);
+      float projY = projRho*sin(gphi_);
+      gdradius_ = sqrt(pow(projX-x,2)+pow(projY-y,2));
+
+      
       //store hit
       if(!onlyROCTree_) tree_->Fill();
 
