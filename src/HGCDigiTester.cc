@@ -165,13 +165,18 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     tree_->Branch("avgmipsim",&avgmipsim_,"avgmipsim/F");
     tree_->Branch("cce",&cce_,"cce/F");
     tree_->Branch("eta",&eta_,"eta/F");
+    tree_->Branch("phi",&phi_,"phi/F");
     tree_->Branch("radius",&radius_,"radius/F");
     tree_->Branch("z",&z_,"z/F");
+    tree_->Branch("y",&y_,"y/F");
+    tree_->Branch("x",&x_,"x/F");
     tree_->Branch("isSat",&isSat_,"isSat/I");
     tree_->Branch("isTOT",&isToT_,"isTOT/I");
     tree_->Branch("thick",&thick_,"thick/I");
     tree_->Branch("isSci",&isSci_,"isSci/I");
     tree_->Branch("gdradius",&gdradius_,"gdradius/F");
+    tree_->Branch("gprojx",&gprojx_,"gprojx/F");
+    tree_->Branch("gprojy",&gprojy_,"gprojy/F");    
     tree_->Branch("crossCalo",&crossCalo_,"crossCalo/I");
     tree_->Branch("inShower",&inShower_,"inShower/I");
   }
@@ -349,6 +354,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       roc_=0;
       radius_=0;
       z_=0;
+      x_=0;
+      y_=0;
       int zside=0;
       crate_=0;
       slot_=0;
@@ -361,7 +368,6 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       }
 
       //Si-specific
-      float x(0.),y(0.);
       if(i<2) {
 
         //simulated charge
@@ -389,8 +395,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         radius_ = sqrt(std::pow(xy.first, 2) + std::pow(xy.second, 2));  //in cm
         zside=cellId.zside();
         z_ = zside*dddConst.waferZ(layer_,true);
-        x = xy.first;
-        y = xy.second;
+        x_ = xy.first;
+        y_ = xy.second;
         
         // get tdcOnset from gain
         if (useTDCOnsetAuto_) {
@@ -427,8 +433,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
         //additional info
         layer_ = cellId.layer();
-        x      = global.x();
-        y      = global.y();
+        x_     = global.x();
+        y_     = global.y();
         z_     = global.z();
         zside  = cellId.zside();
         //zside  = (z_<0 ? -1 : 1);
@@ -450,8 +456,10 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
       //additional info
       //eta_    = TMath::ATanH(z_/sqrt(radius_*radius_+z_*z_));
-      eta_    = atanh(z_/sqrt(radius_*radius_+z_*z_));
-
+      gvz_      = photonVertex[zside].z();
+      eta_    = atanh((z_-gvz_)/sqrt(radius_*radius_+z_*z_)); //correct for real vertex position
+      phi_ = TMath::ATan2(y_,x_);
+      
       //for CEH shift by CEE layers
       if(i>0) layer_+=28;
       if(!isSci_) {
@@ -476,10 +484,10 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       crossCalo_ = crossCalo[zside];
 
       //projected
-      float projRho = (z_-gvz_)/tanh(geta_);
-      float projX = projRho*cos(gphi_);
-      float projY = projRho*sin(gphi_);
-      gdradius_ = sqrt(pow(projX-x,2)+pow(projY-y,2));
+      float projRho = fabs((z_-gvz_)/sinh(geta_));
+      gprojx_ = projRho*cos(gphi_);
+      gprojy_ = projRho*sin(gphi_);
+      gdradius_ = sqrt(pow(gprojx_-x_,2)+pow(gprojy_-y_,2));
 
       
       //store hit
