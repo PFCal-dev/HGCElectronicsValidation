@@ -285,11 +285,11 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
   //read geometry components for HGCAL
   edm::ESHandle<CaloGeometry> geom = iSetup.getHandle(caloGeomToken_);
   const HGCalGeometry *geoCEE = static_cast<const HGCalGeometry*>(geom->getSubdetectorGeometry(DetId::HGCalEE, ForwardSubdetector::ForwardEmpty));
-  const HGCalTopology &topoCEE = geoCEE->topology();
-  const HGCalDDDConstants &dddConstCEE = topoCEE.dddConstants();
+  //const HGCalTopology &topoCEE = geoCEE->topology();
+  //const HGCalDDDConstants &dddConstCEE = topoCEE.dddConstants();
   const HGCalGeometry *geoCEH = static_cast<const HGCalGeometry*>(geom->getSubdetectorGeometry(DetId::HGCalHSi, ForwardSubdetector::ForwardEmpty));
-  const HGCalTopology &topoCEH = geoCEH->topology();
-  const HGCalDDDConstants &dddConstCEH = topoCEH.dddConstants();
+  //const HGCalTopology &topoCEH = geoCEH->topology();
+  //const HGCalDDDConstants &dddConstCEH = topoCEH.dddConstants();
   const HGCalGeometry *geoCEHSci = static_cast<const HGCalGeometry*>(geom->getSubdetectorGeometry(DetId::HGCalHSc, ForwardSubdetector::ForwardEmpty));
 
   //utility to map detid to ROC
@@ -389,15 +389,14 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
 
         //additional info
         layer_ = cellId.layer();
-        
-        const HGCalDDDConstants &dddConst(i==0 ? dddConstCEE : dddConstCEH);
-        const auto &xy(dddConst.locateCell(cellId,false)); //cellId.layer(), cellId.waferU(), cellId.waferV(), cellId.cellU(), cellId.cellV(), true, true));
-        radius_ = sqrt(std::pow(xy.first, 2) + std::pow(xy.second, 2));  //in cm
+
+        GlobalPoint global = geo->getPosition(cellId);
+        z_ = global.z();
+        x_ = global.x();
+        y_ = global.y();
+        radius_ = sqrt(std::pow(x_, 2) + std::pow(y_, 2));  //in cm
         zside=cellId.zside();
-        z_ = zside*dddConst.waferZ(layer_,true);
-        x_ = xy.first;
-        y_ = xy.second;
-        
+
         // get tdcOnset from gain
         if (useTDCOnsetAuto_) {
           tdcOnset_fC_[i] = scal_[i]->getTDCOnsetAuto(gain);
