@@ -13,7 +13,7 @@ if len(sys.argv)>1:
 
 rdf=ROOT.RDataFrame('ana/hits',url)
 rdf=rdf.Filter('crossCalo && gdradius<100 && isSci==0 && qsim>12')
-df=pd.DataFrame(rdf.AsNumpy(columns=['gdradius','z','gpt','layer','qsim']))
+df=pd.DataFrame(rdf.AsNumpy(columns=['gdradius','z','gpt','layer','qsim','cce']))
 
 fig,ax=plt.subplots(1,2,figsize=(12,6))
 for reg,mask in [
@@ -22,7 +22,7 @@ for reg,mask in [
         ('CE-Hcoarse',(np.abs(df['z'])>437.87))
 ]:
     if mask.sum()<100: continue
-    h,e=np.histogram(np.clip(df[mask]['gdradius'],0,20),np.linspace(0,20,100),weights=df[mask]['qsim'])
+    h,e=np.histogram(np.clip(df[mask]['gdradius'],0,20),np.linspace(0,20,100),weights=df[mask]['qsim']*df[mask]['cce'])
     h=h/h.sum()
     hep.histplot(h,e,label=reg,ax=ax[0])
     hep.histplot(np.cumsum(h),e,ax=ax[1])
