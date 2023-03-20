@@ -179,6 +179,7 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     tree_->Branch("gprojy",&gprojy_,"gprojy/F");    
     tree_->Branch("crossCalo",&crossCalo_,"crossCalo/I");
     tree_->Branch("inShower",&inShower_,"inShower/I");
+    tree_->Branch("matchedToLC",&matchedToLC_,"matchedToLC/I");
   }
 
   rocTree_ = fs->make<TTree>("rocs","rocs");
@@ -226,9 +227,28 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       crossCalo[idx] = std::abs(cp.pdgId()) != 11 ? cp.g4Tracks()[0].crossedBoundary() : 1;
     }
   }
+  
+  //read sim hits
+  //acumulate total energy deposited in each DetId
+  //save interesting DetIds
+  edm::Handle<edm::PCaloHitContainer> simHitsCEE,simHitsCEH,simHitsCEHSci;
+  iEvent.getByToken(simHitsCEE_,    simHitsCEE);
+  iEvent.getByToken(simHitsCEH_,    simHitsCEH);
+  iEvent.getByToken(simHitsCEHSci_, simHitsCEHSci);
+  std::map<uint32_t,bool> showerDetIds;
+  std::map<uint32_t,double> simE;
+  for(size_t i=0; i<3; i++) {
+    const std::vector<PCaloHit> &simHits((i==0 ? *simHitsCEE : (i==1 ? *simHitsCEH : *simHitsCEHSci)));
+    for(auto sh : simHits) {
+      //assign a reco-id
+      uint32_t key(sh.id());
+      if(simE.find(key)==simE.end()) simE[key]=0.;
+      simE[key]=simE[key]+sh.energy();
+      showerDetIds[key]=false;      
+    }
+  }    
 
   //read the layer clusters and build the pseudoparticles to cluster
-  std::set<uint32_t> showerDetIds;
   edm::Handle<std::vector<reco::CaloCluster>> clusterHandle;
   iEvent.getByToken(clusters_token_, clusterHandle);
   if(clusterHandle.isValid()) {
@@ -252,36 +272,21 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         const auto& ic = jconst.user_index();
         const auto& c = clusterHandle->at(ic);
         const auto& hf = c.hitsAndFractions();
-        for(auto hfp : hf)
-          showerDetIds.insert(hfp.first);
+        for(auto hfp : hf) {
+          if(showerDetIds.find(hfp.first)==showerDetIds.end()) continue;
+          showerDetIds[hfp.first]=true;
+        }
       }
     }
   }
 
-  //read sim hits
-  //acumulate total energy deposited in each DetId
-  edm::Handle<edm::PCaloHitContainer> simHitsCEE,simHitsCEH,simHitsCEHSci;
-  iEvent.getByToken(simHitsCEE_,    simHitsCEE);
-  iEvent.getByToken(simHitsCEH_,    simHitsCEH);
-  iEvent.getByToken(simHitsCEHSci_, simHitsCEHSci);
-
-  std::map<uint32_t,double> simE;
-  for(size_t i=0; i<3; i++) {
-    const std::vector<PCaloHit> &simHits((i==0 ? *simHitsCEE : (i==1 ? *simHitsCEH : *simHitsCEHSci)));
-    for(auto sh : simHits) {
-      //assign a reco-id
-      uint32_t key(sh.id());
-      if(simE.find(key)==simE.end()) simE[key]=0.;
-      simE[key]=simE[key]+sh.energy();
-    }
-  }    
 
   //read digis
   edm::Handle<HGCalDigiCollection> digisCEE,digisCEH,digisCEHSci;
   iEvent.getByToken(digisCEE_,digisCEE);
   iEvent.getByToken(digisCEH_,digisCEH);
   iEvent.getByToken(digisCEHSci_,digisCEHSci);
-
+    
   //read geometry components for HGCAL
   edm::ESHandle<CaloGeometry> geom = iSetup.getHandle(caloGeomToken_);
   const HGCalGeometry *geoCEE = static_cast<const HGCalGeometry*>(geom->getSubdetectorGeometry(DetId::HGCalEE, ForwardSubdetector::ForwardEmpty));
@@ -336,8 +341,9 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       toarec_=d.sample(itSample).getToAValid() ? ((toa_+0.5)*toaLSB_ns_[i] - tofDelay_[i]) : -999;
       toasim_=simToA.find(key)!=simToA.end() ? (simToA[key]/simTE[key] - tofDelay_[i]) : -999;
       isToT_=d.sample(itSample).mode();
-      inShower_=!showerDetIds.empty() ? showerDetIds.find(key)!=showerDetIds.end() : -1;
-
+      inShower_= !showerDetIds.empty() ? showerDetIds.find(key)!=showerDetIds.end() : -1;
+      matchedToLC_ = inShower_>0 ? (int)showerDetIds[key] : -1;
+      
       isSat_=false;
       //if(!isToT_ && adc>1020) isSat_=true; // never happens
       if(isToT_ && adc==4095) isSat_=true;
@@ -377,10 +383,9 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
         HGCSiliconDetId cellId(d.id());
         u_ = cellId.waferUV().first;
         v_ = cellId.waferUV().second;
-        roc_    = sid2roc.getROCNumber(cellId);
+        roc_ = sid2roc.getROCNumber(cellId);
       
-        HGCalSiNoiseMap<HGCSiliconDetId>::SiCellOpCharacteristics siop 
-          = scal_[i]->getSiCellOpCharacteristics(cellId);
+        HGCalSiNoiseMap<HGCSiliconDetId>::SiCellOpCharacteristics siop = scal_[i]->getSiCellOpCharacteristics(cellId);
         cce_       = siop.core.cce;
         thick_     = cellId.type();
         mipEqfC    = scal_[i]->getMipEqfC()[thick_];
