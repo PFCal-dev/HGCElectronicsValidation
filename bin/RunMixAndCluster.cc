@@ -227,7 +227,7 @@ int main(int argc, char** argv) {
   TFile *fIn=TFile::Open(effurl.c_str(),"READ");
   std::vector<TGraph2D *> eff_map(2),resol_map(2);
   for(size_t i=0; i<2; i++){
-    TString key(i==0 ? "em" : "had");
+    TString key(i==0 ? "had" : "em");
     eff_map[i]=(TGraph2D *)fIn->Get(Form("%s_%d_timetagwgt",key.Data(),toaThr))->Clone();
     eff_map[i]->SetDirectory(fout);
     resol_map[i]=(TGraph2D *)fIn->Get(Form("%s_%d_timeresolwgt",key.Data(),toaThr))->Clone();
