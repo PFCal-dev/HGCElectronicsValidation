@@ -158,7 +158,7 @@ JetConstituents_t fillJetConstituents(const PseudoJet &j,TString tag="",bool fil
 int main(int argc, char** argv) {
 
   //if passed at command line use new cfi
-  std::string url("UserCode/HGCElectronicsValidation/test/mixandcluster_cfi.py");
+  std::string url("UserCode/HGCElectronicsValidation/bin/mixandcluster_cfi.py");
   if (argc > 1) url = argv[1];
   url = edm::FileInPath(url).fullPath();
 
@@ -185,24 +185,28 @@ int main(int argc, char** argv) {
   TTree *tree = new TTree("data","data");
   UInt_t nPU,puMode;
   Int_t toaWgtCat,toaThrApplied;
-  Float_t GenJet_pt,GenJet_en, GenJet_eta;
-  Float_t PrunedGenJet_pt,PrunedGenJet_en, PrunedGenJet_eta;
-  Float_t Jet_pt,Jet_eta,Jet_en;
-  Float_t PuJet_en,PuJet_eta;
+  Float_t GenJet_pt,GenJet_en, GenJet_eta,GenJet_phi;
+  Float_t PrunedGenJet_pt,PrunedGenJet_en, PrunedGenJet_eta,PrunedGenJet_phi;
+  Float_t Jet_pt,Jet_eta,Jet_en,Jet_phi;
+  Float_t PuJet_en,PuJet_eta,PuJet_phi;
   Float_t PuJet_chf, PuJet_puchf, PuJet_nhf, PuJet_punhf, PuJet_emf, PuJet_puemf;
          
   tree->Branch("nPU",&nPU);
   tree->Branch("GenJet_pt",&GenJet_pt);
   tree->Branch("GenJet_en",&GenJet_en);
   tree->Branch("GenJet_eta",&GenJet_eta);
+  tree->Branch("GenJet_phi",&GenJet_phi);
   tree->Branch("PrunedGenJet_pt",&PrunedGenJet_pt);
   tree->Branch("PrunedGenJet_en",&PrunedGenJet_en);
   tree->Branch("PrunedGenJet_eta",&PrunedGenJet_eta);
+  tree->Branch("PrunedGenJet_phi",&PrunedGenJet_phi);
   tree->Branch("Jet_pt",&Jet_pt);
   tree->Branch("Jet_eta",&Jet_eta);
+  tree->Branch("Jet_phi",&Jet_phi);
   tree->Branch("Jet_en",&Jet_en);
   tree->Branch("PuJet_en",&PuJet_en);
   tree->Branch("PuJet_eta",&PuJet_eta);
+  tree->Branch("PuJet_phi",&PuJet_phi);
   tree->Branch("toaWgtCat",&toaWgtCat);
   tree->Branch("toaThr",&toaThrApplied);
   tree->Branch("puMode",&puMode);
@@ -379,15 +383,19 @@ int main(int argc, char** argv) {
 
           //fill tree variables
           GenJet_pt=sigGenJets[ij].pt();
+          GenJet_phi=sigGenJets[ij].phi();
           GenJet_en=sigGenJets[ij].e();
           GenJet_eta=sigGenJets[ij].eta();
           PrunedGenJet_pt=sigPrunedGenJets[prunedidx].pt();
           PrunedGenJet_en=sigPrunedGenJets[prunedidx].e();
           PrunedGenJet_eta=sigPrunedGenJets[prunedidx].eta();
+          PrunedGenJet_phi=sigPrunedGenJets[prunedidx].phi();
           Jet_pt=sigJets[scidx].pt();
           Jet_eta=sigJets[scidx].eta();
+          Jet_phi=sigJets[scidx].phi();
           Jet_en=sigJets[scidx].e();          
           PuJet_eta=sigpuJets[puidx].eta();
+          PuJet_phi=sigpuJets[puidx].phi();
           PuJet_en=sigpuJets[puidx].e();
           PuJet_chf=sigpujc.chf;
           PuJet_puchf=sigpujc.puchf;
