@@ -65,7 +65,11 @@ class HGCDigiTester : public edm::one::EDAnalyzer<edm::one::SharedResources>
   void endJob();
 
   typedef std::tuple<int, bool, int, int, int> rocKey_t; //not the Balboa, though...
-  typedef std::pair<int,float> rocSummary_t;        
+  struct rocSummary_t {
+    rocSummary_t() : nhits(0), nhitstoa(0), nhitstot(0), summiprec(0.), summipsim(0.) { }
+    int nhits,nhits24,nhitstoa,nhitstot;
+    float summiprec,summipsim;
+  };
   typedef std::map<const rocKey_t,rocSummary_t> rocDeposits_t;
 
  private:
@@ -94,7 +98,8 @@ class HGCDigiTester : public edm::one::EDAnalyzer<edm::one::SharedResources>
   Float_t gpt_,geta_,gphi_,genergy_,gvradius_,gvz_,gvt_,gbeta_,gdradius_,gprojx_,gprojy_;
   uint32_t adc_, gain_, toa_;
   Float_t qsim_,qrec_,mipsim_,avgmipsim_,miprec_,avgmiprec_,cce_,eta_,phi_,radius_,x_,y_,z_, toarec_,toasim_;
-  Int_t nhits_; //only for the rocTree
+  Float_t summiprec_,summipsim_; //only for the rocTree
+  Int_t nhits_,nhits24_,nhitstoa_,nhitstot_; //only for the rocTree
   Bool_t side_; //only for the rocTree
   TTree *tree_,*rocTree_;
     

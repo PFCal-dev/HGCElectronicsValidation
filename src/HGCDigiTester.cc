@@ -190,7 +190,11 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
   rocTree_->Branch("v",&v_,"v/I");
   rocTree_->Branch("roc",&roc_,"roc/I");
   rocTree_->Branch("nhits",&nhits_,"nhits/I");
-  rocTree_->Branch("miprec",&miprec_,"miprec/F");
+  rocTree_->Branch("nhitstoa",&nhitstoa_,"nhitstoa/I");
+  rocTree_->Branch("nhits24",&nhits24_,"nhits24/I");
+  rocTree_->Branch("nhitstot",&nhitstot_,"nhitstot/I");
+  rocTree_->Branch("summiprec",&summiprec_,"summiprec/F");
+  rocTree_->Branch("summipsim",&summipsim_,"summipsim/F");
 }
 
 //
@@ -337,8 +341,9 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       //read digi (in-time sample only)
       uint32_t adc(d.sample(itSample).data() );
       adc_=adc;
-      toa_=d.sample(itSample).getToAValid() ? d.sample(itSample).toa() : 0;
-      toarec_=d.sample(itSample).getToAValid() ? ((toa_+0.5)*toaLSB_ns_[i] - tofDelay_[i]) : -999;
+      bool hasValidToa(d.sample(itSample).getToAValid());
+      toa_= hasValidToa ? d.sample(itSample).toa() : 0;
+      toarec_= hasValidToa ? ((toa_+0.5)*toaLSB_ns_[i] - tofDelay_[i]) : -999;
       toasim_=simToA.find(key)!=simToA.end() ? (simToA[key]/simTE[key] - tofDelay_[i]) : -999;
       isToT_=d.sample(itSample).mode();
       inShower_= !showerDetIds.empty() ? showerDetIds.find(key)!=showerDetIds.end() : -1;
@@ -465,7 +470,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       phi_ = TMath::ATan2(y_,x_);
       
       //for CEH shift by CEE layers
-      if(i>0) layer_+=28;
+      if(i>0) layer_+=26;
       if(!isSci_) {
         ModuleToBE mod(layer_,u_,v_,0,0);
         auto it = std::find(module2be_map_.begin(),module2be_map_.end(),mod);       
@@ -500,9 +505,13 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       //increment energy for the ROC (Si only)
       if(i==2) continue;
       rocKey_t k(layer_,(z_>0),u_,v_,roc_);
-      if(rocs.find(k)==rocs.end()) rocs[k]=rocSummary_t(0.,0.);
-      rocs[k].first += 1;
-      rocs[k].second += miprec_/cce_;
+      if(rocs.find(k)==rocs.end()) rocs[k]=rocSummary_t();
+      rocs[k].nhits += 1;
+      rocs[k].nhits24 += (qsim_>24);
+      rocs[k].nhitstoa += hasValidToa;
+      rocs[k].nhitstot += isToT_;
+      rocs[k].summiprec += miprec_/cce_;
+      rocs[k].summipsim += mipsim_;
     }
   }
   
@@ -513,8 +522,12 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
     u_=std::get<2>(r.first) ;
     v_=std::get<3>(r.first) ;
     roc_=std::get<4>(r.first) ;
-    nhits_=r.second.first;
-    miprec_=r.second.second;
+    nhits_=r.second.nhits;
+    nhitstoa_=r.second.nhitstoa;
+    nhits24_=r.second.nhits24;
+    nhitstot_=r.second.nhitstot;
+    summiprec_=r.second.summiprec;
+    summipsim_=r.second.summipsim;
     rocTree_->Fill();
   }
 
