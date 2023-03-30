@@ -1,16 +1,11 @@
 import ROOT
 import pandas as pd
 import os
-import matplotlib
-matplotlib.use('Agg') 
-import matplotlib.pyplot as plt
-import mplhep as hep
-plt.style.use([hep.style.ROOT, hep.style.firamath])
 import numpy as np
 
 _files_dict={
-    'PR+@rovere':'23234.103_TTbar_14TeV+2026D49Aging3000+TTbar_14TeV_TuneCP5_GenSimHLBeamSpot14+DigiTrigger+RecoGlobal+HARVESTGlobal/step2.root',
-    'PR':'23234.103_TTbar_14TeV+2026D49Aging3000+TTbar_14TeV_TuneCP5_GenSimHLBeamSpot14+DigiTrigger+RecoGlobal+HARVESTGlobal.20Oct/step2.root'
+    '13_1_0_pre1':'23234.103_TTbar_14TeV+2026D94Aging3000_orig/step2.root',
+    '13_1_0_pre1+PR':'23234.103_TTbar_14TeV+2026D94Aging3000/step2.root'
 }
 
 
@@ -171,6 +166,13 @@ def compareDigisPerDetId(data,x,y,digiid,outname):
 
 def makeValidationPlots():
 
+    import matplotlib
+    matplotlib.use('Agg') 
+    import matplotlib.pyplot as plt
+    import mplhep as hep
+    plt.style.use([hep.style.ROOT, hep.style.firamath])
+
+    
     data={}
     for name,f in _files_dict.items():
         data[name]=pd.read_hdf(f.replace('.root','.h5'),key='digis')
@@ -178,7 +180,7 @@ def makeValidationPlots():
 
     for digiid in [0,1,2]:
         #compareADCSpectra(data,digiid,'adc')
-        compareDigisPerDetId(data,'PR','PR+@rovere',digiid,'adcperdetid')
+        compareDigisPerDetId(data,'13_1_0_pre1','13_1_0_pre1+PR',digiid,'adcperdetid')
 
 
 processSimulations(True)
