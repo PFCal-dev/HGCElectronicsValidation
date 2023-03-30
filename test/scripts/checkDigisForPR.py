@@ -1,11 +1,16 @@
 import ROOT
 import pandas as pd
 import os
+import matplotlib
+matplotlib.use('Agg') 
+import matplotlib.pyplot as plt
+import mplhep as hep
+plt.style.use([hep.style.ROOT, hep.style.firamath])
 import numpy as np
 
 _files_dict={
-    '13_1_0_pre1':'23234.103_TTbar_14TeV+2026D94Aging3000_orig/step2.root',
-    '13_1_0_pre1+PR':'23234.103_TTbar_14TeV+2026D94Aging3000/step2.root'
+    '13_1_0_pre1':'orig.root',
+    '13_1_0_pre1+PR':'pr.root',
 }
 
 
@@ -13,33 +18,16 @@ def getSiPMonTileDigis(url,itSample=2):
     
     """reads all the SiPM-on-tile digis"""
     
-    t=ROOT.TChain('Events')
-    t.AddFile(url)
-    
-
-    t.SetAlias('ceesi','DetIdHGCSampleHGCDataFramesSorted_simHGCalUnsuppressedDigis_EE_HLT.obj')
-    t.SetAlias('cehsi','DetIdHGCSampleHGCDataFramesSorted_simHGCalUnsuppressedDigis_HEfront_HLT.obj')
-    t.SetAlias('cehsipm','DetIdHGCSampleHGCDataFramesSorted_simHGCalUnsuppressedDigis_HEback_HLT.obj')
-
-    simhit_coll=[]
-    digi_coll=[]
-    print(url,'has',t.GetEntries(),'events')
-    for i in range(t.GetEntries()):
-        t.GetEntry(i)
-        iev=i+1
-
-        for idigi,digi in enumerate(['ceesi','cehsi','cehsipm']):
-
-            for d in getattr(t,digi):
-                detid=d.id().rawId()
-                adc=d.sample(itSample).data()
-                mode=d.sample(itSample).mode()
-                gain=d.sample(itSample).gain()
-                digi_coll.append( [iev,detid,idigi,adc,mode,gain] )
-
-
-    digis=pd.DataFrame(digi_coll,columns=['event','detid','digiid','ADC','mode','gain'])    
-
+    t=ROOT.RDataFrame('ana/hits',url)
+    digi_coll=t.AsNumpy( ['event','detid','adc','isTOT','isSat','gain','isSci','layer'] )
+    digis=pd.DataFrame(digi_coll)
+    n=digis.shape[0]
+    ceh=(digi_coll['layer']>26)
+    sci=(digi_coll['isSci']==True)
+    digis['digiid'] = np.where(ceh & sci, np.ones(n)*2,
+                               np.where(ceh, np.ones(n), np.zeros(n)))
+    digis=digis.rename(columns={'isTOT':'mode','adc':'ADC'})                              
+    print(digis.head().T)
     return digis 
 
 
@@ -118,6 +106,7 @@ def compareDigisPerDetId(data,x,y,digiid,outname):
     #merge and filter for true hits only
     df=data[x].merge(data[y],on=['event','detid','digiid'],how='inner',suffixes=('_x', '_y'))
     df=df[df['digiid']==digiid]
+    print(df.head().T)
 
     common_mode=(df['mode_x']==df['mode_y'])
     common_gain=(df['gain_x']==df['gain_y'])
@@ -166,20 +155,13 @@ def compareDigisPerDetId(data,x,y,digiid,outname):
 
 def makeValidationPlots():
 
-    import matplotlib
-    matplotlib.use('Agg') 
-    import matplotlib.pyplot as plt
-    import mplhep as hep
-    plt.style.use([hep.style.ROOT, hep.style.firamath])
-
-    
     data={}
     for name,f in _files_dict.items():
         data[name]=pd.read_hdf(f.replace('.root','.h5'),key='digis')
-
+    
 
     for digiid in [0,1,2]:
-        #compareADCSpectra(data,digiid,'adc')
+        #compareADCSpectra(data,data['digiid']==digiid,'adc')
         compareDigisPerDetId(data,'13_1_0_pre1','13_1_0_pre1+PR',digiid,'adcperdetid')
 
 
