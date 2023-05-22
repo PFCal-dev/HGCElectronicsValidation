@@ -5,8 +5,8 @@ These tools are used to debug the development on the main cmssw repository.
 On top of your current CMSSW work area do
 
 ```
-cmsrel CMSSW_13_1_0_pre3
-cd CMSSW_13_1_0_pre3/src/
+cmsrel CMSSW_13_1_0_pre4
+cd CMSSW_13_1_0_pre4/src/
 cmsenv
 
 #OPTIONAL (mostly if you need to do some development in the base code)
