@@ -9,3 +9,14 @@
   <use name="rivet"/>
 </bin>
 
+<bin file="RunMixAndClusterForPuppi.cc" name="RunMixAndClusterForPuppi">
+  <use name="fastjet"/>
+  <use name="FWCore/Utilities"/>
+  <use name="FWCore/FWLite"/>
+  <use name="FWCore/ParameterSet"/>
+  <use name="FWCore/ParameterSetReader"/>
+  <use name="CommonTools/UtilAlgos"/>
+  <use name="CLHEP"/>
+  <use name="rivet"/>
+</bin>
+
