@@ -37,9 +37,20 @@ int main(int argc, char** argv) {
   //
   TString foutName=Form("puppi_localshapes_%dPU.root",avgpu);
   TFile *fout=TFile::Open(foutName,"RECREATE");
-  std::map<int,TString> parts = { {211,"ch"}, {22,"em"}, {13,"mu"}, {130,"nh"} };
+  std::map<TString,int> parts = { {"ch",211}, {"em",22}, {"mu",13}, {"nh",130} };
+  std::map<int,TString> parts_inv;
   for(auto p : parts) {
-    histos[p.second+"_alphaF"] = new TH2F(p.second+"_alphaF",";#alpha^{F};Pseudo-rapidity;Particles",250,0,20,10,1.5,3.0);
+
+    //create the inverse map
+    TString pname(p.first);
+    int pfid(p.second);
+    parts_inv[pfid]=pname;
+
+    //create the histograms
+    histos[pname+"_alphaF"] = new TH2F(pname+"_alphaF",";#alpha^{F};Pseudo-rapidity;Particles",250,0,20,10,1.5,3.0);
+    histos[pname+"_alphapF"] = new TH2F(pname+"_alphapF",";#alpha^{F}';Pseudo-rapidity;Particles",250,0,20,10,1.5,3.0);
+    histos[pname+"_wF"] = new TH2F(pname+"_wF",";w^{F};Pseudo-rapidity;Particles",250,0,1,10,1.5,3.0);
+    histos[pname+"_wpF"] = new TH2F(pname+"_wpF",";w^{F}';Pseudo-rapidity;Particles",250,0,1,10,1.5,3.0);
   }
   fout->cd();
   
@@ -59,31 +70,41 @@ int main(int argc, char** argv) {
   maxevts = maxevts<0 ? npuEvts : maxevts;
   for(int i=0; i<maxevts; i++) {
 
+    //stores the properties of all the particles we'll look at in the event
+    std::vector<PseudoJetProperties> properties;
+    
     //get particles for a given pileup
     UInt_t nPU = UInt_t( CLHEP::RandPoisson::shoot(hre,avgpu) );
-    auto puParticles = getParticlesFrom(pu,0,nPU,true,"SimCluster");
+    auto puParticles = getParticlesFrom(pu,0,nPU,true,properties,"SimCluster");
     
-    if(i%50==0) std::cout << "At event #" << i << " with PU=" << nPU << " and " << puParticles.size() << " particles" << std::endl;
+    if(i%20==0) std::cout << "At event #" << i << " with PU=" << nPU << " and " << puParticles.size() << " particles (" << properties.size() << " properties)" << std::endl;
 
     //build R=jetR cones around each particle and compute the alpha
     for(size_t ij=0; ij<puParticles.size(); ij++) {
 
-      //puppi metric
-      float alpha(0.);
-      for(size_t jj=0; jj<puParticles.size(); jj++) {
-        if(jj==ij) continue;
-        float dRij(puParticles[ij].plain_distance(puParticles[jj]));
-        if(dRij>0.3 || dRij<0.02) continue;
-        alpha += puParticles[jj].e()/dRij;
-      }
+      int ij_idx=puParticles[ij].user_index();
+      int pfid=properties[ij_idx].pfid;      
+      TString t(parts_inv[pfid]);
+      float abseta(puParticles[ij].eta());
+      
+      //puppi metric (local shape)
+      float alpha=getLocalPuppiShape(ij,puParticles,properties,false);
+      float alphap=getLocalPuppiShape(ij,puParticles,properties,true);
 
       //fill the histogram (if alpha is reasonable)
       if(alpha>0) {
-        int pfid=abs(puParticles[ij].user_index());
-        float abseta(puParticles[ij].eta());
-        TString t(parts[pfid]);
         histos[t+"_alphaF"]->Fill(log(alpha),abseta);
       }
+      if(alphap>0) {
+        histos[t+"_alphapF"]->Fill(log(alphap),abseta);
+      }
+      
+      //puppi weight
+      float wgt=getPuppiWgt(alpha,pfid,abseta,false);
+      histos[t+"_wF"]->Fill(wgt,abseta);
+      float wgtp=getPuppiWgt(alphap,pfid,abseta,true);
+      histos[t+"_wpF"]->Fill(wgtp,abseta);
+      
     }
   }
   

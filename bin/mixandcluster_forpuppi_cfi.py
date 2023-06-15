@@ -10,5 +10,5 @@ print(file_list)
 mixandcluster = cms.PSet( 
     pu = cms.vstring(file_list),
     avgpu = cms.int32(140),
-    maxevts = cms.int32(9000)
+    maxevts = cms.int32(500)
 )
