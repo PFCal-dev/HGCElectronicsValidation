@@ -15,7 +15,7 @@ mixandcluster = cms.PSet(
     toaThr = cms.int32(12),
     avgpu = cms.int32(140),
     minevts = cms.int32(0),
-    maxevts = cms.int32(100),
+    maxevts = cms.int32(10),
     jetAlgo = cms.int32(2), #anti-kT=2
     jetR = cms.double(0.4),
     effurl = cms.string('UserCode/HGCElectronicsValidation/bin/timeeff_Aged.root')
