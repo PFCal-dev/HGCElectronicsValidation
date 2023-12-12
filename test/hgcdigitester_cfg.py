@@ -94,6 +94,8 @@ HGCal_setEndOfLifeNoise(process,byDoseAlgo=options.byDoseAlgo)
 process.HGCAL_noise_heback.pxFiringRate  = cms.double(options.pxFiringRate)
 process.hgchebackDigitizer.digiCfg.sipmMap = cms.string(options.sipmMap)
 
+from RecoLocalCalo.HGCalRecProducers.HGCalRecHit_cfi import *
+
 #analyzer
 process.ana = cms.EDAnalyzer("HGCDigiTester",
                              hgceeDigitizer=process.hgceeDigitizer,                             
@@ -102,6 +104,8 @@ process.ana = cms.EDAnalyzer("HGCDigiTester",
                              hgcee_fCPerMIP=process.HGCalRecHit.HGCEE_fCPerMIP,
                              hgceh_fCPerMIP=process.HGCalRecHit.HGCHEF_fCPerMIP,
                              hgcehsci_keV2DIGI=process.HGCalRecHit.HGCHEB_keV2DIGI,
+                             thickCorrections=process.HGCalRecHit.thicknessCorrection,
+                             layerWeights=process.HGCalRecHit.layerWeights,
                              useTDCOnsetAuto=cms.bool(options.useTDCOnsetAuto),
                              useVanillaCfg=cms.bool(options.useVanillaCfg),
                              hardProcOnly=cms.bool(options.hardProcOnly),
@@ -126,13 +130,6 @@ print('fcPerMIP or keV2DIGI')
 print(process.HGCalRecHit.HGCEE_fCPerMIP)
 print(process.HGCalRecHit.HGCHEF_fCPerMIP)
 print(process.HGCalRecHit.HGCHEB_keV2DIGI)
-#from RecoLocalCalo.HGCalRecProducers.HGCalRecHit_cfi import calcWeights,weightsPerLayer_V16
-#weights=calcWeights(weightsPerLayer_V16)
-#thickness_weights=[0.75, 0.76, 0.75, 0.85, 0.85, 0.84, 0.69]
-#print('thick corections')
-#print(process.HGCalRecHit.thicknessCorrection)
-#print('de/dx weights')
-#print(process.HGCalRecHit.layerWeights)
 print('*'*50)
 
 process.p = cms.Path(process.ana)

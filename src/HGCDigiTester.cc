@@ -55,6 +55,9 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
   hardProcOnly_=iConfig.getParameter<bool>("hardProcOnly");
   onlyROCTree_=iConfig.getParameter<bool>("onlyROCTree");
 
+  thickCorrections_=iConfig.getParameter<std::vector<double> >("thickCorrections");
+  layerWeights_=iConfig.getParameter<std::vector<double> >("layerWeights");
+  
   //configure noise map
   std::string digitizers[]={"hgceeDigitizer","hgcehDigitizer","hgcehsciDigitizer"};
   for(size_t i=0; i<3; i++) {
@@ -163,6 +166,8 @@ HGCDigiTester::HGCDigiTester( const edm::ParameterSet &iConfig )
     tree_->Branch("miprec",&miprec_,"miprec/F");
     tree_->Branch("avgmiprec",&avgmiprec_,"avgmiprec/F");
     tree_->Branch("avgmipsim",&avgmipsim_,"avgmipsim/F");
+    tree_->Branch("ensim",&ensim_,"ensim/F");
+    tree_->Branch("enrec",&enrec_,"enrec/F");
     tree_->Branch("cce",&cce_,"cce/F");
     tree_->Branch("eta",&eta_,"eta/F");
     tree_->Branch("phi",&phi_,"phi/F");
@@ -462,7 +467,7 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       mipsim_     = qsim_/mipEqfC;
       avgmiprec_  = qrec_/avgMipEqfC;
       avgmipsim_  = qsim_/avgMipEqfC;
-
+      
       //additional info
       //eta_    = TMath::ATanH(z_/sqrt(radius_*radius_+z_*z_));
       gvz_      = photonVertex[zside].z();
@@ -471,6 +476,8 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
       
       //for CEH shift by CEE layers
       if(i>0) layer_+=26;
+      int thickCorrIdx(thick_);
+      if(layer_>26) thickCorrIdx += 3;
       if(!isSci_) {
         ModuleToBE mod(layer_,u_,v_,0,0);
         auto it = std::find(module2be_map_.begin(),module2be_map_.end(),mod);       
@@ -479,8 +486,14 @@ void HGCDigiTester::analyze( const edm::Event &iEvent, const edm::EventSetup &iS
           if(zside>0) crate_+=10;
           slot_=it->slot;
         }
+      } else{
+        thickCorrIdx = 6;
       }
-      
+
+      //reconstructed energy
+      enrec_      = avgmiprec_*layerWeights_[layer_]/thickCorrections_[thickCorrIdx];
+      ensim_      = avgmipsim_*layerWeights_[layer_]/thickCorrections_[thickCorrIdx];
+
       //MC truth
       genergy_  = photons[zside].energy();
       gpt_      = photons[zside].pt();

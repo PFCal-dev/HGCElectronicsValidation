@@ -97,7 +97,7 @@ class HGCDigiTester : public edm::one::EDAnalyzer<edm::one::SharedResources>
   Int_t event_,layer_,u_,v_,roc_,thick_,isSci_,isToT_,isSat_,crossCalo_,clustJetAlgo_,inShower_,matchedToLC_;
   Float_t gpt_,geta_,gphi_,genergy_,gvradius_,gvz_,gvt_,gbeta_,gdradius_,gprojx_,gprojy_;
   uint32_t adc_, gain_, toa_;
-  Float_t qsim_,qrec_,mipsim_,avgmipsim_,miprec_,avgmiprec_,cce_,eta_,phi_,radius_,x_,y_,z_, toarec_,toasim_;
+  Float_t qsim_,qrec_,mipsim_,avgmipsim_,miprec_,avgmiprec_,ensim_,enrec_,cce_,eta_,phi_,radius_,x_,y_,z_, toarec_,toasim_;
   Float_t summiprec_,summipsim_; //only for the rocTree
   Int_t nhits_,nhits24_,nhitstoa_,nhitstot_; //only for the rocTree
   Bool_t side_; //only for the rocTree
@@ -106,6 +106,8 @@ class HGCDigiTester : public edm::one::EDAnalyzer<edm::one::SharedResources>
   bool hardProcOnly_;
   bool onlyROCTree_;
 
+  std::vector<double> thickCorrections_, layerWeights_;
+  
   std::vector<ModuleToBE> module2be_map_;
   edm::ESGetToken<CaloGeometry, CaloGeometryRecord> caloGeomToken_;
 };
