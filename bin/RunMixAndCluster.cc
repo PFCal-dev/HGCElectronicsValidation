@@ -1,24 +1,19 @@
 #include <iostream>
 #include <algorithm>
 
-#include "Rivet/Tools/ParticleIdUtils.hh"
+#include "UserCode/HGCElectronicsValidation/bin/RunMixAndClusterCommon.h"
+
+#include "fastjet/contrib/SoftKiller.hh"
 
 #include "FWCore/Utilities/interface/FileInPath.h"
 #include "FWCore/FWLite/interface/AutoLibraryLoader.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 #include "FWCore/ParameterSetReader/interface/ParameterSetReader.h"
 
-#include "fastjet/ClusterSequence.hh"
-
 #include "CLHEP/Random/JamesRandom.h"
 #include "CLHEP/Random/RandPoisson.h"
 
-#include "TRandom.h"
-#include "TMath.h"
-#include "TString.h"
-#include "TChain.h"
 #include "TFile.h"
-#include "Math/Vector4D.h"
 #include "TH2F.h"
 #include "TGraph2D.h"
 
@@ -26,76 +21,6 @@ using namespace std;
 using namespace fastjet;
 
 std::map<TString, TH1F *> histos;
-
-/**
-   @short reads the required entries from the chain and returns a vector of particles for clustering
- */
-std::vector<PseudoJet> getParticlesFrom(TChain *t,int ievt,int nevts,bool ispu, TString tag="GenPart") {
-
-  //atach variables to read from
-  UInt_t maxPseudoParticles(10000);
-  UInt_t nPseudoParticle;
-  Int_t PseudoParticle_pdgId[maxPseudoParticles], PseudoParticle_status[maxPseudoParticles];
-  Float_t PseudoParticle_eta[maxPseudoParticles], PseudoParticle_mass[maxPseudoParticles], PseudoParticle_phi[maxPseudoParticles], PseudoParticle_pt[maxPseudoParticles];
-  Bool_t PseudoParticle_crossedBoundary[maxPseudoParticles];
-  t->SetBranchAddress("n"+tag,&nPseudoParticle);
-  t->SetBranchAddress(tag+"_pdgId",PseudoParticle_pdgId);
-  bool requireStatus(tag.Contains("GenPart"));
-  if(requireStatus)
-    t->SetBranchAddress(tag+"_status",PseudoParticle_status);
-  t->SetBranchAddress(tag+"_pt",PseudoParticle_pt);
-  t->SetBranchAddress(tag+"_eta",PseudoParticle_eta);
-  t->SetBranchAddress(tag+"_phi",PseudoParticle_phi);
-  t->SetBranchAddress(tag+"_mass",PseudoParticle_mass);
-  bool requireCrossing(tag.Contains("SimClus"));
-  if(requireCrossing)
-    t->SetBranchAddress(tag+"_crossedBoundary",PseudoParticle_crossedBoundary);
-
-  std::vector<PseudoJet> pseudoParticles;
-
-  //loop over the required events
-  UInt_t ientries(t->GetEntries());
-  for(int i=ievt; i<ievt+nevts; i++){
-
-    int ientry(i);
-    if(ispu) ientry=gRandom->Integer(ientries-1);
-    t->GetEntry(ientry);
-    
-    //convert kinematics to pseudojets
-    for(UInt_t n=0; n<nPseudoParticle; n++) {
-
-      if(requireStatus && PseudoParticle_status[n]!=1) continue;
-      if(Rivet::PID::isNeutrino(PseudoParticle_pdgId[n])) continue;
-      if(requireCrossing && PseudoParticle_crossedBoundary[n]==false) continue;
-
-      ROOT::Math::PtEtaPhiMVector p4(PseudoParticle_pt[n],PseudoParticle_eta[n],PseudoParticle_phi[n],PseudoParticle_mass[n]);
-      auto ip = PseudoJet(p4.px(),p4.py(),p4.pz(),p4.energy());
-
-      //check nature of this particle
-      bool isHadron( Rivet::PID::isHadron(PseudoParticle_pdgId[n]) );
-      bool isCharged( Rivet::PID::isCharged(PseudoParticle_pdgId[n]) );
-      bool isMuon( Rivet::PID::isMuon(PseudoParticle_pdgId[n]) );
-      int pfid(0);
-      if(isMuon) pfid=13;
-      else {
-        if(isHadron) {
-          if(isCharged) pfid=211;
-          else pfid=130;
-        } else {
-          pfid=22;
-        }
-      }
-      
-      //identify as pileup or signal and type of particle (e/g, charged hadron, neutral hadron or muon)
-      ip.set_user_index(ispu ? -pfid : pfid);
-      pseudoParticles.push_back( ip );
-    }
-  }
-  
-
-  return pseudoParticles;
-}
-
 
 /**
    @fill jet constituents based on the energy fraction
@@ -109,7 +34,10 @@ struct JetConstituents_t {
   float nhf, chf, emf, muf;
   float punhf, puchf, puemf, pumuf;
 };
-JetConstituents_t fillJetConstituents(const PseudoJet &j,TString tag="",bool fillHistos=false) {
+JetConstituents_t fillJetConstituents(const PseudoJet &j,
+                                      std::vector<PseudoJetProperties> &properties,
+                                      TString tag="",
+                                      bool fillHistos=true) {
 
   float en(j.e());
   JetConstituents_t jc;
@@ -117,35 +45,45 @@ JetConstituents_t fillJetConstituents(const PseudoJet &j,TString tag="",bool fil
 
     float cen(c.e());
     float cenf(cen/en);
-    int pfid=c.user_index();
-
+    int idx=c.user_index();
+    int pfid=properties[idx].pfid;
+    bool ispu=properties[idx].ispu;
+    
     //compute the time tagging weights
-
-    if(pfid==22)   {
-      jc.emf += cenf;
-      if(fillHistos) histos[tag+"emf_en"]->Fill(cen);
-    }
-    else if(pfid==-22)  {
-      jc.puemf += cenf;
-      if(fillHistos) histos[tag+"puemf_en"]->Fill(cen);
+    
+    if(pfid==22) {
+      if(!ispu) {
+        jc.emf += cenf;
+        if(fillHistos) histos[tag+"emf_en"]->Fill(cen);
+      }
+      else {
+        jc.puemf += cenf;
+        if(fillHistos) histos[tag+"puemf_en"]->Fill(cen);
+      }
     }
     else if(pfid==130)  {
-      jc.nhf+= cenf;
-      if(fillHistos) histos[tag+"nhf_en"]->Fill(cen);
+      if(!ispu) {
+        jc.nhf+= cenf;
+        if(fillHistos) histos[tag+"nhf_en"]->Fill(cen);
+      }
+      else {
+        jc.punhf += cenf;
+        if(fillHistos) histos[tag+"punhf_en"]->Fill(cen);
+      }
     }
-    else if(pfid==-130) {
-      jc.punhf += cenf;
-      if(fillHistos) histos[tag+"punhf_en"]->Fill(cen);
+    else if(pfid==13) {
+      if(!ispu) jc.muf+= cenf;
+      else      jc.pumuf += cenf;
     }
-    else if(pfid==13)   jc.muf+= cenf;
-    else if(pfid==-13)  jc.pumuf += cenf;
     else if(pfid==211)  {
-      jc.chf+= cenf;
-      if(fillHistos) histos[tag+"chf_en"]->Fill(cen);
-    }
-    else if(pfid==-211) {
-      jc.puchf += cenf;
-      if(fillHistos) histos[tag+"puchf_en"]->Fill(cen);
+      if(!ispu) {
+        jc.chf+= cenf;
+        if(fillHistos) histos[tag+"chf_en"]->Fill(cen);
+      }
+      else {
+        jc.puchf += cenf;
+        if(fillHistos) histos[tag+"puchf_en"]->Fill(cen);
+      }
     }
     else 
       std::cout << "PFid = " << pfid << " ?? " << std::endl;
@@ -155,10 +93,11 @@ JetConstituents_t fillJetConstituents(const PseudoJet &j,TString tag="",bool fil
 };
 
 
+//
 int main(int argc, char** argv) {
 
   //if passed at command line use new cfi
-  std::string url("UserCode/HGCElectronicsValidation/bin/mixandcluster_cfi.py");
+  std::string url("UserCode/HGCElectronicsValidation/bin/mixandcluster_12fC_cfi.py");
   if (argc > 1) url = argv[1];
   url = edm::FileInPath(url).fullPath();
 
@@ -170,6 +109,7 @@ int main(int argc, char** argv) {
   bool neutonly  = cfg.exists("neutonly") ? cfg.getParameter<bool>("neutonly") : false;
   Int_t toaThr = cfg.getParameter<int>("toaThr");
   int avgpu = cfg.getParameter<int>("avgpu");
+  int minevts = cfg.getParameter<int>("minevts");
   int maxevts = cfg.getParameter<int>("maxevts");
   std::string effurl=cfg.getParameter<std::string>("effurl");
   effurl = edm::FileInPath(effurl).fullPath();
@@ -182,48 +122,54 @@ int main(int argc, char** argv) {
   TString foutName=Form("jets_ak%d_vbfhgg_%dfC.root",int(jetR*10),toaThr);
   if(neutonly) foutName=foutName.ReplaceAll(".root","_neutonly.root");
   TFile *fout=TFile::Open(foutName,"RECREATE");
-  TTree *tree = new TTree("data","data");
-  UInt_t nPU,puMode;
-  Int_t toaWgtCat,toaThrApplied;
-  Float_t GenJet_pt,GenJet_en, GenJet_eta,GenJet_phi;
-  Float_t PrunedGenJet_pt,PrunedGenJet_en, PrunedGenJet_eta,PrunedGenJet_phi;
-  Float_t Jet_pt,Jet_eta,Jet_en,Jet_phi;
-  Float_t PuJet_en,PuJet_eta,PuJet_phi;
-  Float_t PuJet_chf, PuJet_puchf, PuJet_nhf, PuJet_punhf, PuJet_emf, PuJet_puemf;
-         
-  tree->Branch("nPU",&nPU);
-  tree->Branch("GenJet_pt",&GenJet_pt);
-  tree->Branch("GenJet_en",&GenJet_en);
-  tree->Branch("GenJet_eta",&GenJet_eta);
-  tree->Branch("GenJet_phi",&GenJet_phi);
-  tree->Branch("PrunedGenJet_pt",&PrunedGenJet_pt);
-  tree->Branch("PrunedGenJet_en",&PrunedGenJet_en);
-  tree->Branch("PrunedGenJet_eta",&PrunedGenJet_eta);
-  tree->Branch("PrunedGenJet_phi",&PrunedGenJet_phi);
-  tree->Branch("Jet_pt",&Jet_pt);
-  tree->Branch("Jet_eta",&Jet_eta);
-  tree->Branch("Jet_phi",&Jet_phi);
-  tree->Branch("Jet_en",&Jet_en);
-  tree->Branch("PuJet_en",&PuJet_en);
-  tree->Branch("PuJet_eta",&PuJet_eta);
-  tree->Branch("PuJet_phi",&PuJet_phi);
-  tree->Branch("toaWgtCat",&toaWgtCat);
-  tree->Branch("toaThr",&toaThrApplied);
-  tree->Branch("puMode",&puMode);
-  tree->Branch("PuJet_chf",&PuJet_chf);
-  tree->Branch("PuJet_puchf",&PuJet_puchf);
-  tree->Branch("PuJet_nhf",&PuJet_nhf);
-  tree->Branch("PuJet_punhf",&PuJet_punhf);
-  tree->Branch("PuJet_emf",&PuJet_emf);
-  tree->Branch("PuJet_puemf",&PuJet_puemf);
+  TTree *tree = new TTree("Events","Events");  
+  UInt_t nPU,nGenJet;
+  Double_t sk_thr;
+  Float_t GenJet_pt[2],GenJet_eta[2],GenJet_phi[2],GenJet_en[2];
+  Float_t NoPuJet_pt[2],NoPuJet_eta[2],NoPuJet_phi[2],NoPuJet_en[2];
+  Float_t PuJet_pt[2],PuJet_eta[2],PuJet_phi[2],PuJet_en[2];
+  Float_t Jet_pt[2],Jet_eta[2],Jet_phi[2],Jet_en[2];
+  Float_t NeutralTimeTagJet_pt[2],NeutralTimeTagJet_eta[2],NeutralTimeTagJet_phi[2],NeutralTimeTagJet_en[2];
+  Float_t FullTimeTagJet_pt[2],FullTimeTagJet_eta[2],FullTimeTagJet_phi[2],FullTimeTagJet_en[2];
   
+  tree->Branch("nPU",&nPU,"nPU/I");
+  tree->Branch("toaThr",&toaThr,"toaThr/I");
+  tree->Branch("sk_thr",&sk_thr,"sk_thr/D");
+  tree->Branch("nGenJet",&nGenJet,"nGenJet/I");
+  tree->Branch("GenJet_pt",GenJet_pt,"GenJet_pt[nGenJet]/F");
+  tree->Branch("GenJet_eta",GenJet_eta,"GenJet_eta[nGenJet]/F");
+  tree->Branch("GenJet_phi",GenJet_phi,"GenJet_phi[nGenJet]/F");
+  tree->Branch("GenJet_en",GenJet_en,"GenJet_en[nGenJet]/F");
+  tree->Branch("NoPuJet_pt",NoPuJet_pt,"NoPuJet_pt[nGenJet]/F");
+  tree->Branch("NoPuJet_eta",NoPuJet_eta,"NoPuJet_eta[nGenJet]/F");
+  tree->Branch("NoPuJet_phi",NoPuJet_phi,"NoPuJet_phi[nGenJet]/F");
+  tree->Branch("NoPuJet_en",NoPuJet_en,"NoPuJet_en[nGenJet]/F");
+  tree->Branch("PuJet_pt",PuJet_pt,"PuJet_pt[nGenJet]/F");
+  tree->Branch("PuJet_eta",PuJet_eta,"PuJet_eta[nGenJet]/F");
+  tree->Branch("PuJet_phi",PuJet_phi,"PuJet_phi[nGenJet]/F");
+  tree->Branch("PuJet_en",PuJet_en,"PuJet_en[nGenJet]/F");
+  tree->Branch("Jet_pt",Jet_pt,"Jet_pt[nGenJet]/F");
+  tree->Branch("Jet_eta",Jet_eta,"Jet_eta[nGenJet]/F");
+  tree->Branch("Jet_phi",Jet_phi,"Jet_phi[nGenJet]/F");
+  tree->Branch("Jet_en",Jet_en,"Jet_en[nGenJet]/F");
+  tree->Branch("NeutralTimeTagJet_pt",NeutralTimeTagJet_pt,"NeutralTimeTagJet_pt[nGenJet]/F");
+  tree->Branch("NeutralTimeTagJet_eta",NeutralTimeTagJet_eta,"NeutralTimeTagJet_eta[nGenJet]/F");
+  tree->Branch("NeutralTimeTagJet_phi",NeutralTimeTagJet_phi,"NeutralTimeTagJet_phi[nGenJet]/F");
+  tree->Branch("NeutralTimeTagJet_en",NeutralTimeTagJet_en,"NeutralTimeTagJet_en[nGenJet]/F");
+  tree->Branch("FullTimeTagJet_pt",FullTimeTagJet_pt,"FullTimeTagJet_pt[nGenJet]/F");
+  tree->Branch("FullTimeTagJet_eta",FullTimeTagJet_eta,"FullTimeTagJet_eta[nGenJet]/F");
+  tree->Branch("FullTimeTagJet_phi",FullTimeTagJet_phi,"FullTimeTagJet_phi[nGenJet]/F");
+  tree->Branch("FullTimeTagJet_en",FullTimeTagJet_en,"FullTimeTagJet_en[nGenJet]/F");
+
+  //control histograms for the energy of the constituents
   TString parts[]={"chf","puchf","nhf","punhf","emf","puemf"};
+  TString algos[]={"nopu","pu","sk","ntt_sk","fulltt_sk"};
   for(size_t i=0; i<sizeof(parts)/sizeof(TString); i++) {
-    for(Int_t ithr=-1; ithr<2; ithr++) {
-      TString tag(Form("pu%d_",ithr));
-      float maxx(50);
-      if(parts[i].Contains("emf")) maxx=25;
-      histos[tag+parts[i]+"_en"] = new TH1F(tag+parts[i]+"_en",";Energy [GeV]; Particles",100,0,maxx);
+    float xmax(50);
+    if(parts[i].Contains("emf")) xmax=25;
+    for(size_t j=0; j<sizeof(algos)/sizeof(TString); j++) {
+      TString name(algos[j]+parts[i]+"_en");
+      histos[name] = new TH1F(name,";Energy [GeV]; Particles",100,0,xmax);
     }
   }
 
@@ -231,7 +177,7 @@ int main(int argc, char** argv) {
   TFile *fIn=TFile::Open(effurl.c_str(),"READ");
   std::vector<TGraph2D *> eff_map(2),resol_map(2);
   for(size_t i=0; i<2; i++){
-    TString key(i==0 ? "had" : "em");
+    TString key(i==0 ? "pdg130" : "pdg22");
     eff_map[i]=(TGraph2D *)fIn->Get(Form("%s_%d_timetagwgt",key.Data(),toaThr))->Clone();
     eff_map[i]->SetDirectory(fout);
     resol_map[i]=(TGraph2D *)fIn->Get(Form("%s_%d_timeresolwgt",key.Data(),toaThr))->Clone();
@@ -259,164 +205,188 @@ int main(int argc, char** argv) {
   //random number generator
   CLHEP::HepJamesRandom *hre = new CLHEP::HepJamesRandom();
   hre->setSeed(0);
-  
-  maxevts = maxevts<0 || maxevts>nsigEvts ? nsigEvts : maxevts;
-  for(int i=0; i<maxevts; i++) {
 
+  minevts = minevts<0 ? 0 : minevts;
+  maxevts = maxevts<0 || maxevts>nsigEvts ? nsigEvts : maxevts;
+  for(int i=minevts; i<maxevts; i++) {
+    
     nPU = UInt_t( CLHEP::RandPoisson::shoot(hre,avgpu) );
 
-    //pure signal from gen particles
-    auto sigParticles = getParticlesFrom(sig,i,1,false);
+    //
+    // MC TRUTH GEN JETS
+    //
+    std::vector<PseudoJetProperties> gen_properties;
+    auto sigParticles = getParticlesFrom(sig,i,1,false,gen_properties);
     ClusterSequence sigCS(sigParticles, jet_def);
-    const auto sigGenJets = sorted_by_pt(sigCS.inclusive_jets());
-
-    //purse signal weighted by timetag probability
-    std::vector<PseudoJet> sel_sigParticles;
-    for(size_t ipart=0; ipart<sigParticles.size(); ipart++) {
-      PseudoJet c(sigParticles[ipart]);
-      int pfid=c.user_index();
-      float en(c.e()),abseta(fabs(c.eta()));
-
-      if(neutonly && abs(pfid)!=130 && abs(pfid)!=22) continue;
-      if(en<1000 && abseta>=1.5 && abseta<=3.0){
-        std::pair<int,int> map_key(abs(pfid)==22,0);
-        c*=eff_map[abs(pfid)==22]->Interpolate(en,abseta);
-      }
-      sel_sigParticles.push_back(c);
-    }
-    ClusterSequence sigPrunedCS(sel_sigParticles, jet_def);
-    const auto sigPrunedGenJets = sorted_by_pt(sigPrunedCS.inclusive_jets());
+    Selector sel_vbfjets = SelectorPtMin(30.) * SelectorAbsRapMax(3.0) * SelectorAbsRapMin(1.5);
+    const auto sigGenJets = sel_vbfjets(sigCS.inclusive_jets());
     
-    //pure signal from sim clusters crossing HCAL boundary
-    auto sigSimClusters = getParticlesFrom(sig,i,1,false,"SimCluster");
+    //
+    // JETS FROM SIMCLUSTERS CROSSING HGCAL BOUNDARY
+    //
+
+    //no pileup case
+    std::vector<PseudoJetProperties> properties;
+    auto sigSimClusters = getParticlesFrom(sig,i,1,false,properties,"SimCluster");
     ClusterSequence sigsimCS(sigSimClusters, jet_def);
     const auto sigJets = sorted_by_pt(sigsimCS.inclusive_jets());
+    float t0=properties[sigSimClusters.at(0).user_index()].gvt;
     
-    //pileup
-    auto puParticles = getParticlesFrom(pu,0,nPU,true,"SimCluster");
-
-    //pileup+signal under different time-tagging hypothesis
-    //puMode=0 all particles
-    //puMode=1 only neutrals
-    //puMode=2 only neutral hadrons
-    auto sigpuParticles(puParticles);
-    sigpuParticles.insert(sigpuParticles.end(), sigParticles.begin(), sigParticles.end());
-    for(puMode=0; puMode<3; puMode++) {
-      
-      for(Int_t ithr=-1; ithr<2; ithr++) {
-
-        toaWgtCat=(ithr==-1 ? -1: (ithr==0 ? 0 : 1));
-        toaThrApplied=(ithr==-1? -1 : toaThr);
+    //pileup+signal case
+    auto puSimClusters = getParticlesFrom(pu,0,nPU,true,properties,"SimCluster");
+    auto sigpuSimClusters(puSimClusters);
+    sigpuSimClusters.insert(sigpuSimClusters.end(), sigSimClusters.begin(), sigSimClusters.end());
+    ClusterSequence sigpuCS(sigpuSimClusters, jet_def);
+    const auto sigpuJets = sorted_by_pt(sigpuCS.inclusive_jets());
         
-        std::vector<PseudoJet> sel_sigpuParticles;
-        for(size_t ipart=0; ipart<sigpuParticles.size(); ipart++) {
-          
-          PseudoJet c(sigpuParticles[ipart]);
-          int pfid=c.user_index();
-          float en(c.e()),abseta(fabs(c.eta()));
-          float timeTagWgt(1.0),resolWgt(1.0);
-          if(ithr>=0 && en<1000 && abseta>=1.5 && abseta<=3.0){
-            timeTagWgt=eff_map[abs(pfid)==22]->Interpolate(en,abseta);
-            resolWgt=resol_map[abs(pfid)==22]->Interpolate(en,abseta);
-          }
-          float wgt(1.0);
-          if(ithr==0) wgt=timeTagWgt;
-          else if(ithr>0) wgt=resolWgt*timeTagWgt;
-          if(neutonly && abs(pfid)!=130 && abs(pfid)!=22) wgt=1.0;
+    //Soft Killer algorithm
+    contrib::SoftKiller soft_killer(3.0,0.4);
+    vector<PseudoJet> sk_sigpuSimClusters;
+    soft_killer.apply(sigpuSimClusters, sk_sigpuSimClusters, sk_thr);
+    ClusterSequence sk_sigpuCS(sk_sigpuSimClusters,jet_def);
+    const auto sk_sigpuJets = sk_sigpuCS.inclusive_jets();
 
-          //we assume that with some magic (e.g. leading hadron, shower time distribution)
-          //the reference signal toa is known          
-          if(ithr>=0) {
-            if(wgt<0.5) wgt=0; //minimal combined efficiency required
-            else if(pfid<0) wgt=1-wgt; //emulate subtraction of pileup
-          }
+    //check numbers add up at this point
+    assert(sigpuSimClusters.size()==properties.size());
+    assert(sigSimClusters.size()+puSimClusters.size()==sigpuSimClusters.size());
+
+    std::vector<PseudoJet> ntt_sk_sigpuSimClusters;
+    std::vector<PseudoJet> fulltt_sk_sigpuSimClusters;
+    for(size_t ipart=0; ipart<sk_sigpuSimClusters.size(); ipart++) {
           
-          if(puMode==0) c *= wgt; //weight all 
-          if(puMode==1) {
-            if(abs(pfid)==22 || abs(pfid)==130) c*=wgt; //weight neutrals
-            else if(pfid<0) c *= 0.; //charged pileup is magically subtracted
-          }
-          if(puMode==2) {
-            if(abs(pfid)==130) c*=wgt; //weight neutral hadrons
-            else if(pfid<0) c*=0;      //other pileup is magically subtracted
-          }
-          sel_sigpuParticles.push_back(c);
-        }
+      PseudoJet c(sk_sigpuSimClusters[ipart]);
+      int ipart_idx=c.user_index();
+      int pfid=properties[ipart_idx].pfid;
+      bool ispu=properties[ipart_idx].ispu;
+      float p_t0=properties[ipart_idx].gvt;
+      bool vtxTimeWithinTimeResol( fabs(p_t0-t0)<0.09 );
         
-        //run clustering
-        ClusterSequence sigpuCS(sel_sigpuParticles, jet_def);
-        const auto sigpuJets = sorted_by_pt(sigpuCS.inclusive_jets());
-        
-        //select up to two signal jets and pair with the closest pileup jet
-        int nSelJets(0);
-        for(size_t ij=0; ij<sigGenJets.size(); ij++) {
-          
-          //select
-          if(sigGenJets[ij].pt()<30) continue;
-          if(fabs(sigGenJets[ij].eta())>3) continue;
-          if(fabs(sigGenJets[ij].eta())<1.5) continue;
-          if(sigGenJets[ij].constituents().size()<3) continue;
-          nSelJets+=1;
-          if(nSelJets>1) break;
-          
-          //find closest pruned jet
-          auto ijpruned = min_element(begin(sigPrunedGenJets), end(sigPrunedGenJets), [=] (PseudoJet x, PseudoJet y)
-          {
-            return sigGenJets[ij].plain_distance(x) < sigGenJets[ij].plain_distance(y);
-          });
-          auto prunedidx = std::distance(begin(sigPrunedGenJets),ijpruned);
-                                         
-          //find sim cluster jet closest in eta-phi space
-          auto ijsc = min_element(begin(sigJets), end(sigJets), [=] (PseudoJet x, PseudoJet y)
-          {
-            return sigGenJets[ij].plain_distance(x) < sigGenJets[ij].plain_distance(y);
-          });
-          auto scidx = std::distance(begin(sigJets),ijsc);
+      float en(c.e()),abseta(fabs(c.eta())),pt(c.pt());
+      float timeTagWgt(1.0),resolWgt(1.0);
+      if(en<1000 && abseta>=1.5 && abseta<=3.0){
+        timeTagWgt=eff_map[pfid==22]->Interpolate(en,abseta);
+        resolWgt=resol_map[pfid==22]->Interpolate(en,abseta);
+      }
 
-          //find pileup closest in eta-phi space
-          auto ijpu = min_element(begin(sigpuJets), end(sigpuJets), [=] (PseudoJet x, PseudoJet y)
-          {
-            return sigJets[scidx].plain_distance(x) < sigJets[scidx].plain_distance(y);
-          });
-          auto puidx = std::distance(begin(sigpuJets),ijpu);
-          JetConstituents_t sigpujc = fillJetConstituents(sigpuJets[puidx],Form("pu%d_",ithr),puMode==0);
+      //std::cout << pfid << " " << ispu << " "
+      //          << en << " " 
+      //          << vtxTimeWithinTimeResol
+      //         << " " << timeTagWgt << " " << resolWgt << std::endl;
 
-          //fill tree variables
-          GenJet_pt=sigGenJets[ij].pt();
-          GenJet_phi=sigGenJets[ij].phi();
-          GenJet_en=sigGenJets[ij].e();
-          GenJet_eta=sigGenJets[ij].eta();
-          PrunedGenJet_pt=sigPrunedGenJets[prunedidx].pt();
-          PrunedGenJet_en=sigPrunedGenJets[prunedidx].e();
-          PrunedGenJet_eta=sigPrunedGenJets[prunedidx].eta();
-          PrunedGenJet_phi=sigPrunedGenJets[prunedidx].phi();
-          Jet_pt=sigJets[scidx].pt();
-          Jet_eta=sigJets[scidx].eta();
-          Jet_phi=sigJets[scidx].phi();
-          Jet_en=sigJets[scidx].e();          
-          PuJet_eta=sigpuJets[puidx].eta();
-          PuJet_phi=sigpuJets[puidx].phi();
-          PuJet_en=sigpuJets[puidx].e();
-          PuJet_chf=sigpujc.chf;
-          PuJet_puchf=sigpujc.puchf;
-          PuJet_nhf=sigpujc.nhf;
-          PuJet_punhf=sigpujc.punhf;
-          PuJet_emf=sigpujc.emf;
-          PuJet_puemf=sigpujc.puemf;
-          tree->Fill();          
-        }
-
-        //debug
-        if(i%10==0 && puMode==0 && ithr==0) 
-          {
-            std::cout << "Event: " << i << " pu=" << nPU 
-                      << " signal/pu particles: " << sigParticles.size() << "/" << puParticles.size()
-                      << " signal/signal+pu jets: " << sigJets.size() << "/" << sigpuJets.size() << std::endl;
-          }
-        
+      //neutral time tagging
+      if(pfid==130 || pfid==22) {
+        float ntt_wgt(resolWgt*timeTagWgt);
+        if(!vtxTimeWithinTimeResol) ntt_wgt*=0.;
+        c*=ntt_wgt;
+        ntt_sk_sigpuSimClusters.push_back(c);
+        fulltt_sk_sigpuSimClusters.push_back(c);
+      }
+      //charged time tagging
+      else {
+        ntt_sk_sigpuSimClusters.push_back(c);
+        float chtt_wgt( (pt<0.7 || (pt>0.7 && vtxTimeWithinTimeResol)) ? 1. : 0. );
+        c*=chtt_wgt;
+        fulltt_sk_sigpuSimClusters.push_back(c);
       }
     }
+    ClusterSequence ntt_sk_sigpuCS(ntt_sk_sigpuSimClusters,jet_def);
+    const auto ntt_sk_sigpuJets = ntt_sk_sigpuCS.inclusive_jets();
+    ClusterSequence fulltt_sk_sigpuCS(fulltt_sk_sigpuSimClusters,jet_def);
+    const auto fulltt_sk_sigpuJets = fulltt_sk_sigpuCS.inclusive_jets();       
 
+    //fill tree variables for jets matching the gen jets
+    nGenJet=0;
+    for(size_t ij=0; ij<sigGenJets.size(); ij++) {
+      
+      //select further based on number of constituents (kinematics were applied before with fastjet::selectors)
+      if(sigGenJets[ij].constituents().size()<3) continue;
+      if(nGenJet>1) break;
+ 
+      GenJet_pt[nGenJet]=sigGenJets[ij].pt();
+      GenJet_phi[nGenJet]=sigGenJets[ij].phi();
+      GenJet_en[nGenJet]=sigGenJets[ij].e();
+      GenJet_eta[nGenJet]=sigGenJets[ij].eta();
+
+      //matched sim cluster level jet (PU=0)
+      auto ijsigjets = min_element(begin(sigJets), end(sigJets), [=] (PseudoJet x, PseudoJet y)
+      {
+        return sigGenJets[ij].plain_distance(x) < sigGenJets[ij].plain_distance(y);
+      });
+      auto sigjetidx = std::distance(begin(sigJets),ijsigjets);
+      NoPuJet_pt[nGenJet]=sigJets[sigjetidx].pt();
+      NoPuJet_eta[nGenJet]=sigJets[sigjetidx].eta();
+      NoPuJet_phi[nGenJet]=sigJets[sigjetidx].phi();
+      NoPuJet_en[nGenJet]=sigJets[sigjetidx].e();          
+      fillJetConstituents(sigJets[sigjetidx],properties,"nopu");
+          
+      //matched sim cluster level jet (PU!=0)
+      auto ijsigpujets = min_element(begin(sigpuJets), end(sigpuJets), [=] (PseudoJet x, PseudoJet y)
+      {
+        return sigGenJets[ij].plain_distance(x) < sigGenJets[ij].plain_distance(y);
+      });
+      auto sigpujetidx = std::distance(begin(sigpuJets),ijsigpujets);
+      PuJet_pt[nGenJet]=sigpuJets[sigpujetidx].pt();
+      PuJet_eta[nGenJet]=sigpuJets[sigpujetidx].eta();
+      PuJet_phi[nGenJet]=sigpuJets[sigpujetidx].phi();
+      PuJet_en[nGenJet]=sigpuJets[sigpujetidx].e();
+      fillJetConstituents(sigpuJets[sigpujetidx],properties,"pu");
+
+      //matched sim cluster after soft killer (PU!=0)
+      auto ijsk_sigpujets = min_element(begin(sk_sigpuJets), end(sk_sigpuJets), [=] (PseudoJet x, PseudoJet y)
+      {
+        return sigGenJets[ij].plain_distance(x) < sigGenJets[ij].plain_distance(y);
+      });
+      auto sk_sigpujetidx = std::distance(begin(sk_sigpuJets),ijsk_sigpujets);
+      Jet_pt[nGenJet]=sk_sigpuJets[sk_sigpujetidx].pt();
+      Jet_eta[nGenJet]=sk_sigpuJets[sk_sigpujetidx].eta();
+      Jet_phi[nGenJet]=sk_sigpuJets[sk_sigpujetidx].phi();
+      Jet_en[nGenJet]=sk_sigpuJets[sk_sigpujetidx].e();
+      fillJetConstituents(sk_sigpuJets[sk_sigpujetidx],properties,"sk");
+
+      //matched sim cluster after soft killer + neutrals time tag (PU!=0)
+      auto ijntt_sk_sigpujets = min_element(begin(ntt_sk_sigpuJets), end(ntt_sk_sigpuJets), [=] (PseudoJet x, PseudoJet y)
+      {
+        return sigGenJets[ij].plain_distance(x) < sigGenJets[ij].plain_distance(y);
+      });
+      auto ntt_sk_sigpujetidx = std::distance(begin(ntt_sk_sigpuJets),ijntt_sk_sigpujets);
+      NeutralTimeTagJet_pt[nGenJet]=ntt_sk_sigpuJets[ntt_sk_sigpujetidx].pt();
+      NeutralTimeTagJet_eta[nGenJet]=ntt_sk_sigpuJets[ntt_sk_sigpujetidx].eta();
+      NeutralTimeTagJet_phi[nGenJet]=ntt_sk_sigpuJets[ntt_sk_sigpujetidx].phi();
+      NeutralTimeTagJet_en[nGenJet]=ntt_sk_sigpuJets[ntt_sk_sigpujetidx].e();
+      fillJetConstituents(ntt_sk_sigpuJets[ntt_sk_sigpujetidx],properties,"ntt_sk");
+
+      //matched sim cluster after soft killer + full time tag (PU!=0)
+      auto ijfulltt_sk_sigpujets = min_element(begin(fulltt_sk_sigpuJets), end(fulltt_sk_sigpuJets), [=] (PseudoJet x, PseudoJet y)
+      {
+        return sigGenJets[ij].plain_distance(x) < sigGenJets[ij].plain_distance(y);
+      });
+      auto fulltt_sk_sigpujetidx = std::distance(begin(fulltt_sk_sigpuJets),ijfulltt_sk_sigpujets);
+      FullTimeTagJet_pt[nGenJet]=fulltt_sk_sigpuJets[fulltt_sk_sigpujetidx].pt();
+      FullTimeTagJet_eta[nGenJet]=fulltt_sk_sigpuJets[fulltt_sk_sigpujetidx].eta();
+      FullTimeTagJet_phi[nGenJet]=fulltt_sk_sigpuJets[fulltt_sk_sigpujetidx].phi();
+      FullTimeTagJet_en[nGenJet]=fulltt_sk_sigpuJets[fulltt_sk_sigpujetidx].e();
+      fillJetConstituents(fulltt_sk_sigpuJets[fulltt_sk_sigpujetidx],properties,"fulltt_sk");
+
+      std::cout << nGenJet+1 << ") "
+                << GenJet_pt[nGenJet] << " " << GenJet_eta[nGenJet] << " | "
+                << NoPuJet_pt[nGenJet] << " " << NoPuJet_eta[nGenJet] << " | "
+                << PuJet_pt[nGenJet] << " " << PuJet_eta[nGenJet] << " | "
+                << Jet_pt[nGenJet] << " " << Jet_eta[nGenJet] << " | "
+                << NeutralTimeTagJet_pt[nGenJet] << " " << NeutralTimeTagJet_eta[nGenJet] << " | "
+                << FullTimeTagJet_pt[nGenJet] << " " << FullTimeTagJet_eta[nGenJet] << std::endl;
+
+      nGenJet+=1;
+    }
+    
+    tree->Fill();
+  
+    //debug
+    if(i%10==0)  {
+      std::cout << "Event: " << i << " pu=" << nPU 
+                << " signal/pu/soft kill: " << sigJets.size() << "/" << sigpuJets.size() << "/" << sk_sigpuJets.size() 
+                << " soft kill threshold was: " << sk_thr << "GeV" << std::endl;
+    }
+    
   }
 
   //save TTree
@@ -426,3 +396,49 @@ int main(int argc, char** argv) {
 
   return 0;
 }
+
+
+/*
+attic
+
+    // histos[parts[i]+"_alphaF"] = new TH1F(parts[i]+"_alphaF",";#alpha^{F};Particles",250,0,20);
+    // histos[parts[i]+"_alphapF"] = new TH1F(parts[i]+"_alphapF",";#alpha^{F}';Particles",250,0,20);
+    // histos[parts[i]+"_wF"] = new TH1F(parts[i]+"_wF",";PUPPI Weight^{F};Particles",250,0,1);
+    // histos[parts[i]+"_wpF"] = new TH1F(parts[i]+"_wpF",";PUPPI Weight^{F}';Particles",250,0,1);
+
+
+//before clustering the jets we compute PUPPI weights
+    std::vector<float> puppiWgts(sigpuSimClusters.size(),0),puppiWgtsp(sigpuSimClusters.size(),0);
+    for(size_t ij=0; ij<sigpuSimClusters.size(); ij++) {
+
+      //local shape : inclusive and same ID versions
+      float alpha=getLocalPuppiShape(ij,sigpuSimClusters,properties,false);
+      float alphap=getLocalPuppiShape(ij,sigpuSimClusters,properties,true);
+
+      //compute puppi weights
+      size_t ij_idx=sigpuSimClusters[ij].user_index();
+      if(ij_idx>properties.size()) {
+        std::cout << ij_idx << " " << ij << " " << properties.size() << std::endl;
+        continue;
+      }
+      int pfid=properties[ij_idx].pfid;
+      bool ispu=properties[ij_idx].ispu;
+      float abseta(sigpuSimClusters[ij].eta());
+      puppiWgts[ij]=getPuppiWgt(alpha,pfid,abseta,false);
+      puppiWgtsp[ij]=getPuppiWgt(alphap,pfid,abseta,true);
+
+      //fill some control histograms for the weights
+      if(abs(pfid)==13) continue;
+
+      TString part("chf");
+      if(pfid==130) part="nhf";
+      if(pfid==22) part="emf";
+      if(ispu) part="pu"+part;
+      histos[part+"_alphaF"]->Fill(alpha);
+      histos[part+"_wF"]->Fill(puppiWgts[ij]);
+      histos[part+"_alphapF"]->Fill(alphap);
+      histos[part+"_wpF"]->Fill(puppiWgtsp[ij]);
+    }
+
+
+*/
