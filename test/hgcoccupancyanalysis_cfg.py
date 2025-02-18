@@ -6,7 +6,7 @@ process = cms.Process("ANALYSIS")
 from FWCore.ParameterSet.VarParsing import VarParsing
 options = VarParsing ('standard')
 options.register('input', 
-                 '/eos/cms/store/cmst3/group/hgcal/CMG_studies/Production/ttbar_D49_1120pre1_PU200_eolupdate_ter_20200713/GSD/',
+                 '/eos/cms/store/group/dpg_hgcal/comm_hgcal/Production/TTbar_TuneCP5_14TeV-pythia8_PU200_aged_CMSSW_14_1_0_pre1_Extended2026D99',
                  VarParsing.multiplicity.singleton, 
                  VarParsing.varType.string, 
                  "input directory")
@@ -31,7 +31,7 @@ options.register('fold',
                  VarParsing.varType.bool,
                  "fold wafers histos x6/x3 for EE/HE")
 options.register('geometry', 
-                 'Extended2026D49', 
+                 'Extended2026D99', 
                  VarParsing.multiplicity.singleton, 
                  VarParsing.varType.string, 
                  'geometry to use')

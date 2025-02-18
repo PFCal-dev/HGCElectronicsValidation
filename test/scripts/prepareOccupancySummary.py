@@ -18,11 +18,11 @@ DATACOLS=['counts',     'countslzs',     'countsmzs',    'countstzs',
           'busycounts']
 GEOMCOLS=['waferX','waferY','waferShape','waferRot','rho','phi','waferThickness']
 
-def parseWaferGeometry(geomFile='data/geomnew_corrected_withmult_F_rotations_v11.1.txt'):
+def parseWaferGeometry(geomFile : str):
 
     """reads the ascii geometry file and converts it to a DataFrame with the geometry information"""
 
-    df = pd.read_csv(geomFile, names=['layer','waferShape','waferThickness','waferX','waferY','waferRot','waferU','waferV'],skiprows=11,delim_whitespace=True)
+    df = pd.read_csv(geomFile, names=['layer','waferShape','waferThickness','waferX','waferY','waferRot','waferU','waferV','icassette'],skiprows=47,sep='\s+')
     df=df[['layer','waferThickness','waferU','waferV','waferX','waferY','waferShape','waferRot']]
     df['rho']=np.sqrt(df['waferX']**2+df['waferY']**2)
     df['phi']=np.arctan2(df['waferY'],df['waferX'])*180./np.pi;
@@ -35,19 +35,19 @@ def fixExtremities(h,addOverflow=True,addUnderflow=True,norm=True):
 
     if addUnderflow :
         fbin  = h.GetBinContent(0) + h.GetBinContent(1)
-	fbine = ROOT.TMath.Sqrt(h.GetBinError(0)*h.GetBinError(0) + h.GetBinError(1)*h.GetBinError(1))
-	h.SetBinContent(1,fbin)
-	h.SetBinError(1,fbine)
-	h.SetBinContent(0,0)
-	h.SetBinError(0,0)
+        fbine = ROOT.TMath.Sqrt(h.GetBinError(0)*h.GetBinError(0) + h.GetBinError(1)*h.GetBinError(1))
+        h.SetBinContent(1,fbin)
+        h.SetBinError(1,fbine)
+        h.SetBinContent(0,0)
+        h.SetBinError(0,0)
     if addOverflow:
         nbins = h.GetNbinsX();
-	fbin  = h.GetBinContent(nbins) + h.GetBinContent(nbins+1)
-	fbine = ROOT.TMath.Sqrt(h.GetBinError(nbins)*h.GetBinError(nbins)  + h.GetBinError(nbins+1)*h.GetBinError(nbins+1))
-	h.SetBinContent(nbins,fbin)
-	h.SetBinError(nbins,fbine)
-	h.SetBinContent(nbins+1,0)
-	h.SetBinError(nbins+1,0)
+        fbin  = h.GetBinContent(nbins) + h.GetBinContent(nbins+1)
+        fbine = ROOT.TMath.Sqrt(h.GetBinError(nbins)*h.GetBinError(nbins)  + h.GetBinError(nbins+1)*h.GetBinError(nbins+1))
+        h.SetBinContent(nbins,fbin)
+        h.SetBinError(nbins,fbine)
+        h.SetBinContent(nbins+1,0)
+        h.SetBinError(nbins+1,0)
     if norm :
         n=h.Integral()
         if n>0:
@@ -141,9 +141,10 @@ def analyzeOccupancyPlots(url,modulePos,siop,dirName='ana'):
 def main():
 
     #get the sensor position map/wafer geometry etc
-    cmssw=os.environ['CMSSW_BASE']
-    modulePos = parseWaferGeometry(geomFile='%s/src/UserCode/HGCElectronicsValidation/data/geomnew_corrected.txt'%cmssw)
-
+    cmssw = os.environ['CMSSW_BASE']
+    modulePos = parseWaferGeometry(geomFile='%s/src/UserCode/HGCElectronicsValidation/data/modmapv16.6_cmssw_flatfile.txt'%cmssw)
+    print(modulePos.head())
+    
     url=sys.argv[1]
 
     #si-operation summary
@@ -167,23 +168,23 @@ def main():
             columns +=[c]
     result=pd.DataFrame(data=np.array(occData), columns=columns)
     for c in columns:
-        if c!='waferShape':
+        if not c in ['waferShape','waferThickness']:
             result[c]=pd.to_numeric(result[c])
 
     result.rename(columns={'waferPreChoice':'waferPreChoiceCMSSW',
                            'waferThickness':'waferPreChoice'},
                   inplace=True)
 
-    result.replace({'waferPreChoice':{120:0,200:1,300:2}},
-                   inplace=True)
+    #result.replace({'waferPreChoice':{120:0,200:1,300:2}},
+    #               inplace=True)
 
     result.to_hdf(url.replace('.root','.h5'), 
                   key='data', 
                   mode='w')
 
-    print 'Summary with shape',result.shape
-    print 'and columns',result.columns
-    print result.head()
+    print('Summary with shape',result.shape)
+    print('and columns',result.columns)
+    print(result.head())
     print(result.dtypes)
 
 if __name__ == "__main__":
